@@ -13,7 +13,7 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled rejection:', event.reason);
 });
 
-console.log('TreeChat App starting...');
+console.log('TreeAI app starting...');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

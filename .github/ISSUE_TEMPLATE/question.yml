@@ -1,0 +1,37 @@
+name: Setup or usage question
+description: Ask a focused question after checking the support guide.
+title: "[Question] "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, Authorization headers, private conversation text, or sensitive screenshots.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: Include sanitized commands, browser/provider details, and the relevant support section.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read SUPPORT.md and the README compatibility section.
+          required: true
+        - label: I removed credentials and private data.
+          required: true

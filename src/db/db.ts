@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Session, Model, ChatNode } from '../types';
+import { Session, Model } from '../types';
 
 class TreeChatDatabase extends Dexie {
   sessions!: Table<Session, string>;

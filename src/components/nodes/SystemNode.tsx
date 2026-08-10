@@ -1,22 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Handle, Position } from 'reactflow';
-import { Plus, Settings, Trash2 } from 'lucide-react';
+import { Handle, Position, NodeProps } from 'reactflow';
+import { Plus, Settings } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { gsap } from 'gsap';
+import { NodeData } from '../../types';
 
-interface SystemNodeProps {
-  id: string;
-  data: any;
-}
-
-const SystemNode: React.FC<SystemNodeProps> = ({ id, data }) => {
-  const { node, onEdit, onAddChild, onDelete, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
+const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
+  const { node, onEdit, onAddChild, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
   const [isEditing, setIsEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(node.userMessage || '');
   
   const { models } = useModelStore();
-  const model = models.find(m => m.id === node.modelId);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

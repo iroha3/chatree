@@ -14,7 +14,11 @@ interface ModelState {
   deleteModel: (id: string) => void;
 }
 
-export const useModelStore = create<ModelState>((set, get) => ({
+const getErrorMessage = (error: unknown): string => (
+  error instanceof Error ? error.message : 'Unknown error'
+);
+
+export const useModelStore = create<ModelState>((set) => ({
   models: [],
   defaultModelId: null,
   
@@ -42,8 +46,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
         };
       });
       showSuccess('模型创建成功');
-    } catch (error: any) {
-      showError('模型创建失败:' + error.message);
+    } catch (error: unknown) {
+      showError('模型创建失败:' + getErrorMessage(error));
       console.error('Failed to create model:', error);
     }
   },
@@ -57,8 +61,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
         )
       }));
       showSuccess('模型更新成功');
-    } catch (error: any) {
-      showError('模型更新失败：' + error.message);
+    } catch (error: unknown) {
+      showError('模型更新失败：' + getErrorMessage(error));
       console.error('Failed to update model:', error);
     }
   },
@@ -78,8 +82,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
         };
       });
       showInfo('模型已删除');
-    } catch (error: any) {
-      showError('模型删除失败:' + error.message);
+    } catch (error: unknown) {
+      showError('模型删除失败:' + getErrorMessage(error));
       console.error('Failed to delete model:', error);
     }
   }

@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
 import { 
   Search, Plus, Settings, Trash2, Edit, X, ChevronLeft,
-  MessageSquare, Library, Home, MoreHorizontal
+  MessageSquare, Library, MoreHorizontal
 } from 'lucide-react';
 import { gsap } from 'gsap';
-import { showSuccess, showWarning, showError, showInfo } from '../utils/notification';
+import { showSuccess, showWarning, showInfo } from '../utils/notification';
 
 interface SidebarProps {
   onModelManagerClick: () => void;
@@ -101,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onModelManagerClick, collapsed, onTog
       </button>
 
       <div className="px-5 py-4 border-b border-neutral-100">
-        <h1 className="text-lg font-medium gradient-text">TreeChat</h1>
+        <h1 className="text-lg font-medium gradient-text">TreeAI</h1>
       </div>
 
       <div className="px-4 py-3">

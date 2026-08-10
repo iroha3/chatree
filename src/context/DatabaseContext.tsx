@@ -39,6 +39,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useDatabaseContext = () => {
   const context = useContext(DatabaseContext);
   if (!context) {

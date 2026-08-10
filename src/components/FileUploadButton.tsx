@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { FileUp, X, Check } from 'lucide-react';
 import { extractTextFromFiles } from '../utils/fileUtils';
 import { FileExtractResult } from '../types';
-import { showSuccess, showInfo, showWarning, showError } from '../utils/notification';
+import { showSuccess, showError } from '../utils/notification';
 
 interface FileUploadButtonProps {
   onUploadComplete: (text: string) => void;
@@ -19,8 +19,6 @@ const FileUploadButton: React.FC<FileUploadButtonProps> = ({ onUploadComplete, c
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
       'text/markdown': ['.md'],
     },
@@ -48,9 +46,10 @@ const FileUploadButton: React.FC<FileUploadButtonProps> = ({ onUploadComplete, c
           setIsUploading(false);
         }, 1500);
         showSuccess('文件已上传');
-      } catch (err: any) {
-        setError(err.message || 'Failed to extract text from files');
-        showError('文件上传失败：' + err.message);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to extract text from files';
+        setError(message);
+        showError('文件上传失败：' + message);
         setIsUploading(false);
       }
     },
@@ -117,7 +116,7 @@ const FileUploadButton: React.FC<FileUploadButtonProps> = ({ onUploadComplete, c
                       拖拽文件到此处，或点击选择文件
                     </p>
                     <p className="mt-1 text-xs text-neutral-500">
-                      支持 PDF, DOCX, TXT, MD 文件格式
+                      支持 TXT 和 MD 文件格式
                     </p>
                   </>
                 )}

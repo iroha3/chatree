@@ -41,6 +41,7 @@ export interface Position {
 
 export interface NodeData {
   node: ChatNode;
+  streamingResponse?: string | null;
   onAddChild: (parentId: string) => void;
   onEdit: (nodeId: string, content: string, type: 'user' | 'assistant' | 'system') => void;
   onDelete: (nodeId: string) => void;

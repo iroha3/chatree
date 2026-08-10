@@ -12,7 +12,7 @@ export function exportToMindmap(session: Session): void {
     const mindMapTree = buildMindMapTree(session);
     
     // Convert to a format suitable for export (e.g., FreeMind, XMind, etc.)
-    const xmlContent = convertToFreeMindXML(mindMapTree, session.title);
+    const xmlContent = convertToFreeMindXML(mindMapTree);
     
     // Create a downloadable file
     const blob = new Blob([xmlContent], { type: 'application/xml' });
@@ -106,12 +106,12 @@ function buildMindMapTree(session: Session): MindMapNode {
   return rootNode;
 }
 
-function convertToFreeMindXML(root: MindMapNode, title: string): string {
+function convertToFreeMindXML(root: MindMapNode): string {
   const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>';
   const mapStart = '<map version="1.0.1">';
   const mapEnd = '</map>';
 
-  const buildNodeXML = (node: MindMapNode, isRoot: boolean = false): string => {
+  const buildNodeXML = (node: MindMapNode): string => {
     const nodeStart = `<node ID="${node.id}" TEXT="${escapeXml(node.text)}" CREATED="${Date.now()}" MODIFIED="${Date.now()}">`;
 
     let content = nodeStart;
@@ -126,7 +126,7 @@ function convertToFreeMindXML(root: MindMapNode, title: string): string {
     return content;
   };
 
-  const xml = `${xmlHeader}\n${mapStart}\n${buildNodeXML(root, true)}\n${mapEnd}`;
+  const xml = `${xmlHeader}\n${mapStart}\n${buildNodeXML(root)}\n${mapEnd}`;
   return xml;
 }
 
@@ -137,9 +137,4 @@ function escapeXml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
 }

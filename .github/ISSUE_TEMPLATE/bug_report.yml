@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible problem in TreeAI.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve TreeAI. Remove API keys, Authorization headers, private conversations, and sensitive screenshots before submitting.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Conversation canvas or layout
+        - Chat node editing or streaming
+        - Model configuration or API compatibility
+        - Session persistence or browser storage
+        - TXT / Markdown import
+        - FreeMind export
+        - Documentation or setup
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include operating system, browser version, and Node.js version if running locally.
+      placeholder: macOS 15, Chrome 140, Node.js 20.19
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      description: Name the provider and model only. Never include the API key.
+      placeholder: OpenAI-compatible provider, model-name
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Configure ...
+        2. Create ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove credentials, request headers, private conversation content, and unrelated personal data.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and pull requests for the same problem.
+          required: true
+        - label: I removed credentials and private data from everything included above.
+          required: true
+        - label: I reviewed the compatibility and support documentation.
+          required: true
