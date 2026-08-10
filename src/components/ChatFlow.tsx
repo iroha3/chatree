@@ -14,13 +14,12 @@ import SystemNode from './nodes/SystemNode';
 import ChatNode from './nodes/ChatNode';
 import { useSessionStore } from '../stores/sessionStore';
 import { useModelStore } from '../stores/modelStore';
-import { ChatNode as ChatNodeType, Session } from '../types';
-import { sendChatRequest, abortRequest } from '../services/apiService';
-import { Share2, UploadCloud, LayoutGrid, FileUp } from 'lucide-react';
+import { ChatNode as ChatNodeType } from '../types';
+import { sendChatRequest } from '../services/apiService';
+import { Share2, LayoutGrid, FileUp } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
-import { gsap } from 'gsap';
 import FileUploadButton from './FileUploadButton';
-import { showSuccess, showInfo, showWarning, showError } from '../utils/notification';
+import { showSuccess, showError } from '../utils/notification';
 
 const nodeTypes = {
   system: SystemNode,
@@ -32,17 +31,14 @@ interface ChatFlowProps {
 }
 
 const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
-  const { sessions, updateSession, addNodeToSession, updateNodeInSession, deleteNodeFromSession } = useSessionStore();
+  const { sessions, addNodeToSession, updateNodeInSession, deleteNodeFromSession } = useSessionStore();
   const { models, defaultModelId } = useModelStore();
   const session = sessions.find(s => s.id === sessionId);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const reactFlowInstance = useReactFlow();
   const abortControllerRef = useRef<Record<string, AbortController>>({});
-  const prevNodeCountRef = useRef<number>(0);
-  const [nodeDimensions, setNodeDimensions] = useState<Record<string, { width: number, height: number }>>({});
-  const [autoLayout, setAutoLayout] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
+  const [nodeDimensions] = useState<Record<string, { width: number, height: number }>>({});
   const [streamingResponses, setStreamingResponses] = useState<Record<string, string>>({});
 
   const calculateNodeLayout = useCallback((forceRecalculate = false) => {
@@ -108,8 +104,6 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
       calculateSubtreeWidth(systemNode.id);
     }
   
-    const levelHeights = new Map<number, number>();
-    
     const calculateNodePosition = (nodeId: string, startX: number, level: number, startY: number) => {
       const nodeDim = getNodeDimensions(nodeId);
       const width = subtreeWidths.get(nodeId) || nodeDim.width;
@@ -191,10 +185,12 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
       reactFlowInstance.fitView({ padding: 0.2 });
     }, 50);
   
+  // The handlers below intentionally read the latest session state from this render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, nodeDimensions, streamingResponses, sessionId, updateNodeInSession]);  
 
 
-  const handleAddChildNode = async (parentId: string) => {
+  const handleAddChildNode = (parentId: string) => {
     if (!session || !defaultModelId) return;
     
     const parentNode = session.nodes.find(n => n.id === parentId);
@@ -232,7 +228,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
     addNodeToSession(sessionId, newNode);
   };
 
-  const handleEditNode = (nodeId: string, content: string, type: 'user' | 'assistant' | 'system', isInputting = false) => {
+  const handleEditNode = (nodeId: string, content: string, type: 'user' | 'assistant' | 'system') => {
     if (!session) return;
     
     const node = session.nodes.find(n => n.id === nodeId);
@@ -353,13 +349,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
         return newState;
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Chat request failed:', error);
+      const message = error instanceof Error ? error.message : 'Failed to get response';
       
       updateNodeInSession(sessionId, {
         ...node,
         isStreaming: false,
-        error: error.message || 'Failed to get response'
+        error: message
       });
       
       // 清除流式状态
@@ -414,8 +411,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
     try {
       exportToMindmap(session);
       showSuccess('导出成功');
-    } catch (error: any) {
-      showError('导出失败:' + error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      showError('导出失败:' + message);
     }
   };
 
@@ -507,6 +505,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId }) => {
     setNodes(reactFlowNodes);
     setEdges(reactFlowEdges);
 
+  // Keep node callbacks bound to the current render without rebuilding this effect recursively.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.nodes, sessionId, streamingResponses]); // 添加 sessionId 到依赖数组
   
 

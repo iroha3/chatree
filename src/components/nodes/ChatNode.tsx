@@ -1,25 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, NodeProps } from 'reactflow';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
-import { Plus, Send, RefreshCcw, Copy, Settings, Trash2, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { Plus, Send, RefreshCcw, Copy, Settings, Trash2, MessageSquare } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { gsap } from 'gsap';
 import { showSuccess, showInfo, showWarning } from '../../utils/notification';
+import { NodeData } from '../../types';
 
-interface ChatNodeProps {
-  id: string;
-  data: any;
-}
-
-const ChatNode: React.FC<ChatNodeProps> = ({ id, data }) => {
+const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, streamingResponse, onEdit, onAddChild, onDelete, onRetry, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
   const [isEditingUser, setIsEditingUser] = useState(!node.userMessage);
   const [showSettings, setShowSettings] = useState(false);
   
   const { models } = useModelStore();
-  const model = models.find(m => m.id === node.modelId);
   
   const userInputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);

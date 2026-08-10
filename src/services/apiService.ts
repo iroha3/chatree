@@ -1,4 +1,4 @@
-import { Model, ModelResponse } from '../types';
+import { Model } from '../types';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -14,12 +14,8 @@ interface ChatRequestOptions {
   onChunk: (chunk: string) => void;
 }
 
-const activeAbortControllers = new Map<string, AbortController>();
-
 export async function sendChatRequest(options: ChatRequestOptions): Promise<void> {
   const { messages, model, temperature, maxTokens, signal, onChunk } = options;
-  
-  const requestId = crypto.randomUUID();
   
   try {
     const isOpenAI = model.baseUrl.includes('openai.com');
@@ -93,26 +89,16 @@ export async function sendChatRequest(options: ChatRequestOptions): Promise<void
             if (content) {
               onChunk(content);
             }
-          } catch (e) {
+          } catch {
             console.warn('Failed to parse SSE data:', data);
           }
         }
       }
     }
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('Request was cancelled');
     }
     throw error;
-  } finally {
-    activeAbortControllers.delete(requestId);
-  }
-}
-
-export function abortRequest(requestId: string): void {
-  const controller = activeAbortControllers.get(requestId);
-  if (controller) {
-    controller.abort();
-    activeAbortControllers.delete(requestId);
   }
 }
