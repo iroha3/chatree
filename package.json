@@ -3,18 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.1.0"
   },
   "description": "Chatree — a local-first visual workspace for branching, comparing, and exporting LLM conversation trees.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Anionex/treeAI.git"
+    "url": "git+https://github.com/iroha3/chatree.git"
   },
+  "homepage": "https://github.com/iroha3/chatree#readme",
   "bugs": {
-    "url": "https://github.com/Anionex/treeAI/issues"
+    "url": "https://github.com/iroha3/chatree/issues"
   },
-  "homepage": "https://github.com/Anionex/treeAI#readme",
   "keywords": [
     "ai-chat",
     "branching-conversations",

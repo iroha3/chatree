@@ -6,7 +6,7 @@
  * 而 Pake 生成的项目并不带这些；这个 App 又是离线优先的，联网检查只是锦上添花。
  */
 
-/** 发版的是这个 fork，不是上游。 */
+/** 发版的是本仓库（Chatree），不是上游 TreeAI。换仓库名时只改这一行。 */
 const REPO = 'iroha3/chatree';
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
 

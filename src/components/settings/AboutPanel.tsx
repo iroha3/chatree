@@ -5,7 +5,7 @@ import { useT } from '../../i18n';
 import { checkForUpdate, isDesktopApp, UpdateCheck } from '../../services/updateService';
 
 const UPSTREAM_URL = 'https://github.com/Anionex/treeAI';
-const FORK_URL = 'https://github.com/iroha3/chatree';
+const PROJECT_URL = 'https://github.com/iroha3/chatree';
 
 interface LinkButtonProps {
   href: string;
@@ -125,17 +125,24 @@ const AboutPanel: React.FC = () => {
       <section className="pt-2 border-t border-neutral-100">
         <h4 className="text-sm font-medium text-neutral-800 mb-2">{t('项目链接')}</h4>
         <div className="flex flex-wrap gap-2">
-          <LinkButton href={FORK_URL} icon={<Github size={15} />}>
-            {t('本分支源码')}
+          <LinkButton href={PROJECT_URL} icon={<Github size={15} />}>
+            {t('本项目源码')}
           </LinkButton>
           <LinkButton href={UPSTREAM_URL} icon={<Github size={15} />}>
             {t('上游项目')}
           </LinkButton>
         </div>
-        <p className="mt-3 text-xs text-neutral-400 leading-relaxed">
-          {t('Chatree 是')}<a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="underline hover:text-neutral-600">Anionex/treeAI</a>{t('的增强分支。')}
-          {t('如果你觉得有用，欢迎给两个仓库都点个 Star。')}
-        </p>
+        {/* 归属声明：这不是客套，是 MIT 的要求，也是我们自己希望被对待的方式。 */}
+        <div className="mt-3 rounded-md bg-neutral-50 p-3">
+          <p className="text-xs text-neutral-500 leading-relaxed">
+            {t('Chatree 是基于')}
+            <a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="mx-0.5 underline hover:text-neutral-700">Anionex/treeAI</a>
+            {t('的衍生作品（MIT）：树状对话模型、本地优先的 IndexedDB 架构、最初的画布都来自上游。')}
+          </p>
+          <p className="mt-1.5 text-xs text-neutral-400 leading-relaxed">
+            {t('上游的版权声明原样保留在 LICENSE 里，完整提交历史也一并保留 —— git log 里能看到每一行是谁写的。')}
+          </p>
+        </div>
       </section>
 
       <p className="flex items-center justify-center text-xs text-neutral-400 pt-2">

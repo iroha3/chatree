@@ -214,7 +214,9 @@ async function main() {
   const beforeBranch = await cdp.eval(`document.querySelectorAll('.react-flow__node').length`);
   await cdp.eval(`(() => {
     const node = document.querySelector('.react-flow__node[data-id="n2"]');
-    const div = node && node.querySelector('div.pr-8');
+    // 只读态的提问块（点它进入编辑态）。用 class 子串定位，别写死 pr-8 ——
+    // 那个值为了给“运行”按钮让位改成 pr-10 了，写死会静默失效。
+    const div = node && node.querySelector('div[class*="min-h-"]');
     if (div) div.click();
     return !!div;
   })()`);

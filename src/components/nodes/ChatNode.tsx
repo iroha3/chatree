@@ -428,16 +428,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         </div>
       )}
 
-      <div 
-        className="px-4 py-3 border-b border-neutral-100 shrink-0"
+      <div
+        className="relative px-4 py-3 border-b border-neutral-100 shrink-0"
         onWheel={(e) => {
           e.stopPropagation();
         }}
       >
         {isEditingUser ? (
-          // 输入框自己不再带发送键：“运行”统一在右下角那一个按钮上
-          // （发送 → 停止 → 重新生成）。以前发送键只存在于编辑态，
-          // 一离开编辑态就没了，用户找不到它。
+          // 右侧留出 pr-12，给下面那颗绝对定位的“运行”按钮让位。
           <textarea
             ref={userInputRef}
             value={userMessage}
@@ -451,7 +449,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 showInfo(t('消息已保存'));
               }
             }}
-            className="w-full p-3 border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
+            className="w-full p-3 pr-12 border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
             placeholder={t('在此输入您的消息...')}
             onKeyDown={handleKeyDown}
             rows={3}
@@ -459,7 +457,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         ) : (
           <div className="relative group">
             <div 
-              className="pr-8 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap"
+              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap"
               onClick={() => setIsEditingUser(true)}
             >
               {node.userMessage || <span className="text-neutral-400 italic">{t('点击添加消息...')}</span>}
@@ -472,6 +470,47 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             </div>
           </div>
         )}
+
+        {/* 运行入口（ChatGPT 式）：**一颗**按钮走完整个生命周期，就长在输入框的
+            右下角 —— 发送键必须在你打字的地方。
+
+              编辑中 → Send（onResubmit：用当前文字就地重答）
+              流式中 → Square（onStop：中止并保存已生成内容）
+              其他   → RefreshCcw（onRetry：另起兄弟分支，保留当前回答）
+
+          它**恒可见**：以前发送键只在编辑态存在（一离开编辑态就消失，用户找不到），
+          而重新生成只在悬停时才出现。
+
+          曾经试过把它放到节点最底部右下角（跟复制/放大一堆）—— 太远了，
+          发送得跨过整张卡片，用户反馈“这颗太糟糕了”。别再搬回去。 */}
+        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-0.5 nodrag nopan">
+          {node.isStreaming ? (
+            <button
+              className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
+              onClick={() => onStop(node.id)}
+              title={t('停止生成并保存已生成的内容')}
+            >
+              <Square size={14} />
+            </button>
+          ) : isEditingUser ? (
+            <button
+              onClick={handleSubmitUserMessage}
+              disabled={!userMessage.trim()}
+              className={`p-1 rounded-full ${userMessage.trim() ? 'send-button' : 'send-button disabled'} transition-colors`}
+              title={t('发送')}
+            >
+              <Send size={14} />
+            </button>
+          ) : (
+            <button
+              className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+              onClick={() => onRetry(node.id)}
+              title={t('重新生成回复（另起一个新分支，保留当前回答）')}
+            >
+              <RefreshCcw size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div 
@@ -563,9 +602,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         ) : null}
 
         {!node.isStreaming && answerChars > 0 ? (
-          // pr-14 是给右下角那颗“运行”按钮留的位置，否则统计行最后几项
-          // （↑↓ token / 思考 tok）会被按钮压在下面。
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 pr-14 border-t border-neutral-100 text-[11px] text-neutral-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-neutral-100 text-[11px] text-neutral-400">
             <span>{t('{n} 字', { n: answerChars })}</span>
             {tokensPerSecond !== null && (
               <span title={t('输出速度（含首字延迟）')}>~{tokensPerSecond} tok/s</span>
@@ -597,60 +634,25 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       />
       </div>
 
-      {/* 右下角：**单一的“运行”入口**（ChatGPT 式，一个按钮走完整个生命周期）
-            发送 → 停止 → 重新生成。
-
-          它**永远可见**：以前发送键只在编辑态存在、重新生成只在悬停时才出现，
-          用户一离开编辑态就找不到发送键了。
-          次要动作（复制 / 放大）仍然只在悬停时出现，平时不抢视线。
-
-          绝对定位（在 .node-content 之外），不占任何布局高度。
-          样式和节点里其他图标按钮保持一致：无永久底色，只用 hover 反馈。
+      {/* 节点最底部仍然只放**次要动作**（复制 / 放大），悬停才出现。
+          运行按钮不在这里 —— 它跟着输入框走（见上面那段注释）。
+          绝对定位（在 .node-content 之外），不占布局高度。
           别写 `bg-white/90` —— 它绕过了 `html.dark .bg-white` 覆盖，
           夜里会变成一块亮白药丸。 */}
-      <div className="absolute bottom-2 right-2 z-10 flex items-center gap-0.5 nodrag nopan">
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          {!node.isStreaming && hasAnswer && (
-            <CopyButton
-              text={node.assistantMessage}
-              className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
-            />
-          )}
-          {!node.isStreaming && (
-            <button
-              className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
-              onClick={() => setIsReading(true)}
-              title={t('放大阅读')}
-            >
-              <Maximize2 size={14} />
-            </button>
-          )}
-        </div>
-
-        {node.isStreaming ? (
-          <button
-            className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 transition-colors"
-            onClick={() => onStop(node.id)}
-            title={t('停止生成并保存已生成的内容')}
-          >
-            <Square size={14} />
-          </button>
-        ) : isEditingUser ? (
-          <button
-            onClick={handleSubmitUserMessage}
-            disabled={!userMessage.trim()}
-            className={`p-1 rounded-full ${userMessage.trim() ? 'send-button' : 'send-button disabled'} transition-colors nodrag nopan`}
-            title={t('发送')}
-          >
-            <Send size={14} />
-          </button>
-        ) : (
+      <div className="absolute bottom-2 right-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 nodrag nopan">
+        {!node.isStreaming && hasAnswer && (
+          <CopyButton
+            text={node.assistantMessage}
+            className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
+          />
+        )}
+        {!node.isStreaming && (
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
-            onClick={() => onRetry(node.id)}
-            title={t('重新生成回复（另起一个新分支，保留当前回答）')}
+            onClick={() => setIsReading(true)}
+            title={t('放大阅读')}
           >
-            <RefreshCcw size={14} />
+            <Maximize2 size={14} />
           </button>
         )}
       </div>

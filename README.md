@@ -54,7 +54,7 @@ All sessions and model configurations stay in the browser's IndexedDB. Requests 
 
 ```bash
 git clone https://github.com/iroha3/chatree.git
-cd treeAI
+cd chatree
 bun install
 bun run dev
 ```
@@ -125,8 +125,19 @@ Read [`docs/DEV.md`](docs/DEV.md) before making changes — it documents the dat
 - Roadmap and known limitations: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - User-visible changes: [Changelog](CHANGELOG.md)
 
-## About
+## Credits
 
-Chatree is an enhanced fork of [Anionex/treeAI](https://github.com/Anionex/treeAI). If it helps you explore LLM conversations more clearly, a star on both repositories is appreciated.
+**Chatree is a derivative work built on [Anionex/treeAI](https://github.com/Anionex/treeAI).** Credit for the foundations belongs upstream:
+
+- the tree-structured conversation model (per-node `parentId`, per-branch context assembly),
+- the local-first IndexedDB architecture with Dexie,
+- the original React Flow canvas, and
+- the OpenAI-compatible streaming client.
+
+Chatree adds the desktop build, the reasoning/usage-statistics layer, the settings center, folders and search, bilingual UI, and a long list of interaction fixes.
+
+We keep upstream's MIT copyright notice verbatim in [`LICENSE`](LICENSE) (our own notice is appended below it), and we keep the **entire upstream commit history** — `git log` and `git blame` still show exactly who wrote what.
+
+If it helps you explore LLM conversations more clearly, a star on [both repositories](https://github.com/Anionex/treeAI) is appreciated.
 
 Released under the [MIT License](LICENSE).

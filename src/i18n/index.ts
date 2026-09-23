@@ -233,7 +233,7 @@ const en: Record<string, string> = {
   它能做什么: 'What it does',
   数据与隐私: 'Data & privacy',
   项目链接: 'Links',
-  本分支源码: "This fork's source",
+  本项目源码: 'This project',
   上游项目: 'Upstream project',
   '一个把线性对话变成画布的本地优先工作台。':
     'A local-first workbench that turns linear chat into a canvas.',
@@ -257,10 +257,11 @@ const en: Record<string, string> = {
     'Sessions and model configs are saved in this browser; uninstalling or clearing browser data deletes them too. ',
   '请定期用「设置 → 数据」导出备份。API Key 绝不会进入备份文件。':
     'Back up regularly via Settings → Data. API keys never enter backup files.',
-  'Chatree 是': 'Chatree is an enhanced fork of ',
-  '的增强分支。': '.',
-  '如果你觉得有用，欢迎给两个仓库都点个 Star。':
-    'If you find it useful, a star on both repos is appreciated.',
+  'Chatree 是基于': 'Chatree is a derivative work based on ',
+  '的衍生作品（MIT）：树状对话模型、本地优先的 IndexedDB 架构、最初的画布都来自上游。':
+    ' (MIT). The conversation-tree model, the local-first IndexedDB architecture, and the original canvas all come from upstream.',
+  '上游的版权声明原样保留在 LICENSE 里，完整提交历史也一并保留 —— git log 里能看到每一行是谁写的。':
+    "Upstream's copyright notice is kept verbatim in LICENSE, and the full commit history is preserved — `git log` shows who wrote what.",
   用: 'Built with ',
   构建: '',
   // 桌面端检查更新（AboutPanel）

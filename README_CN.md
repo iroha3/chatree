@@ -54,7 +54,7 @@
 
 ```bash
 git clone https://github.com/iroha3/chatree.git
-cd treeAI
+cd chatree
 bun install
 bun run dev
 ```
@@ -125,8 +125,19 @@ Chatree 处于早期阶段（`0.1.0`）。核心的分支工作流可以构建�
 - 路线图与已知限制：[`docs/ROADMAP.md`](docs/ROADMAP.md)
 - 版本变更：[Changelog](CHANGELOG.md)
 
-## 关于
+## 上游与致谢
 
-Chatree 是 [Anionex/treeAI](https://github.com/Anionex/treeAI) 的增强分支。如果它帮你更清楚地探索大模型对话，欢迎给两个仓库都点个 Star。
+**Chatree 是建立在 [Anionex/treeAI](https://github.com/Anionex/treeAI) 之上的衍生作品。** 地基是上游打的：
+
+- 树状对话模型（节点存 `parentId`、按分支回溯组装上下文）
+- 本地优先的 IndexedDB 架构（Dexie）
+- 最初的 React Flow 画布
+- OpenAI 兼容的流式客户端
+
+Chatree 在此基础上加的是：桌面版、推理链与用量统计、设置中心、文件夹与搜索、中英双语，以及一大串交互修正。
+
+上游的 MIT 版权声明在 [`LICENSE`](LICENSE) 里**原样保留**（我们自己的声明追加在它下面），**完整的提交历史也一并保留** —— `git log` / `git blame` 依然能看到每一行是谁写的。
+
+如果它帮你更清楚地探索大模型对话，欢迎给[两个仓库](https://github.com/Anionex/treeAI)都点个 Star。
 
 以 [MIT License](LICENSE) 发布。

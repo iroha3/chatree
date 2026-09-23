@@ -406,23 +406,25 @@ async function main() {
   // 以前发送键只在编辑态存在、重新生成只在悬停时才出现，离开编辑态就找不到发送键。
   const readRun = () => cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    const cluster = n.querySelector('div.absolute.bottom-2');
-    if (!cluster) return { error: 'no cluster' };
-    const visible = (sel) => Array.from(cluster.querySelectorAll('svg')).some(s => s.classList.contains(sel));
-    const cs = getComputedStyle(cluster);
+    const btn = n.querySelector('button[title="发送"], button[title="停止生成并保存已生成的内容"], button[title="重新生成回复（另起一个新分支，保留当前回答）"]');
+    if (!btn) return { error: 'no run button' };
+    const inputRow = Array.from(n.querySelectorAll('div')).find(d => d.className.includes('relative px-4 py-3'));
     return {
-      opacity: cs.opacity,
-      send: visible('lucide-send'),
-      refresh: visible('lucide-refresh-ccw'),
-      stop: visible('lucide-square'),
+      opacity: getComputedStyle(btn.parentElement).opacity,
+      send: !!btn.querySelector('.lucide-send'),
+      refresh: !!btn.querySelector('.lucide-refresh-ccw'),
+      stop: !!btn.querySelector('.lucide-square'),
+      // 运行按钮必须长在**输入框那一块**里（ChatGPT 式：发送键在你打字的地方），
+      // 而不是节点最底部跟复制/放大堆在一起。
+      inInputRow: !!(inputRow && inputRow.contains(btn)),
     };
   })()`);
 
   await cdp.eval(`document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))`);
   await sleep(200);
   const idleRun = await readRun();
-  check('运行按钮恒可见（不靠悬停），空闲时是「重新生成」',
-    idleRun.opacity === '1' && idleRun.refresh === true && idleRun.send === false && idleRun.stop === false,
+  check('运行按钮恒可见（不靠悬停）且长在输入框里，空闲时是「重新生成」',
+    idleRun.opacity === '1' && idleRun.inInputRow === true && idleRun.refresh === true && idleRun.send === false && idleRun.stop === false,
     JSON.stringify(idleRun));
 
   await cdp.eval(`(() => {
@@ -445,11 +447,10 @@ async function main() {
   })()`);
   await sleep(250);
 
-  // 停止入口：非流式时不应出现方形停止图标（它和「重新生成」互斥，同一个位置）。
+  // 停止入口：非流式时不应出现方形停止图标（它和「重新生成」互斥，同一颗按钮）。
   const stopVisible = await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    const cluster = n.querySelector('div.absolute.bottom-2');
-    return !!cluster && !!cluster.querySelector('.lucide-square');
+    return !!n.querySelector('.lucide-square');
   })()`);
   check('非流式节点不显示停止按钮', stopVisible === false);
 
