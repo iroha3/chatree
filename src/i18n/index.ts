@@ -112,9 +112,10 @@ const en: Record<string, string> = {
   '输出速度（含首字延迟）': 'Output speed (incl. first-token latency)',
   '命中缓存 {hit} tok，未命中 {miss} tok': 'cache hit {hit} tok, miss {miss} tok',
   '缓存 {n}%': 'Cache {n}%',
-  '输入 token · 输出 token': 'input tokens · output tokens',
+  '↑ 输入 token · ↓ 输出 token': '↑ input tokens · ↓ output tokens',
   '思考消耗的 token': 'Reasoning tokens',
-  '思考 {n}': 'Thinking {n}',
+  '思考 {n} tok': 'Thinking {n} tok',
+  发送: 'Send',
 
   // ── SystemNode ────────────────────────────────────────
   系统提示词: 'System prompt',

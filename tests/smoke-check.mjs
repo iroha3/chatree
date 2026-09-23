@@ -1,7 +1,7 @@
 /*
  * Smoke check for the sidebar (folders, search, icon alignment) against the real
  * app in headless Edge. Requires Edge already listening on 127.0.0.1:9222 and the
- * Vite dev server on 127.0.0.1:5175. Run: node scripts/smoke-check.mjs
+ * Vite dev server on 127.0.0.1:5175. Run: bun test:smoke
  */
 const BASE = 'http://127.0.0.1:9222';
 const APP = 'http://127.0.0.1:5175/';

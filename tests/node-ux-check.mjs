@@ -79,7 +79,7 @@ async function main() {
       const tx = db.transaction(['sessions', 'models'], 'readwrite');
       const sysA = { id: 's3a', parentId: null, type: 'system', userMessage: 'AAA', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: false };
       const sysB = { id: 's3b', parentId: null, type: 'system', userMessage: 'BBB', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: false };
-      const chat = { id: 's3c', parentId: 's3a', type: 'chat', userMessage: 'hi', assistantMessage: ${JSON.stringify(ANSWER_MD)}, reasoning: 'thinking hard here', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      const chat = { id: 's3c', parentId: 's3a', type: 'chat', userMessage: 'hi', assistantMessage: ${JSON.stringify(ANSWER_MD)}, reasoning: 'thinking hard here', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, usage: { promptTokens: 11, completionTokens: 22, cacheHitTokens: 0, cacheMissTokens: 0, reasoningTokens: 33, durationMs: 1000 } };
       // 必须自己带一个模型：否则画板上会盖一层「还没有可用的模型」遮罩（z-20），
       // 遮掉点击、头部也回退成「对话节点」。以前能过是因为先跑了 smoke-check，
       // 它顺手播了 m1 —— 这个测试应该自己就能独立跑。
@@ -374,12 +374,84 @@ async function main() {
   const afterUndo = await cdp.eval(`!!document.querySelector('.react-flow__node[data-id="s3c"]')`);
   check('点击撤销后节点恢复', afterUndo === true);
 
-  // 停止按钮：把节点标成流式中，检查 UI 出现停止入口。
+  // 代码块标题条与代码区之间不能有空隙（Tailwind prose 给外层 <pre> 加的
+  // 内边距会把两块底色推开，中间露一条白缝）。
+  const codeGap = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const head = n.querySelector('.md-editor-code-head');
+    const bg = n.querySelector('.md-editor-code pre code');
+    if (!head || !bg) return { gap: null };
+    return { gap: +(bg.getBoundingClientRect().top - head.getBoundingClientRect().bottom).toFixed(2) };
+  })()`);
+  check('代码块标题条与代码区之间无缝隙',
+    codeGap.gap !== null && Math.abs(codeGap.gap) < 1,
+    JSON.stringify(codeGap));
+
+  // 用量统计行的单位不能含糊：
+  //   - 箭头方向：↑ = 输入，↓ = 输出（用户的直觉）；
+  //   - 每个数字都必须带单位（tok / 字 / %），不能只有最后一个带。
+  const stats = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const row = Array.from(n.querySelectorAll('div')).find(d => d.className.includes('text-[11px]') && d.textContent.includes('字'));
+    return row ? row.textContent : null;
+  })()`);
+  check('用量行：↑=输入、↓=输出，且每个数字都带单位',
+    !!stats &&
+      stats.includes('↑ 11 tok') &&
+      stats.includes('↓ 22 tok') &&
+      stats.includes('思考 33 tok'),
+    JSON.stringify(stats));
+
+  // 右下角「运行」按钮：ChatGPT 式，一个按钮走完生命周期，而且**恒可见**。
+  // 以前发送键只在编辑态存在、重新生成只在悬停时才出现，离开编辑态就找不到发送键。
+  const readRun = () => cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const cluster = n.querySelector('div.absolute.bottom-2');
+    if (!cluster) return { error: 'no cluster' };
+    const visible = (sel) => Array.from(cluster.querySelectorAll('svg')).some(s => s.classList.contains(sel));
+    const cs = getComputedStyle(cluster);
+    return {
+      opacity: cs.opacity,
+      send: visible('lucide-send'),
+      refresh: visible('lucide-refresh-ccw'),
+      stop: visible('lucide-square'),
+    };
+  })()`);
+
+  await cdp.eval(`document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))`);
+  await sleep(200);
+  const idleRun = await readRun();
+  check('运行按钮恒可见（不靠悬停），空闲时是「重新生成」',
+    idleRun.opacity === '1' && idleRun.refresh === true && idleRun.send === false && idleRun.stop === false,
+    JSON.stringify(idleRun));
+
   await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    const b = Array.from(n.querySelectorAll('button')).find(x => x.title === '停止生成并保存已生成的内容');
-    return !!b;
-  })()`).then(v => check('非流式节点不显示停止按钮', v === false));
+    n.querySelector('[class*="max-h-"]').click();
+  })()`);
+  await sleep(250);
+  const editRun = await readRun();
+  check('进入编辑态后同一个按钮变成「发送」',
+    editRun.send === true && editRun.refresh === false && editRun.stop === false,
+    JSON.stringify(editRun));
+
+  // 退出编辑态，别影响后面的用例
+  await cdp.eval(`(() => {
+    const pane = document.querySelector('.react-flow__pane');
+    const r = pane.getBoundingClientRect();
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: r.left + 4, clientY: r.top + 4, button: 0 };
+    pane.dispatchEvent(new MouseEvent('mousedown', opts));
+    pane.dispatchEvent(new MouseEvent('mouseup', opts));
+  })()`);
+  await sleep(250);
+
+  // 停止入口：非流式时不应出现方形停止图标（它和「重新生成」互斥，同一个位置）。
+  const stopVisible = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const cluster = n.querySelector('div.absolute.bottom-2');
+    return !!cluster && !!cluster.querySelector('.lucide-square');
+  })()`);
+  check('非流式节点不显示停止按钮', stopVisible === false);
 
   // 回归：删除节点后，任何「迟到」的 updateNodeInSession（流式结束落盘 /
   // 输入框 onBlur 草稿保存 / 中止回调）都不能把节点复活 —— 这正是

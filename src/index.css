@@ -259,14 +259,14 @@ body {
   max-width: 100%;
 }
 
-/* 代码块「上宽下窄」：带红绿灯（三个小圆点）的标题条 .md-editor-code-head 是
-   整块宽度，而代码区外层 <pre> 被 Tailwind prose 塞了 12px 左右内边距，
-   于是两块底色对不齐 —— 用户反馈「红绿灯那一条比代码那一条宽」。
-   把 <pre> 的水平内边距归零即可（文字该缩进多少由内层 <pre><code> 自己管，
-   行号那种 3.5em 的 padding-left 也不受影响）。 */
+/* 代码块「上宽下窄」+ 标题条和代码之间有一道空隙：带红绿灯（三个小圆点）的
+   标题条 .md-editor-code-head 是整块宽度，而代码区外层 <pre> 被 Tailwind prose
+   塞了一整圈内边距（大约 12px），于是两块底色既不待宽、上下还错开 12px，
+   中间露出一条白缝 —— 用户报过「红绿灯那一条比代码那一条宽」「中间有间隔」。
+   把 <pre> 的内边距整个归零即可：文字该缩进多少由内层 <pre><code> 自己负责，
+   行号那种 padding-left: 3.5em 也不受影响。 */
 .md-preview .md-editor-code pre {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+  padding: 0 !important;
 }
 
 /* 回答里的标题：md-editor 的 vuepress 主题给 h1 设了 2.2em（约 35px），

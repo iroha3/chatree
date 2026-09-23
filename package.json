@@ -30,9 +30,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "icons": "bun scripts/make-icons.mjs",
-    "test:edge": "bun scripts/edge-contract-check.mjs",
-    "test:smoke": "bun scripts/smoke-check.mjs",
-    "test:ux": "bun scripts/node-ux-check.mjs",
+    "test:edge": "bun tests/edge-contract-check.mjs",
+    "test:smoke": "bun tests/smoke-check.mjs",
+    "test:ux": "bun tests/node-ux-check.mjs",
     "desktop:build": "bun run build && bun scripts/pake.mjs",
     "desktop:build:fast": "bun run build && bun scripts/pake.mjs --iterative-build",
     "desktop:build:ci": "bun run build && bun scripts/pake.mjs --json"

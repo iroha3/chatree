@@ -64,7 +64,8 @@ src/
 ├── utils/                    # id / sessionTitle / sessionTransfer / notification
 └── i18n/index.ts             # 极简 i18n（中文原文当 key）
 
-scripts/                      # 回归脚本 + 图标 + 打包（见 §6、§8）
+scripts/                      # 构建/打包：图标、Pake、产物收集（见 §8）
+tests/                        # 回归脚本（见 §6）
 docs/                         # 本文件 + ROADMAP
 public/                       # hljs/katex 的本地 shim（离线用，见 §5）
 ```
@@ -90,9 +91,20 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - 实现见 `ChatNode.tsx` 的 `reasoningTouchedRef` + effect。判断"思考结束"用的是
   `streamingReasoning 还在 && 正文还没开始`，不能用 `isLiveReasoning`（它在正文阶段仍为真）。
 
-### 3.3 停止 / 重新生成
-- 右下角悬浮区是“运行入口”：生成中显示**停止**，结束后显示**重新生成**。
+### 3.3 运行入口（发送 / 停止 / 重新生成）
+- **右下角只有一颗按钮，走完整个生命周期**（ChatGPT 式）：
+  | 状态 | 图标 | 行为 |
+  |---|---|---|
+  | 编辑中 | `Send` | `onResubmit`：用当前文字**就地**重答 |
+  | 流式中 | `Square` | `onStop`：中止并保存已生成内容 |
+  | 其他 | `RefreshCcw` | `onRetry`：**另起一个兄弟分支**，保留当前回答 |
+- 这颗按钮**恒可见**（不靠悬停）；复制 / 放大这类次要动作仍然只在悬停时出现。
+- ❌ 输入框里**不再**自带发送键。曾经它在编辑态存在、一离开编辑态就消失，
+  用户找不到发送入口（“离开编辑模式发送按钮就没了”）。
 - ❌ 不要再生一个停止按钮塞进“AI 正在思考…”那一行（曾经有过，被用户点名“这是啥玩意”）。
+- ❌ 不要用 `bg-white/90` 这类半透明底色 —— 它绕过 `html.dark .bg-white` 覆盖，
+  夜里会变成一块亮白药丸。
+- 统计行加了 `pr-14` 给这颗按钮让位，否则最后几项会被压住。
 
 ### 3.4 输入框（编辑态）
 - 用户的提问有两种皮：**只读**（默认，有消息时）和**输入框**（点击消息进入）。
@@ -102,7 +114,7 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
   - 「点外面」的判定是 `nodeRef` 之外（capture 阶段监听 `mousedown`）——
     节点**内部**的控件（模型下拉、温度滑块、思考链开关…）不算外面，不会打断正在编辑的人。
   - 草稿每次击键都已经同步进 store，退出只是收皮，**不回滚**。
-- 发送键的语义（是否要做 ChatGPT 那种「发送后变停止」）**尚未定案**，改前先讨论。
+- Ctrl/Cmd+Enter 也能发送。
 
 ### 3.5 复制
 - 一律用 `CopyButton`：点击后**立即**变对号（1.5s）。
@@ -125,11 +137,19 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - 回答正文由 `md-editor-rt` 渲染，所有字号/间距微调集中在 `src/index.css` 的
   `.md-preview` 段（卡片和阅读浮窗**共用**这个类）：卡片正文 19px、段落/列表间距已收紧；
   阅读浮窗加 `.reader` 类降到 16px。改这些值顺手看一眼 `bun test:ux` 里的排版断言。
-- **代码块不能上宽下窄**：带红绿灯的标题条 `.md-editor-code-head` 是整块宽度，
-  而 Tailwind prose 会给外层 `<pre>` 加上 12px 左右内边距，两块底色就对不齐了
-  （用户报过「红绿灯那一条比代码那一条宽」）。所以 `.md-preview .md-editor-code pre`
-  的水平 padding 被强制归零 —— 文字缩进由内层 `<pre><code>` 自己管，行号的
-  `padding-left: 3.5em` 不受影响。回归断言在 `node-ux-check.mjs` 里量两者宽度相等。
+- **代码块不能上宽下窄、中间不能有缝**：带红绿灯的标题条 `.md-editor-code-head`
+  是整块宽度，而 Tailwind prose 会给外层 `<pre>` 塞一整圈内边距（约 12px），
+  两块底色既不等宽、上下又错开，中间露一条白缝
+  （用户报过「红绿灯那一条比代码那一条宽」「中间有间隔」）。所以
+  `.md-preview .md-editor-code pre` 的 padding 被整个强制归零 —— 文字缩进由
+  内层 `<pre><code>` 自己负责，行号的 `padding-left: 3.5em` 不受影响。
+  回归断言在 `node-ux-check.mjs` 里量两者宽度相等、且上下无缝隙。
+
+### 3.10 用量数字
+- 箭头方向：**↑ = 输入（prompt），↓ = 输出（completion）**。
+- **每个数字都要带单位**（`tok` / `字` / `%` / `tok/s`），不能只给最后一个带 ——
+  用户问过「思考是多少字还是 token」。当前行形如：
+  `63 字 · ~22 tok/s · 缓存 87% · ↑ 11 tok · ↓ 22 tok · 思考 33 tok`。
 
 ---
 
@@ -140,7 +160,7 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 2. **重建 nodes 数组时必须带上测量出来的 `width/height`。**
    `ChatFlow.tsx` 用 `flowNodesRef` 保存上一次渲染的节点，`buildFlowNode(..., previous)`
    从它取 `previous`；否则 `getNodeData().isValid` 为 false，边会消失/截断。
-   回归见 `scripts/edge-contract-check.mjs`。
+   回归见 `tests/edge-contract-check.mjs`。
 3. **交互控件要加 `nodrag nopan`**（range / select / textarea / 按钮 / 浮层），
    否则触摸或拖动会带动画布。
 4. 尺寸变化后调 `updateNodeInternals(id)` 重新测量。
@@ -160,11 +180,13 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 
 ## 6. 回归测试
 
+三个脚本都在 `tests/`（不要放回 `scripts/` —— 那是构建/打包用的）。
+
 | 脚本 | 依赖 | 覆盖 |
 |---|---|---|
 | `bun test:edge` | 无 | 复制 React Flow 的 `createNodeInternals/applyNodeChanges` 语义，断言"掉边"的两种取法 |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
-| `bun test:ux` | Edge:9222 + dev:5175 | 24 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、关于页… |
+| `bun test:ux` | Edge:9222 + dev:5175 | 28 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、运行按钮… |
 
 跑端到端前需要：
 
