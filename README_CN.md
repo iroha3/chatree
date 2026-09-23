@@ -118,6 +118,31 @@ Chatree 处于早期阶段（`0.1.0`）。核心的分支工作流可以构建�
 
 动手前请先读 [`docs/DEV.md`](docs/DEV.md) —— 那里写了**不能改的数据契约**、已定的交互约定，以及 React Flow / Vite / Pake 的各种坑。
 
+## 部署
+
+### 网页版（Cloudflare Pages / 任何静态托管）
+
+构建产物就是 `dist/`，纯静态，没有任何服务端。
+
+Cloudflare Pages 上要这么配（**别把 `vite` 交给平台自动安装**）：
+
+| 字段 | 值 |
+|---|---|
+| 构建命令 | `bun install --frozen-lockfile && bun run build` |
+| 构建输出目录 | `dist` |
+| 环境变量 | `BUN_VERSION=1.4.2`（可选，锁住构建用的版本） |
+
+为什么要自己 `bun install`：`vite` 是 **devDependency**，而平台的 install 步骤未必会把你仓库的依赖装上（Cloudflare 会先装 Bun 运行时，然后直接跳到构建命令）。
+一旦 `node_modules` 不在，`bun run build` 就只会报一句
+`vite: command not found`（exit 127）。把安装写进构建命令里，就不依赖平台的 install 配置了。
+
+如果单页刷新报 404，加一条 SPA 回退：`/* → /index.html 200`。
+
+### Docker
+
+仓库里有 `Dockerfile`（`oven/bun` 构建 → `nginx:alpine` 提供静态文件）和 `docker/nginx.conf`。
+发版时 CI 会把镜像推到 GHCR。
+
 ## 社区
 
 - Bug 与需求：[Issue 表单](https://github.com/iroha3/chatree/issues/new/choose)

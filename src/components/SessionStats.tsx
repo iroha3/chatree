@@ -108,7 +108,9 @@ const SessionStats: React.FC<{ session: Session; onClose: () => void }> = ({ ses
         <div className="pt-1.5">
           <Row label={t('回答字数')} value={fmt(answerChars)} />
           <Row label={t('创建')} value={<span className="font-normal">{when(session.createdAt)}</span>} />
-          <Row label={t('更新')} value={<span className="font-normal">{when(session.updatedAt)}</span>} />
+          {/* 不是「最后修改」，是「最后一次提问/回答」—— updatedAt 的语义见
+              sessionStore 的 sortSessions 注释。改字/拖卡片/重命名都不动它。 */}
+          <Row label={t('最近对话')} value={<span className="font-normal">{when(session.updatedAt)}</span>} />
         </div>
       </div>
     </div>

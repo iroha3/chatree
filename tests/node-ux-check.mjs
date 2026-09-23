@@ -611,6 +611,68 @@ async function main() {
   await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   await sleep(300);
 
+  // ── 什么行为会让会话置顶？────────────────────────────────
+  // `updatedAt` 的语义是「最后一次**发起生成**」。改字 / 拖卡片 / 重命名 /
+  // 删节点都是「整理」，绝不能把会话顶到列表最前。
+  // （用户：「点击编辑后不修改退出编辑肯定不能置顶，更进一步，真编辑我理解
+  //  也不能置顶」）
+  const orderCheck = await cdp.eval(`(async () => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/stores/sessionStore.ts'));
+    const S = m => m.useSessionStore;
+    const m2 = await import(url);
+    const store = S(m2);
+    const order = () => store.getState().filteredSessions.map(s => s.id);
+
+    // 先把 s4 推到最新，建立确定的初始顺序：s4 在 s3 上面
+    store.getState().touchSession('s4');
+    const before = order();
+
+    const s3 = store.getState().sessions.find(s => s.id === 's3');
+    const n = s3.nodes.find(x => x.id === 's3c');
+
+    // 1) 原样写回（= 点进编辑态又什么都没改就退出）
+    store.getState().updateNodeInSession('s3', { ...n, userMessage: n.userMessage });
+    const afterNoop = order();
+
+    // 2) 真改了字
+    store.getState().updateNodeInSession('s3', { ...n, userMessage: n.userMessage + 'X' });
+    const afterEdit = order();
+
+    // 3) 拖卡片（逐节点写回坐标）
+    store.getState().replaceSessionNodes('s3', s3.nodes.map(x => ({ ...x, position: { x: 11, y: 22 } })));
+    const afterDrag = order();
+
+    // 4) 新增节点 = 又聊了一轮 → 必须置顶
+    store.getState().addNodeToSession('s3', { id: 'probe-del', parentId: 's3c', type: 'chat', userMessage: 'x', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: new Date().toISOString() });
+    const afterAdd = order();
+
+    // 5) 删节点不置顶：先把顺序复位成「s4 在 s3 上面」，再删那颗探针节点，
+    //    顺序必须一动不动（不能因为「刚删过」又跳一下）。
+    //    复位前必须等一下：updatedAt 只精确到毫秒，同毫秒内排序是平局，
+    //    平局时稳定排序会保持旧顺序（s3 还在前面），测试就会假失败。
+    await new Promise((r) => setTimeout(r, 10));
+    store.getState().touchSession('s4');
+    const reset = order();
+    store.getState().deleteNodeFromSession('s3', 'probe-del');
+    const afterDelete = order();
+
+    return { before, afterNoop, afterEdit, afterDrag, afterAdd, reset, afterDelete };
+  })()`, true);
+
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  check('改字（含原样退出编辑）不置顶',
+    same(orderCheck.afterNoop, orderCheck.before) && same(orderCheck.afterEdit, orderCheck.before),
+    JSON.stringify({ before: orderCheck.before, noop: orderCheck.afterNoop, edit: orderCheck.afterEdit }));
+  check('拖卡片不置顶',
+    same(orderCheck.afterDrag, orderCheck.before),
+    JSON.stringify({ before: orderCheck.before, afterDrag: orderCheck.afterDrag }));
+  check('删节点不置顶',
+    same(orderCheck.afterDelete, orderCheck.reset) && orderCheck.reset[0] !== 's3',
+    JSON.stringify({ reset: orderCheck.reset, afterDelete: orderCheck.afterDelete }));
+  check('新增节点（真的又聊了一轮）置顶',
+    orderCheck.afterAdd[0] === 's3' && orderCheck.before[0] !== 's3',
+    JSON.stringify({ before: orderCheck.before, afterAdd: orderCheck.afterAdd }));
+
   check('无运行时报错', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   ws.close();

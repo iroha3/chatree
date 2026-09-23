@@ -118,6 +118,33 @@ Chatree is an early-stage project (`0.1.0`). The core branching workflow builds 
 
 Read [`docs/DEV.md`](docs/DEV.md) before making changes — it documents the data contracts that must not change, the interaction rules, and the React Flow / Vite / Pake pitfalls.
 
+## Deployment
+
+### Web build (Cloudflare Pages, or any static host)
+
+The build output is `dist/` — pure static, no server side.
+
+On Cloudflare Pages, configure it like this (**don't let the platform install `vite` for you**):
+
+| Field | Value |
+|---|---|
+| Build command | `bun install --frozen-lockfile && bun run build` |
+| Build output directory | `dist` |
+| Environment variable | `BUN_VERSION=1.4.2` (optional, pins the build runtime) |
+
+Why install inside the build command: `vite` is a **devDependency**, and the platform's install step
+may not actually install your dependencies (Cloudflare provisions the Bun runtime, then jumps straight
+to the build command). With no `node_modules`, `bun run build` fails with a single
+`vite: command not found` (exit 127). Wiring the install into the build command removes any dependency
+on how the platform is configured.
+
+If a hard refresh on a deep link 404s, add an SPA fallback: `/* → /index.html 200`.
+
+### Docker
+
+The repo ships a `Dockerfile` (`oven/bun` build → `nginx:alpine` serving static files) plus
+`docker/nginx.conf`. CI pushes the image to GHCR on release.
+
 ## Community
 
 - Bugs and feature requests: [Issue forms](https://github.com/iroha3/chatree/issues/new/choose)

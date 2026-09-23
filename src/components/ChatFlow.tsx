@@ -220,7 +220,7 @@ interface ChatFlowProps {
 }
 
 const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }) => {
-  const { sessions, addNodeToSession, updateNodeInSession, updateSession, replaceSessionNodes, deleteNodeFromSession, autoTitleSession } = useSessionStore();
+  const { sessions, addNodeToSession, updateNodeInSession, touchSession, updateSession, replaceSessionNodes, deleteNodeFromSession, autoTitleSession } = useSessionStore();
   const { models, defaultModelId } = useModelStore();
   const { theme } = useThemeStore();
   const session = sessions.find(s => s.id === sessionId);
@@ -868,6 +868,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     };
 
     updateNodeInSession(sessionId, cleared);
+    // 就地重答不会新增节点，所以这里是**唯一**需要显式置顶的生成入口。
+    // 不置顶的话，你重答一个老会话，它不会回到列表最上面。
+    touchSession(sessionId);
     void runNodeGeneration(nodeId, session.nodes.map(n => (n.id === nodeId ? cleared : n)));
   };
 

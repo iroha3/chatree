@@ -40,6 +40,7 @@ const en: Record<string, string> = {
   未分类: 'Uncategorized',
   创建: 'Created',
   更新: 'Updated',
+  最近对话: 'Last message',
   复制到剪贴板: 'Copy to clipboard',
   模型设置: 'Model settings',
   删除节点: 'Delete node',

@@ -29,6 +29,8 @@ interface SessionState {
   deleteSession: (id: string) => void;
   addNodeToSession: (sessionId: string, node: ChatNode) => void;
   updateNodeInSession: (sessionId: string, node: ChatNode) => void;
+  /** 记一次「聊天」（把 updatedAt 推到当前）：只有就地重答需要显式调它 */
+  touchSession: (sessionId: string) => void;
   /** 一次性替换整个节点数组（重新排布专用，避免循环写回丢更新） */
   replaceSessionNodes: (sessionId: string, nodes: ChatNode[]) => void;
   deleteNodeFromSession: (sessionId: string, nodeId: string) => void;
@@ -47,12 +49,17 @@ interface SessionState {
 }
 
 /**
- * 最近更新的排最前。
+ * 最近「聊过」的排最前。
  *
- * 这样「新建会话」自然出现在顶部（它的 updatedAt 最新），
- * 刚聊过的会话也会浮上来 —— 不需要在创建时特殊处理插入位置。
+ * ⚠️ `updatedAt` 的语义是「**最后一次发起生成**」，不是「最后一次被写」：
+ *   - 只有 `addNodeToSession`（提问 / 重新生成）和 `touchSession`（就地重答）会推它；
+ *   - 编辑文字、改模型/温度、拖卡片、重命名、删节点、流式落盘 都**不动**它。
  *
- * 收藏**不参与排序**：点星标只是一种标记，不算「更新过」，不该让会话跳位。
+ * 用户原话：「点击编辑后不修改退出编辑肯定不能置顶，更进一步，真编辑我理解
+ * 也不能置顶」—— 那些是「整理」，不是「又聊过」。
+ *
+ * 这么定之后，「新建会话」也自然出现在顶部（它的 updatedAt 最新）。
+ * 收藏、拖动归类同理，都不参与排序（见 `toggleStarred` / `moveSessionToFolder`）。
  */
 function sortSessions(sessions: Session[]): Session[] {
   return [...sessions].sort(
@@ -153,10 +160,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   updateSession: async (session) => {
-    const updatedSession = {
-      ...session,
-      updatedAt: new Date().toISOString()
-    };
+    // **不再刷新 updatedAt**。这条路径上跑的全是「整理」：
+    // 逐节点写回坐标（拖卡片 / 重排）、补 systemNodeSeeded 标记、重命名会话。
+    // 「重命名一下会话就跳到最前」「挪一下卡片就跳位」都是这个副作用造成的。
+    // 要置顶就显式调 touchSession（或 addNodeToSession）。
+    // 原先无条件刷新 updatedAt，也直接导致改一个字就把会话顶到最前。
+    const updatedSession = { ...session };
     // 先同步写内存，再异步落库。顺序不能反。
     //
     // 反着写（先 await db.saveSession 再 set）会「丢失更新」：await 期间
@@ -203,6 +212,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const session = get().sessions.find(s => s.id === sessionId);
     if (!session) return;
 
+    // 新增节点 = 真的开始了一轮对话 —— 这是会话置顶的**两个入口之一**
+    // （另一个是就地重答，走 touchSession）。
     const updatedSession = {
       ...session,
       nodes: [...session.nodes, node],
@@ -215,7 +226,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   updateNodeInSession: (sessionId, node) => {
     const session = get().sessions.find(s => s.id === sessionId);
     if (!session) return;
-
     // 只更新「已经存在」的节点，绝不追加。
     //
     // 这里以前是 upsert（找不到就 append），初衷是给「重新生成」兜底：
@@ -228,13 +238,39 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // 中止请求的回调，都属于这一类。表现就是「删掉的节点又跳出来了」。
     if (!session.nodes.some(n => n.id === node.id)) return;
 
+    // **不碰 updatedAt**：这条路径上跑的全是「整理」类写入 ——
+    // 输入框每敲一个字（onEdit 带 isEditing=true）、失焦时的草稿保存、
+    // 换模型、拖温度、停止生成、流式结束落盘。
+    // 以前无条件刷新 updatedAt，结果「点进编辑态再原样退出」都会把会话顶到最前
+    // （onBlur 无条件写一次）。要置顶请显式调 touchSession。
     const updatedSession = {
       ...session,
       nodes: session.nodes.map(n => n.id === node.id ? node : n),
-      updatedAt: new Date().toISOString()
     };
 
     get().updateSession(updatedSession);
+  },
+
+  touchSession: (sessionId) => {
+    const session = get().sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const updated = { ...session, updatedAt: new Date().toISOString() };
+
+    try {
+      void db.saveSession(updated);
+      set((state) => {
+        const sessions = sortSessions(
+          state.sessions.map(s => (s.id === sessionId ? updated : s))
+        );
+        return {
+          sessions,
+          filteredSessions: computeVisible(sessions, state.searchQuery, state.currentFolderView),
+        };
+      });
+    } catch (error) {
+      console.error('Failed to touch session:', error);
+    }
   },
 
   replaceSessionNodes: (sessionId, nodes) => {
@@ -248,7 +284,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   deleteNodeFromSession: (sessionId, nodeId) => {
     const session = get().sessions.find(s => s.id === sessionId);
     if (!session) return;
-
     // Remove this node and its children recursively
     const nodesToRemove = new Set<string>();
 
@@ -261,10 +296,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     collectNodesToRemove(nodeId);
 
+    // 删节点也是「整理」，不置顶（同理：删除一个分支不代表又聊过）。
     const updatedSession = {
       ...session,
       nodes: session.nodes.filter(n => !nodesToRemove.has(n.id)),
-      updatedAt: new Date().toISOString()
     };
 
     get().updateSession(updatedSession);
