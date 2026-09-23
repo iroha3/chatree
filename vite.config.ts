@@ -1,8 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+/*
+ * 版本号单一来源：package.json。
+ *
+ * 通过 `npm run xxx` 启动时 npm 会注入 npm_package_version，用它注入成
+ * 全局常量 __APP_VERSION__（见 src/vite-env.d.ts 的声明），这样应用里只读这一个
+ * 常量，不用再在 AboutPanel 里手写一份、改版本时两处漏一处。
+ * 直接 `npx vite` 跑（不经过 npm）时拿不到，退化成 0.0.0。
+ */
+const APP_VERSION = process.env.npm_package_version ?? '0.0.0';
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [react()],
   server: {
     port: 5175,

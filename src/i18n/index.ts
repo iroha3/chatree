@@ -262,6 +262,14 @@ const en: Record<string, string> = {
     'If you find it useful, a star on both repos is appreciated.',
   用: 'Built with ',
   构建: '',
+  // 桌面端检查更新（AboutPanel）
+  '检查更新中…': 'Checking for updates…',
+  发现新版本: 'New version available',
+  去下载: 'Download',
+  已是最新版本: 'Up to date',
+  检查更新: 'Check for updates',
+  重新检查: 'Check again',
+  用系统浏览器打开下载页: 'Open the download page in your system browser',
 
   // ── reasoningEffort ───────────────────────────────────
   '默认（不发送该参数）': 'Default (do not send the parameter)',

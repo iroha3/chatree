@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Brain, Copy, ChevronDown } from 'lucide-react';
+import { X, Brain, ChevronDown } from 'lucide-react';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
 import { ChatNode } from '../../types';
 import { useThemeStore } from '../../stores/themeStore';
 import { useModelStore } from '../../stores/modelStore';
 import { useT } from '../../i18n';
-import { showSuccess } from '../../utils/notification';
+import CopyButton from '../CopyButton';
 
 /**
  * 长回答的阅读覆盖层（双击节点打开）。
@@ -53,11 +53,6 @@ const NodeReadOverlay: React.FC<NodeReadOverlayProps> = ({ node, streamingReason
     };
   }, [onClose]);
 
-  const copy = (text: string) => {
-    navigator.clipboard?.writeText(text);
-    showSuccess(t('内容已复制到剪贴板'));
-  };
-
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
@@ -92,13 +87,10 @@ const NodeReadOverlay: React.FC<NodeReadOverlayProps> = ({ node, streamingReason
               <div className="whitespace-pre-wrap pr-6 text-[15px] leading-relaxed text-neutral-700">
                 {node.userMessage}
               </div>
-              <button
-                onClick={() => copy(node.userMessage)}
+              <CopyButton
+                text={node.userMessage}
                 className="absolute right-2 top-2 rounded p-1 text-neutral-400 opacity-0 transition-opacity hover:text-neutral-700 group-hover:opacity-100"
-                title={t('复制到剪贴板')}
-              >
-                <Copy size={14} />
-              </button>
+              />
             </div>
           ) : null}
 
@@ -147,14 +139,12 @@ const NodeReadOverlay: React.FC<NodeReadOverlayProps> = ({ node, streamingReason
         {node.type === 'chat' && node.assistantMessage ? (
           <div className="flex shrink-0 items-center justify-end gap-3 border-t border-neutral-100 px-4 py-2 text-[11px] text-neutral-400">
             <span>{t('{n} 字', { n: node.assistantMessage.length })}</span>
-            <button
-              onClick={() => copy(node.assistantMessage)}
+            <CopyButton
+              text={node.assistantMessage}
+              size={12}
+              label={t('复制')}
               className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
-              title={t('复制到剪贴板')}
-            >
-              <Copy size={12} />
-              {t('复制')}
-            </button>
+            />
           </div>
         ) : null}
       </div>

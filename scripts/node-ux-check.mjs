@@ -148,50 +148,105 @@ async function main() {
   })()`);
   check('双击节点打开阅读覆盖层', overlay.open === true, JSON.stringify(overlay));
 
+  // 覆盖层里的复制按钮：点完图标短暂变成对号（小反馈）
+  await cdp.eval(`(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    const btn = Array.from(dlg.querySelectorAll('button')).find(b => b.textContent.includes('复制'));
+    btn.click();
+  })()`);
+  await sleep(250);
+  const copyFeedback = await cdp.eval(`(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    return { check: !!dlg.querySelector('.lucide-check'), copy: !!dlg.querySelector('.lucide-copy') };
+  })()`);
+  check('复制后按钮变成对号', copyFeedback.check === true, JSON.stringify(copyFeedback));
+
+  // 复制 Toast 要盖在阅读覆盖层之上（z 轴），否则根本看不见
+  const toastZ = await cdp.eval(`(() => {
+    const t = document.querySelector('.fixed.top-4.right-4');
+    return t ? getComputedStyle(t).zIndex : null;
+  })()`);
+  check('复制 Toast 在覆盖层之上', toastZ === '300', 'zIndex=' + toastZ);
+
   // Esc closes
   await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   await sleep(300);
   const closed = await cdp.eval(`!document.querySelector('[role="dialog"]')`);
   check('Esc 关闭覆盖层', closed === true);
 
-  // star bubble state machine in sidebar
-  const beforeStar = await cdp.eval(`(() => {
+  // 星标渐进式状态机。必须用**真实鼠标移动**触发 :hover 再读 computedStyle ——
+  // 之前只检查 className，结果漏掉了一个优先级 bug：
+  // `.group:hover .group-hover\:text-neutral-400`(0,3,0) 把 `.hover\:text-amber-400:hover`(0,2,0) 盖掉，
+  // 导致「移到星上变金」不生效。
+  const geom = await cdp.eval(`(() => {
     const row = Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('Gamma'));
     const btn = row.querySelector('button');
-    return { title: btn.getAttribute('title'), starredIcon: !!btn.querySelector('.lucide-star') };
+    const rb = btn.getBoundingClientRect();
+    const rr = row.getBoundingClientRect();
+    return { btnX: Math.round(rb.left + rb.width / 2), btnY: Math.round(rb.top + rb.height / 2), rowX: Math.round(rr.right - 24), rowY: Math.round(rr.top + rr.height / 2) };
   })()`);
-  await cdp.eval(`(() => {
-    const row = Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('Gamma'));
-    row.querySelector('button').click();
-  })()`);
-  await sleep(400);
-  const afterStar = await cdp.eval(`(() => {
+  const move = (x, y) => cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' });
+  const readStar = () => cdp.eval(`(() => {
     const row = Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('Gamma'));
     const btn = row.querySelector('button');
-    return { title: btn.getAttribute('title'), starredIcon: !!btn.querySelector('.lucide-star'), bubbleIcon: !!btn.querySelector('.lucide-message-square') };
+    const star = btn.querySelector('.lucide-star');
+    const bubble = btn.querySelector('.lucide-message-square');
+    const vis = el => !!el && getComputedStyle(el).display !== 'none';
+    return { title: btn.getAttribute('title'), color: getComputedStyle(btn).color, starShown: vis(star), bubbleShown: vis(bubble), fill: star ? star.getAttribute('fill') : null };
   })()`);
-  check('气泡点击后变星（收藏）', beforeStar.title === '点击气泡收藏这个会话' && afterStar.title === '取消收藏' && afterStar.starredIcon && !afterStar.bubbleIcon, JSON.stringify({ beforeStar, afterStar }));
+  const GRAY = 'rgb(212, 212, 212)';   // text-neutral-300
+  const AMBER = 'rgb(251, 191, 36)';   // text-amber-400
 
-  await cdp.eval(`(() => {
-    const row = Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('Gamma'));
-    row.querySelector('button').click();
-  })()`);
+  await move(4, 4); await sleep(200);
+  const beforeStar = await readStar();
+  await move(geom.rowX, geom.rowY); await sleep(200);
+  const rowHover = await readStar();
+  await move(geom.btnX, geom.btnY); await sleep(200);
+  const btnHover = await readStar();
+  check('渐进式：灰气泡 → 移行变灰星 → 移星变金',
+    beforeStar.bubbleShown && !beforeStar.starShown && beforeStar.color === GRAY &&
+    rowHover.starShown && rowHover.color === GRAY &&
+    btnHover.starShown && btnHover.color === AMBER,
+    JSON.stringify({ beforeStar, rowHover, btnHover }));
+
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: geom.btnX, y: geom.btnY, button: 'left', clickCount: 1 });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: geom.btnX, y: geom.btnY, button: 'left', clickCount: 1 });
   await sleep(400);
-  const unstarred = await cdp.eval(`(() => {
-    const row = Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('Gamma'));
-    const btn = row.querySelector('button');
-    return { title: btn.getAttribute('title'), bubbleIcon: !!btn.querySelector('.lucide-message-square') };
-  })()`);
-  check('再点变回气泡（取消收藏）', unstarred.title === '点击气泡收藏这个会话' && unstarred.bubbleIcon, JSON.stringify(unstarred));
+  const afterStar = await readStar();
+  check('气泡点击后变实心金星', afterStar.title === '取消收藏' && afterStar.starShown && !afterStar.bubbleShown && afterStar.fill === 'currentColor', JSON.stringify(afterStar));
+
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: geom.btnX, y: geom.btnY, button: 'left', clickCount: 1 });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: geom.btnX, y: geom.btnY, button: 'left', clickCount: 1 });
+  await sleep(400);
+  await move(4, 4); await sleep(200);
+  const unstarred = await readStar();
+  check('再点变回气泡（取消收藏）', unstarred.title === '点击气泡收藏这个会话' && unstarred.bubbleShown && !unstarred.starShown, JSON.stringify(unstarred));
 
   // 回归：React Flow 自带的 Backspace 删除只改局部 nodes、不碰 store，
   // 也跳过确认 + 撤销；删完后再有任何 store 变化（比如点 +）节点会被渲染回来。
   // 现已把 deleteKeyCode 设为 null。这里选中节点后按 Backspace，节点必须还在。
+  //
+  // 选中用 CDP 坐标点击。
+  // headless 的窗口尺寸不稳定（不支持 metrics override），节点可能落在可视区外；
+  // 先检查一下，若在外面就点 Controls 的 fitView 把它收回来。
+  const outOfView = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    if (!n) return false;
+    const r = n.getBoundingClientRect();
+    const x = r.left + 40, y = r.top + 12;
+    return !(x > 0 && y > 0 && x < innerWidth && y < innerHeight);
+  })()`);
+  if (outOfView) {
+    await cdp.eval(`document.querySelector('.react-flow__controls-fitview')?.click()`);
+    await sleep(500);
+  }
   const nrect = await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    if (!n) return null;
     const r = n.getBoundingClientRect();
     return { x: r.left + 40, y: r.top + 12 };
   })()`);
+  if (!nrect) throw new Error('s3c 不在 DOM，无法继续 Backspace 回归');
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: nrect.x, y: nrect.y, button: 'left', clickCount: 1 });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: nrect.x, y: nrect.y, button: 'left', clickCount: 1 });
   await sleep(200);
@@ -269,6 +324,24 @@ async function main() {
     return { text: row.textContent.trim(), truncated: span ? span.scrollWidth > span.clientWidth + 1 : null };
   })()`);
   check('中文下新建会话标题为「新会话」且不被截断', newTitle.text === '新会话' && newTitle.truncated === false, JSON.stringify(newTitle));
+
+  // 关于页：版本号来自 vite define（package.json 单一来源）；
+  // 而且网页版永远是最新的，不能弹出「检查更新」相关提示。
+  await cdp.eval(`Array.from(document.querySelectorAll('button')).find(b => b.title === '设置')?.click()`);
+  await sleep(700);
+  await cdp.eval(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === '关于')?.click()`);
+  await sleep(400);
+  const about = await cdp.eval(`(() => {
+    const modal = document.querySelector('.fixed.inset-0.z-50');
+    if (!modal) return { error: 'no modal' };
+    const text = modal.textContent || '';
+    return { version: (text.match(/v\\d+\\.\\d+\\.\\d+/) || [null])[0], nags: ['检查更新', '已是最新版本', '发现新版本', '去下载'].filter(k => text.includes(k)) };
+  })()`);
+  check('关于页显示版本号，且网页版不提示更新',
+    typeof about.version === 'string' && about.nags.length === 0,
+    JSON.stringify(about));
+  await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+  await sleep(300);
 
   check('无运行时报错', errors.length === 0, errors.slice(0, 3).join(' | '));
 

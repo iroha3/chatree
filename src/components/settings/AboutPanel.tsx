@@ -1,11 +1,8 @@
-import React from 'react';
-import { Github, Heart, ExternalLink, Sparkles, ShieldCheck } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Github, Heart, ExternalLink, Sparkles, ShieldCheck, Download, RefreshCw } from 'lucide-react';
 import Logo from '../Logo';
 import { useT } from '../../i18n';
-
-// 与 package.json 的 version 保持一致。刻意不 import JSON —— 那会把整个
-// package.json 打进产物里，为了一行版本号不值得。
-const APP_VERSION = '0.1.0';
+import { checkForUpdate, isDesktopApp, UpdateCheck } from '../../services/updateService';
 
 const UPSTREAM_URL = 'https://github.com/Anionex/treeAI';
 const FORK_URL = 'https://github.com/iroha3/chatree';
@@ -41,6 +38,22 @@ const FEATURES = [
 
 const AboutPanel: React.FC = () => {
   const t = useT();
+  // 网页版永远是最新的，只有桌面版才需要检查。
+  const [desktop] = useState(() => isDesktopApp());
+  const [result, setResult] = useState<UpdateCheck | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const runCheck = useCallback(async () => {
+    if (!isDesktopApp()) return;
+    setChecking(true);
+    setResult(await checkForUpdate(__APP_VERSION__));
+    setChecking(false);
+  }, []);
+
+  useEffect(() => {
+    void runCheck();
+  }, [runCheck]);
+
   return (
     <div className="p-6 space-y-6 overflow-y-auto h-full">
       <section className="text-center">
@@ -48,7 +61,35 @@ const AboutPanel: React.FC = () => {
           <Logo size={48} />
         </div>
         <h3 className="text-lg font-medium text-neutral-800">Chatree</h3>
-        <p className="text-xs text-neutral-400 mt-0.5">v{APP_VERSION} · MIT License</p>
+        <p className="text-xs text-neutral-400 mt-0.5">v{__APP_VERSION__} · MIT License</p>
+        {desktop && (
+          <div className="mt-2 flex items-center justify-center text-xs">
+            {checking ? (
+              <span className="text-neutral-400">{t('检查更新中…')}</span>
+            ) : result?.status === 'available' ? (
+              <a
+                href={result.info.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-indigo-600 transition-colors hover:bg-indigo-100"
+                title={t('用系统浏览器打开下载页')}
+              >
+                <Download size={12} />
+                {t('发现新版本')} v{result.info.latest} · {t('去下载')}
+              </a>
+            ) : result ? (
+              <button
+                type="button"
+                onClick={() => void runCheck()}
+                className="inline-flex items-center gap-1 text-neutral-400 transition-colors hover:text-neutral-600"
+                title={t('重新检查')}
+              >
+                <RefreshCw size={12} />
+                {result.status === 'latest' ? t('已是最新版本') : t('检查更新')}
+              </button>
+            ) : null}
+          </div>
+        )}
         <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
           {t('一个把线性对话变成画布的本地优先工作台。')}
           {t('每个回答都可以继续分叉，把「换一种问法」「换一个模型」变成可以对照的树。')}

@@ -142,7 +142,7 @@ const NotificationContainer: React.FC = () => {
   const { notifications, removeNotification, notificationsToRemove } = useNotificationStore();
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col items-end">
+    <div className="fixed top-4 right-4 z-[300] flex flex-col items-end">
       {notifications.map((notification) => (
         <NotificationItem
           key={notification.id}

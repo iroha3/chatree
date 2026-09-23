@@ -2,14 +2,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
-import { Plus, Send, RefreshCcw, Copy, Settings, Trash2, MessageSquare, Brain, ChevronDown, Square, Maximize2 } from 'lucide-react';
+import { Plus, Send, RefreshCcw, Settings, Trash2, MessageSquare, Brain, ChevronDown, Square, Maximize2 } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { gsap } from 'gsap';
-import { showSuccess, showInfo } from '../../utils/notification';
+import { showInfo } from '../../utils/notification';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import NodeReadOverlay from './NodeReadOverlay';
+import CopyButton from '../CopyButton';
 
 const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onStop, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
@@ -238,23 +239,6 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     }
   };
 
-  const handleCopyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    
-    // Show a brief animation
-    const button = document.activeElement;
-    if (button) {
-      gsap.fromTo(
-        button,
-        { backgroundColor: 'rgba(79, 70, 229, 0.2)' },
-        { backgroundColor: 'transparent', duration: 1 }
-      );
-    }
-    
-    // 显示通知
-    showSuccess(t('内容已复制到剪贴板'));
-  };
-
   // 滚轮处理：
   //  - 普通滚轮：留在节点内部滚动，不带动画布（stopPropagation）
   //  - Ctrl/⌘ + 滚轮：交给 React Flow 缩放画布。
@@ -437,13 +421,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               {node.userMessage || <span className="text-neutral-400 italic">{t('点击添加消息...')}</span>}
             </div>
             <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
+              <CopyButton
+                text={node.userMessage}
                 className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
-                onClick={() => handleCopyToClipboard(node.userMessage)}
-                title={t('复制到剪贴板')}
-              >
-                <Copy size={14} />
-              </button>
+              />
             </div>
           </div>
         )}
@@ -591,13 +572,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       {!node.isStreaming && (
         <div className="absolute bottom-2 right-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           {hasAnswer && (
-            <button
+            <CopyButton
+              text={node.assistantMessage}
               className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
-              onClick={() => handleCopyToClipboard(node.assistantMessage)}
-              title={t('复制到剪贴板')}
-            >
-              <Copy size={14} />
-            </button>
+            />
           )}
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"

@@ -437,15 +437,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 />
               ) : (
                 <div className="flex min-w-0 flex-1 items-center cursor-pointer">
-                  {/* 左侧气泡就是收藏开关（状态机）：
-                      未收藏 = 气泡，点一下收藏；收藏后变成实心星，再点变回气泡取消。
-                      为了让人看得出「气泡能点」，鼠标移到整行时气泡会变成星形轮廓。
-                      颜色只表示状态（灰=未收藏 / 琥珀=已收藏），形只表示可点（气泡→星）。 */}
+                  {/* 左侧气泡就是收藏开关（渐进式状态机）：
+                      平时 = 灰气泡；鼠标移到整行 → 气泡变「灰色星形轮廓」暗示可点；
+                      鼠标移到星上 → 星变金色；点一下 → 金色实心星；再点变回气泡取消。
+                      颜色只表示状态（灰=未收藏 / 金=收藏），形状只表示可点（气泡→星）。
+                      两个坑：① 不要再加边框圆环；② 不要用 group-hover 改色 ——
+                      `.group:hover .x` 的优先级（0,3,0）高于 `.x:hover`（0,2,0），
+                      会把「移到星上变金」盖掉。所以金色只用按钮自己的 hover:。 */}
                   <button
-                    className={`mr-2 flex-shrink-0 rounded p-0.5 transition-colors ${
+                    className={`mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
                       session.starred
                         ? 'text-amber-400 hover:text-amber-500'
-                        : 'text-neutral-300 group-hover:text-neutral-400'
+                        : 'text-neutral-300 hover:text-amber-400'
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
