@@ -1,16 +1,23 @@
-# ❗ **只在手动触发时跑，绝不跟着 push 跑。**
+# **版本号驱动**：改了 package.json 的 version 并推上去，流水线自己走。
 #
-# 第一版挂在 `on: push` 上，结果每次提交都自动跑一遍全平台打包（四个 runner、
-# 每个 5–10 分钟）。用户的原话：「构建成本巨高，怎么又不要钱随手构建啊」。
-# 发版是深思熟虑的动作，不是提交的副产品：
+# 平时 push 只花十几秒：跑一个「要不要发版」的闸门 job，不满足就全部跳过。
+# 不需要手敲 gh workflow run（那只留给「跑失败了想重试」）。
 #
-#   gh workflow run release.yml -R iroha3/chatree
+# 闸门要**同时**满足两条：
 #
-# 先改好 package.json 的 version（tag 名就是 v<version>）。
-# 幂等：tag 已存在就跳过，重跑不会重复发版。
+#   1. 这次 push 动过 package.json 的 version（对比 github.event.before）；
+#   2. 这个版本还没打过 tag `v<version>`（发完自动打，所以天然幂等）。
+#
+# ❗ 别退回「只要 tag 不存在就发版」那种写法。版本号在开发期长期不变，而 tag 又只有
+#    发完才建 —— 那样每次 push 都会被判成「该发版」，然后重跑一遍全平台打包
+#    （四个 runner、每个 5–10 分钟）。第一版就是这么写的，用户原话：
+#    「构建成本巨高，怎么又不要钱随手构建啊」「哪有 push 一次构建一次的」。
 name: Release
 
 on:
+  push:
+    branches: [master]
+  # 后门：只有「发版跑挂了想原样重试」才用它，日常不碰。
   workflow_dispatch:
 
 permissions:
@@ -19,7 +26,7 @@ permissions:
 
 concurrency:
   group: release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   # ── 0. 版本与是否发版 ─────────────────────────────────────────
@@ -30,16 +37,36 @@ jobs:
       release: ${{ steps.check.outputs.release }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # 要比对「push 之前的那个提交」，浅克隆翻不到
+          fetch-depth: 0
       - id: check
         run: |
+          set -euo pipefail
           VERSION=$(jq -r .version package.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            echo "tag v$VERSION 已存在，跳过发版（幂等）"
+
+          # 这次 push 之前的版本号（新分支 / 手动触发时取不到，当作「改过」）
+          BEFORE="${{ github.event.before }}"
+          if [ -n "$BEFORE" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            PREV=$(git show "$BEFORE:package.json" 2>/dev/null | jq -r .version || echo "")
           else
+            PREV=""
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            TAGGED=yes
+          else
+            TAGGED=no
+          fi
+
+          echo "版本: ${PREV:-<未知>} -> $VERSION ; tag v$VERSION 已存在: $TAGGED"
+          if [ "$VERSION" != "$PREV" ] && [ "$TAGGED" = "no" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
-            echo "准备发布 v$VERSION"
+            echo "✓ 版本号变了、而且没发过 —— 开始发布"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "→ 跳过：没改版本号，或这个版本已经发过"
           fi
 
   # ── 1. 网页版 dist.zip ───────────────────────────────────────

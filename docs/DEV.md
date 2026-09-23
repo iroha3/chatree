@@ -253,21 +253,29 @@ bun run desktop:build:fast   # 本地快速（只出可执行文件，不出安�
 
 ### 8.1 发布流水线（`.github/workflows/release.yml`）
 
-**发版是手动动作，不是提交的副产品：**
+**版本号驱动：改了 `package.json` 的 `version` 推上去，流水线自己走。**
 
 ```bash
-# 1) 先改 package.json 的 version（tag 名就是 v<version>）
-# 2) 推上去（只跑 CI，30 秒）
-# 3) 想要发布时，再显式点一下：
-gh workflow run release.yml -R iroha3/chatree
+bun pm version patch   # 或手动改 package.json 的 version
+git commit -am "chore: 版本 0.1.1"
+git push               # ← 这一个 push 就会触发全平台打包并建 Release
 ```
 
-> ❗ **`release.yml` 绝对不能挂回 `on: push`。** 第一版就是这么写的，结果每次提交
-> 都自动跑一遍全平台打包（四个 runner、每个 5–10 分钟）—— 用户原话：
-> 「构建成本巨高，怎么又不要钱随手构建啊」。改代码和发版必须分开。
+闸门（`version` job，平时只花十几秒）要**同时**满足两条：
 
-幂等：tag `v<version>` 已存在就直接跳过，重跑不会重复发版。`concurrency.group` 固定成
-`release`，两次手动触发不会打架。
+1. 这次 push **动过** `package.json` 的 version（对比 `github.event.before`）；
+2. 这个版本**还没打过 tag** `v<version>`（发完自动打，所以天然幂等）。
+
+不满足就把后面所有 job 全部跳过 —— 普通提交依旧只花 ~15 秒。
+
+> ❗ **不要退回「只要 tag 不存在就发版」那种写法。** 版本号在开发期长期不变，
+> 而 tag 又只有发完才建 —— 那样**每次 push 都会被判成「该发版」**，然后重跑
+> 一遍全平台打包。第一版就是这么写的，用户原话：
+> 「构建成本巨高，怎么又不要钱随手构建啊」「哪有 push 一次构建一次的」。
+>
+> `workflow_dispatch` 只作为后门保留（比如发版跑挂了想原样重试），日常不碰。
+> `concurrency.cancel-in-progress: true`：连续改两次版本号时，旧的构建会被新的取消，
+> 不白烧一个 ——— 因为 tag 是在最后才打的，取消掉不会留下半个版本。
 
 矩阵（公开仓库的 runner 不计费，但**时间**才是真正的成本）：
 
