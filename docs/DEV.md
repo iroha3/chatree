@@ -1,0 +1,251 @@
+# Chatree 开发文档
+
+> 面向**人**和 **AI Agent**。动手前先读完「绝对不能改的东西」和「交互约定」两节。
+>
+> 一句话：Chatree 是一个**本地优先**的树状 LLM 对话工作台（React + React Flow +
+> Dexie/IndexedDB），可以打包成桌面版（Pake/Tauri）。所有数据只存在浏览器里，零后端。
+
+---
+
+## 0. 工具链：只用 bun
+
+**本项目全程用 [bun](https://bun.sh)，不用 node/npm/pnpm/yarn。**
+
+```bash
+bun install            # 装依赖（锁文件是 bun.lock，已提交）
+bun run dev            # 起开发服务器 http://127.0.0.1:5175
+bun run build          # 生产构建到 dist/
+bun run lint           # ESLint
+bun test:edge          # 纯逻辑回归（不需要浏览器）
+bun test:smoke         # 端到端回归（需要 Edge + dev server，见 §6）
+bun test:ux            # 节点交互回归（同上）
+```
+
+- ❌ 不要新增 `package-lock.json`（npm 锁文件已删除，双锁文件会漂移）。
+- ❌ 脚本、命令、CI 一律 `bun` / `bunx`，不要写 `node` / `npx` / `npm`。
+- ✅ `.mjs` 脚本用 bun 直接跑；`node:` 内置模块和原生 `WebSocket`/`fetch` 都支持。
+
+---
+
+## 1. 绝对不能改的东西（数据契约）
+
+改名、重构、翻译随便做，但**下面这些字符串是用户数据的地址，改了就等于把用户数据弄丢**：
+
+| 东西 | 值 | 位置 |
+|---|---|---|
+| IndexedDB 数据库名 | `TreeChatDatabase` | `src/db/db.ts` |
+| 导出的 JSON 格式标识 | `treeai-sessions` | `src/utils/sessionTransfer.ts` |
+| localStorage key | `treeai-lang` / `treeai-theme` / `treeai-viewports` | 各 store |
+| 桌面版 identifier | `com.chatree.desktop` | `pake.config.json` |
+
+> `treeai-*` 这套前缀看着像历史遗留（早于改名 Chatree），但**不能顺手"统一"成 `chatree-`**：
+> 改了老用户的语言/主题/视口偏好会丢。桌面版的 `identifier` 同理，改了 IndexedDB 的
+> origin 就变了，等于用户数据清零。
+
+---
+
+## 2. 架构与目录
+
+```
+src/
+├── components/
+│   ├── ChatFlow.tsx          # 画布总编排：节点构建、流式请求、增删改、撤销
+│   ├── Sidebar.tsx           # 会话列表 / 文件夹 / 星标 / 搜索
+│   ├── SettingsModal.tsx     # 设置中心（模型 / 数据 / 外观 / 关于）
+│   ├── ConfirmDialog.tsx     # 应用内确认框（替代 window.confirm）
+│   ├── CopyButton.tsx        # 统一的复制按钮（点完变对号）
+│   ├── Notification.tsx      # Toast 容器（z-[300]）
+│   ├── nodes/ChatNode.tsx    # 对话节点卡片
+│   ├── nodes/SystemNode.tsx  # 系统提示词节点
+│   └── nodes/NodeReadOverlay.tsx  # 双击放大的只读阅读浮层（portal 到 body）
+├── stores/                   # zustand：sessionStore / modelStore / themeStore / ...
+├── db/db.ts                  # Dexie schema
+├── services/apiService.ts    # OpenAI 兼容的流式请求
+├── utils/                    # id / sessionTitle / sessionTransfer / notification
+└── i18n/index.ts             # 极简 i18n（中文原文当 key）
+
+scripts/                      # 回归脚本 + 图标 + 打包（见 §6、§8）
+docs/                         # 本文件 + ROADMAP
+public/                       # hljs/katex 的本地 shim（离线用，见 §5）
+```
+
+---
+
+## 3. 交互约定（已定，别擅自改回去）
+
+这些都是踩过坑之后定下来的。改之前先问，或先在本节记录理由。
+
+### 3.1 删除节点
+- **只有节点上的垃圾桶按钮能删节点。** React Flow 的 `deleteKeyCode` 已设为 `null`：
+  Backspace 删除是"画板"惯例，不适用于"递归删子树 + 确认 + 撤销"，而且它只改 React Flow
+  的本地 nodes、不碰 store，会绕过确认/撤销，导致"删掉的节点又跳出来"。
+- 删除流程：应用内 `ConfirmDialog` 确认 → `abort()` 在飞的请求 → 删子树 → 8s 内可「撤销」。
+- `sessionStore.updateNodeInSession` 是**只 map、不 append**：迟到的流式回调不能复活已删节点。
+
+### 3.2 思考链（reasoning）
+- **历史节点默认折叠。**
+- 流式期间自动接管：**思考中自动展开**（实时看它在想什么）→ **思考结束安静折叠**
+  （正文第一个分片到达，或整个流结束）。
+- 用户手动点过折叠开关后，就不再自动干预。
+- 实现见 `ChatNode.tsx` 的 `reasoningTouchedRef` + effect。判断"思考结束"用的是
+  `streamingReasoning 还在 && 正文还没开始`，不能用 `isLiveReasoning`（它在正文阶段仍为真）。
+
+### 3.3 停止 / 重新生成
+- 右下角悬浮区是"运行入口"：生成中显示**停止**，结束后显示**重新生成**。
+- ❌ 不要再生一个停止按钮塞进"AI 正在思考…"那一行（曾经有过，被用户点名"这是啥玩意"）。
+- 「发送键变停止」那种 ChatGPT 式交互**尚未定案**（发送后节点进入只读，没有发送键），
+  要改先讨论语义。
+
+### 3.4 复制
+- 一律用 `CopyButton`：点击后**立即**变对号（1.5s）。
+- 内部优先用 `document.execCommand('copy')`：桌面端（WebView2）里
+  `navigator.clipboard.writeText` 会弹**原生剪贴板授权框**，而且异步等待会让反馈迟迟不出来。
+
+### 3.5 弹窗 / 通知
+- **禁止 `window.confirm` / `alert` / `prompt`。** 用 `src/stores/confirmStore.ts` +
+  `ConfirmDialog`。
+- Toast 容器是 `z-[300]`，必须高于阅读浮层和确认框（`z-[100]`），否则复制反馈被盖住。
+
+### 3.6 i18n
+- 中文原文就是 key；词典只维护 zh → en 一张表，**漏翻会原样回退中文**，所以可以增量补。
+
+### 3.7 界面宽度
+- `.node-content` 的宽度（`src/index.css`）必须和 `ChatFlow.tsx` 的 `NODE_WIDTH` 一致
+  （当前 **548**）。两处不同步会出现节点与连线错位。
+
+### 3.8 排版
+- 回答正文由 `md-editor-rt` 渲染，所有字号/间距微调集中在 `src/index.css` 的
+  `.md-preview` 段：卡片正文 19px、段落/列表间距已收紧；阅读浮窗加 `.reader`
+  类降到 16px。改这些值顺手看一眼 `bun test:ux` 里的排版断言。
+
+---
+
+## 4. React Flow 的坑（血泪）
+
+1. **节点入场动画只能动 `opacity`，绝不能动 `transform`。**
+   translate/scale 会污染 handle 的测量基准，动画期间连线终点会飘，结束后才"啪"地接上。
+2. **重建 nodes 数组时必须带上测量出来的 `width/height`。**
+   `ChatFlow.tsx` 用 `flowNodesRef` 保存上一次渲染的节点，`buildFlowNode(..., previous)`
+   从它取 `previous`；否则 `getNodeData().isValid` 为 false，边会消失/截断。
+   回归见 `scripts/edge-contract-check.mjs`。
+3. **交互控件要加 `nodrag nopan`**（range / select / textarea / 按钮 / 浮层），
+   否则触摸或拖动会带动画布。
+4. 尺寸变化后调 `updateNodeInternals(id)` 重新测量。
+5. `Ctrl+滚轮` 留给画布缩放；节点内部滚动要 `stopPropagation`。
+
+---
+
+## 5. 离线优先 / 安全
+
+- **零第三方 CDN 请求**：`highlight.js` / `katex` 走 `public/*-shim.js` 本地加载。
+  不要引入 CDN 链接，也不要为了小功能随意加依赖。
+- **Markdown 必须关掉原始 HTML**：`markdownItConfig: md => md.set({ html: false })`。
+  历史漏洞：渲染出的 HTML 能执行脚本，而 API Key 就在同源 IndexedDB 里 —— 真实可利用。
+- 备份/导出**绝不能包含 API Key**。
+
+---
+
+## 6. 回归测试
+
+| 脚本 | 依赖 | 覆盖 |
+|---|---|---|
+| `bun test:edge` | 无 | 复制 React Flow 的 `createNodeInternals/applyNodeChanges` 语义，断言"掉边"的两种取法 |
+| `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
+| `bun test:ux` | Edge:9222 + dev:5175 | 24 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、关于页… |
+
+跑端到端前需要：
+
+```bash
+# 1) 起 dev server（5175）
+bun run dev
+# 2) 起 headless Edge 并开 CDP
+"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" \
+  --headless=new --disable-gpu --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/chatree-edge about:blank
+# 3) 跑脚本
+bun test:ux
+```
+
+脚本里用 `Input.dispatchMouseEvent` 真实移动鼠标来测 `:hover`（**别只查 className** ——
+曾因此漏掉一个 CSS 优先级 bug：`.group:hover .x`(0,3,0) 盖过 `.x:hover`(0,2,0)）。
+
+---
+
+## 7. 版本号：只有一个来源
+
+`package.json` 的 `version` 是**唯一**来源，喂给三处：
+
+1. 前端：`vite.config.ts` 用 `define` 注入 `__APP_VERSION__`（页面"关于"用）
+2. 桌面版：`scripts/pake.mjs` 读出来传给 `pake --app-version`
+3. 发版：CI 用它打 git tag `v$VERSION`
+
+❌ 不要再在任何地方手写版本号。
+
+---
+
+## 8. 桌面版（Pake）
+
+**仓库里不出现 Rust**，只有 `pake.config.json` + `scripts/pake.mjs`。
+
+```bash
+bun run desktop:build        # 完整打包（当前平台）
+bun run desktop:build:fast   # 本地快速（只出可执行文件，不出安装包）
+```
+
+关键坑：
+
+1. **`enableDragDrop` 必须是 `false`。**
+   Pake 的 `enableDragDrop: true` 打开的是 **Tauri 原生文件拖放处理器**，它会拦截并吃掉
+   WebView 的 HTML5 拖放 —— 表现就是"模型排序 / 会话拖进文件夹没反应"。设成 `false`
+   （= `disable_drag_drop_handler()`）才恢复网页内拖拽。我们不需要原生文件拖入。
+2. **图标必须按平台给对应格式**，否则 Pake **只警告、然后回退成它自带的默认图标**：
+   - Windows → `build/icon.ico`（256×256）
+   - macOS → `build/icon.icns`
+   - Linux → `build/icon-512.png`（正好 512）
+   `scripts/pake.mjs` 已按 `process.platform` 选好。
+   `bun run icons` 从 `public/favicon.svg` 生成三件套（一次性步骤，产物已提交）。
+3. **从 Git Bash 构建时 MSVC 的 `link.exe` 会被 GNU 的 `link.exe` 顶掉**，
+   报 `link: extra operand`。把 MSVC 的 bin 目录放到 PATH 最前：
+
+   ```bash
+   export PATH="/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/<版本>/bin/Hostx64/x64:$PATH"
+   bun run desktop:build
+   ```
+
+4. **桌面版是独立的 origin**（`http://tauri.localhost`），和浏览器的
+   `http://127.0.0.1:5175` **不共享 IndexedDB**。所以「浏览器 → 桌面」需要
+   「导出 JSON → 重填 API Key → 导入」。但**桌面版本之间**升级不受影响（identifier 不变）。
+
+---
+
+## 9. 已知坑：Vite 缓存中毒
+
+`vite.config.ts` 里配了 `server.watch.awaitWriteFinish`。Windows 上如果文件"截断重写"的
+瞬间被 chokidar 捕获，Vite 会读到半截内容并**缓存**下来，之后该模块一直返回空，整个应用白屏
+（`does not provide an export named 'default'`）。遇到就删 `node_modules/.vite` 重启。
+
+---
+
+## 10. 提交前自检
+
+```bash
+bun run lint
+bunx tsc --noEmit -p tsconfig.app.json
+bunx tsc --noEmit -p tsconfig.node.json
+bun test:edge
+bun run build
+```
+
+改了节点交互 / 排版，再补跑 `bun test:ux`（需要 §6 的环境）。
+
+---
+
+## 11. 文档地图
+
+| 文件 | 职责 |
+|---|---|
+| `README.md` / `README_CN.md` | 面向用户：是什么、怎么用、截图 |
+| `docs/DEV.md`（本文件） | 面向开发者 + Agent：契约、约定、坑、测试 |
+| `docs/ROADMAP.md` | **只放没做的**，做完就删条目 |
+| `CHANGELOG.md` | 按版本流水 |
+| `AGENTS.md` | 指向本文件（软链） |

@@ -1,15 +1,20 @@
 /*
- * 从 public/favicon.svg 生成 Windows 图标。
+ * 从 public/favicon.svg 生成三平台图标。
  *
  * 为什么不用 sharp / ImageMagick：
  *   - 项目不想为了「一次性生成图标」多引一个带原生二进制的依赖；
  *   - 机器上一定有 Edge，干脆用它的 headless 截图把 SVG 栅格化。
  *
- * 产出（都在 build/，会被提交，因为打 exe 时要用）：
+ * 产出（都在 build/，会被提交，因为打桌面版时要用）：
  *   build/icon.ico       多尺寸 ICO（16/32/48/64/128/256），Windows 用
- *   build/icon-512.png   512×512 PNG，给以后的 Linux / 文档用
+ *   build/icon-512.png   512×512 PNG，Linux 用（Pake 要求正好 512）
+ *   build/icon.icns      macOS 用（内嵌 128/256/512/1024 的 PNG）
  *
- * 用法：node scripts/make-icons.mjs
+ * ⚠️ Pake 的 --icon 只认**平台对应格式**（win=.ico / linux=.png / mac=.icns），
+ *    格式不对它会警告并回退成自带默认图标，不报错。详见 scripts/pake.mjs。
+ *
+ * 这是**一次性**步骤（图标很少变），产物已提交，CI 不需要跑它。
+ * 用法：bun scripts/make-icons.mjs
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -125,4 +130,30 @@ fs.writeFileSync(
   Buffer.concat([header, ...entries, ...pngs.map((p) => p.buf)]),
 );
 
-console.log(`✓ build/icon.ico (${ICO_SIZES.join('/')}) + build/icon-512.png`);
+// ── 手工拼 ICNS（macOS） ────────────────────────────────
+// 结构比 ICO 还简单：magic "icns" + 总长度(BE)，然后每个条目是
+//   OSType(4) + 条目长度(BE，含这 8 字节头) + 数据
+// 现代 macOS 接受直接内嵌 PNG。这里放 128/256/512/1024（ic07–ic10），
+// 小尺寸由系统自己缩。
+const ICNS_ENTRIES = [
+  { type: 'ic07', size: 128 },
+  { type: 'ic08', size: 256 },
+  { type: 'ic09', size: 512 },
+  { type: 'ic10', size: 1024 },
+];
+const icnsParts = ICNS_ENTRIES.map(({ type, size }) => {
+  const buf = fs.readFileSync(render(size, `icon-${size}.png`));
+  const head = Buffer.alloc(8);
+  head.write(type, 0, 'ascii');
+  head.writeUInt32BE(buf.length + 8, 4);
+  return Buffer.concat([head, buf]);
+});
+const icnsBody = Buffer.concat(icnsParts);
+const icnsHeader = Buffer.alloc(8);
+icnsHeader.write('icns', 0, 'ascii');
+icnsHeader.writeUInt32BE(8 + icnsBody.length, 4);
+fs.writeFileSync(path.join(outDir, 'icon.icns'), Buffer.concat([icnsHeader, icnsBody]));
+
+console.log(
+  `✓ build/icon.ico (${ICO_SIZES.join('/')}) + build/icon-512.png + build/icon.icns (${ICNS_ENTRIES.map((e) => e.size).join('/')})`,
+);

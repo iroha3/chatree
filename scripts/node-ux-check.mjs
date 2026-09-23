@@ -68,6 +68,9 @@ async function main() {
   await goto(APP);
 
   // Seed a session with TWO system nodes + a chat node carrying reasoning.
+  // 回答里带段落和列表，用来量段落 / 列表的纵向间距（用 JSON.stringify 注入，
+  // 避免在模板字符串里手写 \n 被当成真换行）。
+  const ANSWER_MD = 'hello answer\n\nsecond paragraph\n\n- a\n- b';
   const seed = `new Promise((resolve) => {
     const req = indexedDB.open('TreeChatDatabase');
     req.onsuccess = () => {
@@ -76,7 +79,7 @@ async function main() {
       const tx = db.transaction(['sessions', 'models'], 'readwrite');
       const sysA = { id: 's3a', parentId: null, type: 'system', userMessage: 'AAA', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: false };
       const sysB = { id: 's3b', parentId: null, type: 'system', userMessage: 'BBB', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: false };
-      const chat = { id: 's3c', parentId: 's3a', type: 'chat', userMessage: 'hi', assistantMessage: 'hello answer', reasoning: 'thinking hard here', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      const chat = { id: 's3c', parentId: 's3a', type: 'chat', userMessage: 'hi', assistantMessage: ${JSON.stringify(ANSWER_MD)}, reasoning: 'thinking hard here', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
       // 必须自己带一个模型：否则画板上会盖一层「还没有可用的模型」遮罩（z-20），
       // 遮掉点击、头部也回退成「对话节点」。以前能过是因为先跑了 smoke-check，
       // 它顺手播了 m1 —— 这个测试应该自己就能独立跑。
@@ -134,6 +137,17 @@ async function main() {
   const expanded = await cdp.eval(`!!document.querySelector('.react-flow__node[data-id="s3c"] pre')`);
   check('点击后思维链展开', expanded === true);
 
+  // 排版：卡片正文 19px，且段落 / 列表的纵向间距已收紧（prose 默认太松）。
+  const cardType = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const p = n.querySelector('.md-editor-preview p');
+    const li = n.querySelector('.md-editor-preview li');
+    return { font: p ? getComputedStyle(p).fontSize : null, pMargin: p ? parseFloat(getComputedStyle(p).marginBottom) : null, liMargin: li ? parseFloat(getComputedStyle(li).marginTop) : null };
+  })()`);
+  check('卡片正文 19px、段/列表间距收紧',
+    cardType.font === '19px' && cardType.pMargin !== null && cardType.pMargin <= 10 && cardType.liMargin !== null && cardType.liMargin <= 4,
+    JSON.stringify(cardType));
+
   // double click -> overlay dialog
   await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
@@ -147,6 +161,16 @@ async function main() {
     return dlg ? { open: true, text: dlg.textContent.slice(0, 60) } : { open: false };
   })()`);
   check('双击节点打开阅读覆盖层', overlay.open === true, JSON.stringify(overlay));
+
+  // 浮窗正文比卡片小一号（16px），段距也更紧。
+  const readerType = await cdp.eval(`(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    const p = dlg.querySelector('.md-editor-preview p');
+    return { font: p ? getComputedStyle(p).fontSize : null, pMargin: p ? parseFloat(getComputedStyle(p).marginBottom) : null };
+  })()`);
+  check('浮窗正文 16px、段距更紧',
+    readerType.font === '16px' && readerType.pMargin !== null && readerType.pMargin <= 7,
+    JSON.stringify(readerType));
 
   // 覆盖层里的复制按钮：点完图标短暂变成对号（小反馈）
   await cdp.eval(`(() => {

@@ -17,8 +17,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
   const [isEditingUser, setIsEditingUser] = useState(!node.userMessage);
   const [showSettings, setShowSettings] = useState(false);
-  // 思考过程默认折叠。以前一有思维链就自动展开，长推理会把回答挤到屏幕外。
+  // 思考过程：历史节点默认折叠；流式期间由下面的 effect 接管
+  // （思考中自动展开 → 思考结束安静折叠）。
   const [showReasoning, setShowReasoning] = useState(false);
+  // 用户手动点过折叠开关后，就把控制权交还给他，不再自动开关。
+  const reasoningTouchedRef = useRef(false);
   const [isReading, setIsReading] = useState(false);
   
   const { models } = useModelStore();
@@ -45,6 +48,22 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const isLiveReasoning = !!streamingReasoning && !!node.isStreaming;
 
   const hasAnswer = !!(node.assistantMessage || reasoningText);
+
+  /*
+   * 思考链的自动开合：
+   *   思考中（还在流 reasoning、正文还没开始）→ 自动展开，能看到它在想什么；
+   *   思考结束（正文第一个分片到达，或整个流结束）→ **安静折叠**（不留提示）。
+   * 用户手动点过开关就不再自动干预（reasoningTouchedRef）。
+   * 历史节点没有 streamingReasoning，不会被这段逻辑打开。
+   */
+  useEffect(() => {
+    if (reasoningTouchedRef.current) return;
+    const hasReasoning = !!(streamingReasoning || node.reasoning);
+    if (!hasReasoning) return;
+    // 只思考不回答的模型：isStreaming 变 false 时也会走到这里折叠。
+    const thinking = !!node.isStreaming && !!streamingReasoning && !streamingResponse;
+    setShowReasoning(thinking);
+  }, [streamingReasoning, streamingResponse, node.isStreaming, node.reasoning]);
 
   /*
    * 正文只用一个 MdPreview 渲染，流式和非流式共用同一个元素 ——
@@ -442,17 +461,6 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             <div className="animate-bounce delay-100">.</div>
             <div className="animate-bounce delay-200">.</div>
             <div className="animate-bounce delay-300">.</div>
-            {/* 生成 / 停止互相切换：生成时这里就是停止按钮。
-                点停止会中止请求，并把已经生成的部分保存下来。 */}
-            <button
-              type="button"
-              onClick={() => onStop(node.id)}
-              className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-800"
-              title={t('停止生成并保存已生成的内容')}
-            >
-              <Square size={11} fill="currentColor" />
-              {t('停止')}
-            </button>
           </div>
         ) : node.error ? (
           <div className="text-red-500 mb-2">
@@ -464,7 +472,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <div className="mb-2 border border-neutral-100 rounded-md overflow-hidden shrink-0">
             <button
               type="button"
-              onClick={() => setShowReasoning(v => !v)}
+              onClick={() => { reasoningTouchedRef.current = true; setShowReasoning(v => !v); }}
               className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
               <span className="flex items-center">

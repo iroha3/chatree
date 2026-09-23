@@ -1,0 +1,175 @@
+# 发版：push 到 master 时，若 package.json 的版本还没打过 tag，就构建全平台产物并建 Release。
+#
+# 幂等：判断"要不要发版"只看 `v$VERSION` 这个 tag 存不存在。改版本号 = 一次普通提交，
+# push 就发版；重跑不会重复发。
+#
+# 关于成本：这是**公开仓库**，GitHub 托管的 runner（含 macOS / Windows / arm64）都不计费，
+# 所以三平台 × 双架构全出。私有仓库会按分钟计费，那时再砍。
+#
+# 产物：各平台安装包 + 原始可执行文件 + 网页版 dist.zip + GHCR 上的 Docker 镜像。
+# 不做 GitHub Pages —— 网页版已经部署在 Cloudflare。
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── 0. 版本与是否发版 ─────────────────────────────────────────
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "tag v$VERSION 已存在，跳过发版（幂等）"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "准备发布 v$VERSION"
+          fi
+
+  # ── 1. 网页版 dist.zip ───────────────────────────────────────
+  web:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run build
+      - name: Zip the web build
+        run: |
+          cd dist
+          zip -r "../chatree-web-${{ needs.version.outputs.version }}.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: chatree-web-*.zip
+          if-no-files-found: error
+
+  # ── 2. 桌面版：每个 runner 原生构建自己的架构（Pake 没有 --arch）──
+  desktop:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          # GitHub 公开仓库的 arm64 Windows runner
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
+          # macos-13 是 Intel；macos-14 是 Apple Silicon。
+          # 若 13 被下线，改成一个 macos-14 + `--multi-arch` 出通用包。
+          - os: macos-13
+            platform: macos
+            arch: x64
+          - os: macos-14
+            platform: macos
+            arch: arm64
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+
+      # 打包。scripts/pake.mjs 会用 package.json 的版本 + 平台对应的图标，
+      # 并把产物清单写进 pake-artifacts.json。
+      - name: Build desktop app
+        run: bun run desktop:build:ci
+
+      - name: Collect artifacts
+        run: bun scripts/collect-artifacts.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/**
+          if-no-files-found: error
+
+  # ── 3. 网页版的 Docker 镜像（内网自持用）────────────────────
+  docker:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
+
+  # ── 4. 建 tag + Release，附上所有产物 ────────────────────────
+  release:
+    needs: [version, web, desktop, docker]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: List collected files
+        run: find artifacts -type f -printf '%f\t%k KB\n' | sort
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: Chatree v${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          files: artifacts/**
+          fail_on_unmatched_files: true

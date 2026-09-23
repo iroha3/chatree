@@ -270,6 +270,42 @@ body {
 .md-preview h5,
 .md-preview h6 { font-size: 0.95em !important; }
 
+/* 纵向节奏。Tailwind prose 默认段落 / 列表上下各 1.25em、li 上下 0.5em，
+   在 19px 字号下段距 ≈ 24px，卡片和浮窗里都显得空。用户反馈「段间距略大、
+   列表间距大」，这里统一收紧（比 prose 更紧，但仍留出可读的呼吸感）。
+   用 !important：md-editor 的 `div.vuepress-theme p` 特异度 (0,1,1) 不低于
+   `.md-preview p` (0,1,1)，靠加载顺序取胜太脆。 */
+.md-preview :where(p) {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+.md-preview :where(ul, ol) {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+.md-preview :where(li) {
+  margin-top: 0.12em !important;
+  margin-bottom: 0.12em !important;
+}
+/* li 里再套 p（宽松列表）时不要再叠加一层段距 */
+.md-preview :where(li > p) {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* 阅读浮窗的正文比卡片小一号：浮窗更宽（860px），同样 19px 会显得很大。
+   用户要求「双击浮窗后正文文字小一点」。md-editor 内层把字号写死在
+   `.md-editor-preview` 和 `div.vuepress-theme` 两处，所以都要盖。 */
+.md-preview.reader .md-editor-preview,
+.md-preview.reader .md-editor-preview .vuepress-theme {
+  font-size: 16px !important;
+}
+.md-preview.reader :where(p),
+.md-preview.reader :where(ul, ol) {
+  margin-top: 0.4em !important;
+  margin-bottom: 0.4em !important;
+}
+
 .md-preview table {
   display: block;
   max-width: 100%;

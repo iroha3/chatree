@@ -32,6 +32,11 @@ build/icon-*.png
 # 桌面版打包产物（Pake 输出在仓库根目录）
 /Chatree.exe
 /Chatree.msi
+# keepBinary 在非 Windows 上的原始二进制
+/Chatree-binary
 
 # Pake/构建临时文件
 .pake-build.*
+# scripts/pake.mjs --json 写出的产物清单，以及 collect-artifacts.mjs 的收集目录
+/pake-artifacts.json
+/release/

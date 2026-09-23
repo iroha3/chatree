@@ -123,7 +123,7 @@ const NodeReadOverlay: React.FC<NodeReadOverlayProps> = ({ node, streamingReason
                   modelValue={node.assistantMessage}
                   theme={theme}
                   noMermaid
-                  className="md-preview overflow-auto break-words"
+                  className="md-preview reader overflow-auto break-words"
                   style={{ backgroundColor: 'transparent', maxWidth: '100%' }}
                   previewTheme="vuepress"
                 />
