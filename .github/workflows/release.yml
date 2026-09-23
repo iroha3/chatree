@@ -1,18 +1,16 @@
-# 发版：push 到 master 时，若 package.json 的版本还没打过 tag，就构建全平台产物并建 Release。
+# ❗ **只在手动触发时跑，绝不跟着 push 跑。**
 #
-# 幂等：判断"要不要发版"只看 `v$VERSION` 这个 tag 存不存在。改版本号 = 一次普通提交，
-# push 就发版；重跑不会重复发。
+# 第一版挂在 `on: push` 上，结果每次提交都自动跑一遍全平台打包（四个 runner、
+# 每个 5–10 分钟）。用户的原话：「构建成本巨高，怎么又不要钱随手构建啊」。
+# 发版是深思熟虑的动作，不是提交的副产品：
 #
-# 关于成本：这是**公开仓库**，GitHub 托管的 runner（含 macOS / Windows / arm64）都不计费，
-# 所以三平台 × 双架构全出。私有仓库会按分钟计费，那时再砍。
+#   gh workflow run release.yml -R iroha3/chatree
 #
-# 产物：各平台安装包 + 原始可执行文件 + 网页版 dist.zip + GHCR 上的 Docker 镜像。
-# 不做 GitHub Pages —— 网页版已经部署在 Cloudflare。
+# 先改好 package.json 的 version（tag 名就是 v<version>）。
+# 幂等：tag 已存在就跳过，重跑不会重复发版。
 name: Release
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +18,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:

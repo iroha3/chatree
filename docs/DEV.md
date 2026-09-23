@@ -253,10 +253,23 @@ bun run desktop:build:fast   # 本地快速（只出可执行文件，不出安�
 
 ### 8.1 发布流水线（`.github/workflows/release.yml`）
 
-push 到 master 就发版：先看 `package.json` 的 version 对应的 tag `v<version>`
-存不存在，不存在才真发布（**幂等**，重跑不会重复发）。改版本号 = 一次普通提交。
+**发版是手动动作，不是提交的副产品：**
 
-矩阵（公开仓库的 runner 不计费，所以三平台都出）：
+```bash
+# 1) 先改 package.json 的 version（tag 名就是 v<version>）
+# 2) 推上去（只跑 CI，30 秒）
+# 3) 想要发布时，再显式点一下：
+gh workflow run release.yml -R iroha3/chatree
+```
+
+> ❗ **`release.yml` 绝对不能挂回 `on: push`。** 第一版就是这么写的，结果每次提交
+> 都自动跑一遍全平台打包（四个 runner、每个 5–10 分钟）—— 用户原话：
+> 「构建成本巨高，怎么又不要钱随手构建啊」。改代码和发版必须分开。
+
+幂等：tag `v<version>` 已存在就直接跳过，重跑不会重复发版。`concurrency.group` 固定成
+`release`，两次手动触发不会打架。
+
+矩阵（公开仓库的 runner 不计费，但**时间**才是真正的成本）：
 
 | runner | 产物 |
 |---|---|
