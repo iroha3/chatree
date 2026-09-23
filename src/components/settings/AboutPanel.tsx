@@ -47,7 +47,7 @@ const AboutPanel: React.FC = () => {
         <div className="flex justify-center mb-3">
           <Logo size={48} />
         </div>
-        <h3 className="text-lg font-medium text-neutral-800">Tree AI Plus</h3>
+        <h3 className="text-lg font-medium text-neutral-800">Chatree</h3>
         <p className="text-xs text-neutral-400 mt-0.5">v{APP_VERSION} · MIT License</p>
         <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
           {t('一个把线性对话变成画布的本地优先工作台。')}
@@ -92,7 +92,7 @@ const AboutPanel: React.FC = () => {
           </LinkButton>
         </div>
         <p className="mt-3 text-xs text-neutral-400 leading-relaxed">
-          {t('Tree AI Plus 是')}<a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="underline hover:text-neutral-600">Anionex/treeAI</a>{t('的增强分支。')}
+          {t('Chatree 是')}<a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="underline hover:text-neutral-600">Anionex/treeAI</a>{t('的增强分支。')}
           {t('如果你觉得有用，欢迎给两个仓库都点个 Star。')}
         </p>
       </section>

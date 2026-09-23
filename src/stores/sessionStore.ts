@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { Session, ChatNode, Folder } from '../types';
 import db from '../db/db';
-import { DEFAULT_SESSION_TITLE } from '../utils/sessionTitle';
+import { isDefaultSessionTitle } from '../utils/sessionTitle';
+import { generateId } from '../utils/id';
 
 export interface ImportResult {
   added: number;
@@ -215,15 +216,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const session = get().sessions.find(s => s.id === sessionId);
     if (!session) return;
 
-    // upsert：分支场景下「重新生成」会先调用本方法把新节点标成流式中，
-    // 此时 addNodeToSession 的异步落库可能还没把节点写进 store。
-    // 只 map 不追加的话，那次更新会被丢掉。
-    const exists = session.nodes.some(n => n.id === node.id);
+    // 只更新「已经存在」的节点，绝不追加。
+    //
+    // 这里以前是 upsert（找不到就 append），初衷是给「重新生成」兜底：
+    // 新增分支后 addNodeToSession 的「异步落库」还没写完，这次更新可能落空。
+    // 但 updateSession 是「先同步 set 内存、再异步落库」的，addNodeToSession
+    // 返回时节点已经在 store 里了，所以那个兜底根本用不上。
+    //
+    // 而 upsert 的副作用很致命：删掉一个节点后，任何「迟到」的更新都会把它
+    // 重新塞回 store —— 流式输出结束时的落盘、输入框 onBlur 的草稿保存、
+    // 中止请求的回调，都属于这一类。表现就是「删掉的节点又跳出来了」。
+    if (!session.nodes.some(n => n.id === node.id)) return;
+
     const updatedSession = {
       ...session,
-      nodes: exists
-        ? session.nodes.map(n => n.id === node.id ? node : n)
-        : [...session.nodes, node],
+      nodes: session.nodes.map(n => n.id === node.id ? node : n),
       updatedAt: new Date().toISOString()
     };
 
@@ -345,7 +352,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const session = get().sessions.find(s => s.id === id);
     if (!session) return;
     // 用户自己改过标题就不再介入
-    if (session.title !== DEFAULT_SESSION_TITLE || !title || session.title === title) return;
+    if (!isDefaultSessionTitle(session.title) || !title || session.title === title) return;
 
     const updated = { ...session, title };
 
@@ -372,7 +379,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!trimmed) return null;
 
     const folder: Folder = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: trimmed,
       createdAt: new Date().toISOString()
     };

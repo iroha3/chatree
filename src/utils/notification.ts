@@ -63,6 +63,26 @@ export const showError = (message: string, duration?: number): string => {
 };
 
 /**
+ * 一条带行动按钮的通知（用来做「删除 → 撤销」）。
+ *
+ * duration 默认给得比普通通知长：撤销是有时限的操作，给用户反应时间。
+ */
+export const showUndo = (
+  message: string,
+  actionLabel: string,
+  onAction: () => void,
+  duration = 8000
+): string => {
+  return useNotificationStore.getState().addNotification({
+    message,
+    type: 'warning',
+    duration,
+    actionLabel,
+    onAction,
+  });
+};
+
+/**
  * 移除指定的通知（带动画）
  * @param id 通知ID
  */

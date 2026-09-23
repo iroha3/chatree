@@ -7,9 +7,11 @@ import {
 import Logo from './Logo';
 import { gsap } from 'gsap';
 import { showSuccess, showWarning, showInfo } from '../utils/notification';
+import { requestConfirm } from '../stores/confirmStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useModelStore } from '../stores/modelStore';
-import { DEFAULT_SESSION_TITLE } from '../utils/sessionTitle';
+import { defaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitle';
+import { generateId } from '../utils/id';
 import type { SettingsTab } from './SettingsModal';
 import { useT } from '../i18n';
 
@@ -118,8 +120,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         : null;
 
     const newSession = {
-      id: crypto.randomUUID(),
-      title: DEFAULT_SESSION_TITLE,
+      id: generateId(),
+      title: defaultSessionTitle(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       nodes: [],
@@ -184,7 +186,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
 
   const handleDeleteFolder = async (id: string, name: string) => {
     // 会话不会被删，只是回到「未分类」，所以这里说清楚，避免用户以为连聊天记录一起没了
-    if (!window.confirm(t('删除文件夹「{name}」？\n里面的会话会移到「未分类」，不会被删除。', { name }))) return;
+    const ok = await requestConfirm({
+      title: t('删除文件夹'),
+      message: t('删除文件夹「{name}」？\n里面的会话会移到「未分类」，不会被删除。', { name }),
+      confirmLabel: t('删除'),
+      cancelLabel: t('取消'),
+      danger: true,
+    });
+    if (!ok) return;
     await deleteFolder(id);
     showInfo(t('文件夹已删除，会话已移到「未分类」'));
   };
@@ -222,7 +231,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         <div className="flex items-center gap-2 min-w-0">
           {/* 和浏览器标签页 favicon、「关于」页用同一个标识 */}
           <Logo size={24} />
-          <h1 className="text-base font-medium gradient-text whitespace-nowrap">Tree AI Plus</h1>
+          <h1 className="text-base font-medium gradient-text whitespace-nowrap">Chatree</h1>
         </div>
         {/* 设置 / 主题从底部挤上来，顺手缩到 15px。
             px-4 + pr-4 让图标右缘离侧栏边 32px，给浮在边框上的折叠小圆钮
@@ -427,37 +436,46 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   autoFocus
                 />
               ) : (
-                <div
-                  className="flex items-center flex-1 truncate cursor-pointer"
-                >
-                  <MessageSquare size={16} className="mr-2 flex-shrink-0" />
-                  <span className="text-sm">{session.title}</span>
+                <div className="flex min-w-0 flex-1 items-center cursor-pointer">
+                  {/* 左侧气泡就是收藏开关（状态机）：
+                      未收藏 = 气泡，点一下收藏；收藏后变成实心星，再点变回气泡取消。
+                      为了让人看得出「气泡能点」，鼠标移到整行时气泡会变成星形轮廓。
+                      颜色只表示状态（灰=未收藏 / 琥珀=已收藏），形只表示可点（气泡→星）。 */}
+                  <button
+                    className={`mr-2 flex-shrink-0 rounded p-0.5 transition-colors ${
+                      session.starred
+                        ? 'text-amber-400 hover:text-amber-500'
+                        : 'text-neutral-300 group-hover:text-neutral-400'
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStarred(session.id);
+                    }}
+                    title={session.starred ? t('取消收藏') : t('点击气泡收藏这个会话')}
+                  >
+                    {session.starred ? (
+                      <Star size={16} fill="currentColor" />
+                    ) : (
+                      <>
+                        <MessageSquare size={16} className="group-hover:hidden" />
+                        <Star size={16} className="hidden group-hover:block" />
+                      </>
+                    )}
+                  </button>
+                  <span className="truncate text-sm">
+                    {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
+                  </span>
                 </div>
               )}
 
-              <div
-                className="flex items-center space-x-0.5"
-                // 操作区整体不冒泡：图标之间的缝隙点到也不该切会话
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* 星标放到右侧操作区（和编辑/删除一起）。已收藏时常驻显示，
-                    未收藏时 hover 才出现 —— 既不挡标题，也能一眼看出哪些收藏了。 */}
-                <button
-                  className={`p-1 rounded-md transition-colors ${
-                    session.starred
-                      ? 'text-amber-400 hover:text-amber-500'
-                      : 'opacity-0 group-hover:opacity-100 text-neutral-300 hover:text-neutral-500'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleStarred(session.id);
-                  }}
-                  title={session.starred ? t('取消收藏') : t('收藏会话')}
+              {/* 操作区改成绝对定位：不 hover 时不占任何宽度，长标题能用满整行
+                  （之前星标/编辑/删除虽然透明但仍然占位，把标题截断后右边一片空）。 */}
+              {editingId !== session.id && (
+                <div
+                  className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center space-x-0.5 bg-inherit pl-1 opacity-0 transition-opacity group-hover:opacity-100"
+                  // 操作区整体不冒泡：图标之间的缝隙点到也不该切会话
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Star size={14} fill={session.starred ? 'currentColor' : 'none'} />
-                </button>
-
-                <div className="flex space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {hasFolders && (
                     <button
                       className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-100"
@@ -479,7 +497,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-100"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleStartEdit(session.id, session.title);
+                      // 默认标题按当前语言显示，编辑时也保持一致，免得弹出个英文
+                      handleStartEdit(session.id, isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title);
                     }}
                   >
                     <Edit size={14} />
@@ -494,7 +513,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     <Trash2 size={14} />
                   </button>
                 </div>
-              </div>
+              )}
             </div>
           ))
         )}

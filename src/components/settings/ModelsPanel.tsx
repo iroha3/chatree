@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { GripVertical, Plus, Save, Trash2, Star } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
+import { requestConfirm } from '../../stores/confirmStore';
 import { Model, ReasoningEffort } from '../../types';
 import { REASONING_EFFORT_OPTIONS, resolveReasoningEffort } from '../../utils/reasoningEffort';
 import {
@@ -10,6 +11,7 @@ import {
   MAX_TOKENS_LIMIT,
 } from '../../utils/modelDefaults';
 import { useT } from '../../i18n';
+import { generateId } from '../../utils/id';
 
 /**
  * 思考强度说明。**跟着当前选中的档位走**。
@@ -59,7 +61,7 @@ const ModelsPanel: React.FC = () => {
 
   const handleAddModel = () => {
     const newModel: Model = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       // 预填 DeepSeek：用户只需要粘贴 API Key 就能用。
       // reasoningEffort 故意不设 —— 留空时 resolveReasoningEffort() 会按 baseUrl
       // 自动判定为 low；如果写死成 low，以后把 baseUrl 换成 OpenAI 就会多发一个
@@ -94,12 +96,18 @@ const ModelsPanel: React.FC = () => {
     setEditingModel(null);
   };
 
-  const handleDeleteModel = (id: string) => {
-    if (confirm(t('确定要删除这个模型吗？'))) {
-      deleteModel(id);
-      if (editingModel?.id === id) {
-        setEditingModel(null);
-      }
+  const handleDeleteModel = async (id: string) => {
+    const ok = await requestConfirm({
+      title: t('删除模型'),
+      message: t('确定要删除这个模型吗？'),
+      confirmLabel: t('删除'),
+      cancelLabel: t('取消'),
+      danger: true,
+    });
+    if (!ok) return;
+    deleteModel(id);
+    if (editingModel?.id === id) {
+      setEditingModel(null);
     }
   };
 

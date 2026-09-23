@@ -5,12 +5,14 @@ import { useModelStore } from '../../stores/modelStore';
 import { gsap } from 'gsap';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
+import NodeReadOverlay from './NodeReadOverlay';
 
 const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, onEdit, onAddChild, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
   const [isEditing, setIsEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(node.userMessage || '');
+  const [isReading, setIsReading] = useState(false);
   
   const { models } = useModelStore();
   
@@ -99,12 +101,18 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   const nodeHeight = isEditing || showSettings ? 'auto' : 'min-h-[100px]';
 
+  // 双击打开阅读覆盖层（和对话节点一致）。
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('input, textarea, button, select, a, [role="slider"]')) return;
+    setIsReading(true);
+  };
+
   return (
-    <div ref={nodeRef} className="relative">
+    <div ref={nodeRef} className="relative" onDoubleClick={handleDoubleClick}>
       <div
         className={`node-content bg-white rounded-lg overflow-hidden border border-neutral-200 shadow-minimal ${nodeHeight}`}
       >
-      <div className="flex justify-between items-center p-2 text-neutral-700 border-b border-neutral-100 shrink-0">
+      <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
         <div className="flex items-center">
           <Settings size={14} className="mr-1.5 text-neutral-500" />
           <span className="text-xs font-medium">{t('系统提示词')}</span>
@@ -122,7 +130,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       {showSettings && (
-        <div className="p-3 bg-neutral-50 border-b border-neutral-100">
+        <div className="p-4 bg-neutral-50 border-b border-neutral-100 nodrag nopan">
           <div className="mb-3">
             <label className="block text-xs font-medium text-neutral-700 mb-1">
               {t('模型')}
@@ -130,7 +138,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             <select
               value={node.modelId || ''}
               onChange={(e) => onModelChange(node.id, e.target.value)}
-              className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
             >
               {models.map(model => (
                 <option key={model.id} value={model.id}>{model.name}</option>
@@ -152,7 +160,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               step="0.1"
               value={node.temperature}
               onChange={(e) => onTemperatureChange(node.id, parseFloat(e.target.value))}
-              className="w-full accent-neutral-700"
+              className="w-full accent-neutral-700 nodrag nopan"
             />
           </div>
           
@@ -170,13 +178,13 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               step="1"
               value={node.maxTokens}
               onChange={(e) => onMaxTokensChange(node.id, parseInt(e.target.value))}
-              className="w-full accent-neutral-700"
+              className="w-full accent-neutral-700 nodrag nopan"
             />
           </div>
         </div>
       )}
 
-      <div className="p-3 flex-1 min-h-0 overflow-y-auto">
+      <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto">
         {isEditing ? (
           <textarea
             ref={textareaRef}
@@ -184,7 +192,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             onChange={(e) => setSystemPrompt(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full h-32 p-2.5 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+            className="w-full h-32 p-3 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
             placeholder={t('在此输入系统提示词...')}
           />
         ) : (
@@ -218,6 +226,10 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       >
         <Plus size={14} />
       </button>
+
+      {isReading && (
+        <NodeReadOverlay node={node} onClose={() => setIsReading(false)} />
+      )}
     </div>
   );
 };

@@ -480,3 +480,171 @@ npx pake-cli ./dist --name "Tree AI Plus" \
    还是把 `src-tauri/` 提交进仓库（可深度定制，但要维护一个 Rust crate，还要 gitignore 掉
    巨大的 `target/`）？**强推前者**
 
+
+---
+
+## 本轮修复与功能（第 13 轮）
+
+> 来源：用户一次性给的 18 条反馈。项目改名为 **Chatree**（内部 id 保持不变，见下）。
+
+### 改名（Chatree）
+
+- 界面 / 标题 / 文件名改叫 **Chatree**：`index.html`、侧边栏标题、关于页、
+  `package.json` 的 `name` / `description`、备份文件名 `chatree-backup-*.json`、
+  favicon / Logo 的 `aria-label`。
+- **刻意不改的内部标识**（改了会丢数据 / 破坏旧备份）：
+  `new Dexie('TreeChatDatabase')`、导出格式串 `EXPORT_FORMAT='treeai-sessions'` 与
+  schema 版本、`localStorage` 的 `treeai-*` 键、GitHub 仓库地址。
+  这些是「数据契约」，不是「产品名」。
+
+### 卡片（ChatNode / SystemNode / index.css）
+
+1. **宽度 −15%**：644px → 548px。`ChatFlow.tsx` 的 `NODE_WIDTH` 与
+   `index.css .node-content` 必须同步（两边都改了）。
+2. **Thinking 默认折叠**：去掉「一有思维链就自动展开」；同时删掉标题旁的
+   `思考过程 · N 字`（下面本来就有内容，字数没意义）。
+3. **连线更短**：父子节点垂直间距 `V_GAP` 140 → 48（约原来的 1/3），布局、
+   新节点落点、`resolveNodePosition` 三处共用同一个常量，一起变。
+4. **留白**：头部 `px-3`、正文/提问区 `px-4 py-3`、设置面板 `p-4`。
+5. **「对话节点」四个字 → 模型名**：头部现在显示该节点实际用的模型，
+   换模型对比分支时一眼可辨；没有再用的系统节点仍显示「系统提示词」。
+6. **# / ## 更小**：h1 1.4→1.15em，h2 1.25→1.05em，h3 1→1em。
+7. **触屏语义**：设置里的滑条 / 下拉 / 输入框加 `nodrag nopan`，
+   在 Surface 触屏上拖温度、最大令牌数不再把整张卡片拖走。
+8. **token 单位**：节点统计里的 `↓ x · ↑ y` 补上 `tok`，和「字数」区分开。
+
+### 侧栏（Sidebar）
+
+9. **气泡 = 收藏状态机**：行首的气泡（原 `MessageSquare` 图标）点击即收藏，
+   收藏后变实心星，再点变回气泡取消。右侧那个常驻星标按钮移除。
+10. **操作区不再占位**：移动 / 编辑 / 删除改为绝对定位，不 hover 时宽度为 0，
+    长标题能用满整行；hover 时标题 `pr-24` 让出空间，按钮铺在行背景上。
+
+### Bug
+
+11. **两个系统提示词框 + 删了还会自动出来**：
+    - 根因：空会话补根节点的 effect 在 StrictMode 下跑两次，都看到 0 节点 → 补出两个；
+      用户删掉系统节点后会话变回 0 节点 → effect 又补回来。
+    - 修复：进程内 `seededSessionsRef` 保证每个会话只补一次；`Session.systemNodeSeeded`
+      落库，刷新/重进也不补。另加一个去重 effect，清理**已经落库**的重复系统节点
+      （保留第一个，孤儿子的 `parentId` 改挂到保留的那个上）。
+12. **换模型时系统提示词「串」**：改用节点上的 `systemPromptTouched` 标记判断
+    「用户是否改过」，不再拿文本和上一个模型的默认值做字符串比较（旧数据无此字段时
+    才回退到比较）。没改过 → 跟着换成新模型的默认提示词；改过 → 绝不覆盖。
+13. **crypto.randomUUID 回退**：新增 `src/utils/id.ts` 的 `generateId()`。
+    优先 `crypto.randomUUID()`，其次 `getRandomValues()` 手拼 v4 UUID，
+    最后时间戳 + 随机数。解决了 `http://192.168.x.x` 等非安全上下文
+    （局域网本地部署）下 `randomUUID` 不存在导致建会话/加节点直接抛错的问题。
+    所有调用点已替换。
+
+### 新功能
+
+14. **停止生成（状态机）**：生成期间节点的「AI 正在思考…」行和右下角运行按钮都变成
+    「停止」。点击中止请求，并在 `runNodeGeneration` 的 catch 里**把已经生成的部分落库**
+    （正文 + 思维链 + 用量），不再白写。
+15. **删除节点二次确认 + 可撤销**：`confirm` 里写明会连带删掉几个子节点；删除后弹一条
+    带「撤销」的通知（8s）。撤销只补回被删子树，不整体回写旧快照，避免撤销期间新生成
+    的内容被覆盖。
+16. **双击放大阅读**：`NodeReadOverlay`（portal 到 body）只读渲染该节点的提问 + 思考过程 +
+    回答，`Esc` / 点遮罩关闭，body 滚动锁住。对话节点右下角另加一个最大化按钮方便发现。
+
+### 回归脚本
+
+- `node scripts/node-ux-check.mjs`：headless Edge + CDP，针对本轮新功能的断言 ——
+  重复系统节点去重、头部显示模型名、思维链默认折叠、双击覆盖层 + Esc 关闭、
+  气泡收藏状态机、应用内确认框 + 撤销、Backspace 不再删节点、以及「删除后迟到的
+  updateNodeInSession 不会复活节点」的回归。需要 Edge 监听 9222、dev server 在 5175。
+
+### 未做（用户点名 TODO）
+
+- **# 17 移动端设计**：见下方「移动端」。
+- **# 18 Pake 桌面版**：见上方「待办：桌面版（Pake）」，本轮未动。
+
+---
+
+## 本轮修复与交互（第 14 轮）
+
+> 来源：用户验收第 13 轮后报的 3 条（1 个真 bug + 2 个交互诉求）。
+
+### 1. 「删掉的节点又跳出来」——真 bug，已定位并修
+
+有**两条**复现路径，都跟「删除只改了内存某一侧」有关：
+
+**主因：React Flow 自带的 Backspace 删除（用户报的就是这个）**
+
+- React Flow 的 `deleteKeyCode` 默认是 `Backspace`。它删节点只调 `onNodesChange`
+  把节点从 React Flow 局部的 `nodes` 里拿掉，**完全没经过 store**，也跳过了
+  我们特意加的确认 + 撤销。
+- 删完那一刻看着是没了，但渲染 effect 的依赖是 `session.nodes`，它没变；
+  下一次 store 一变（比如点「+」加节点），effect 从 `session.nodes` 重建 `nodes`，
+  被删的节点就又渲染回来了 —— 完全对应「点两次 +，删一个，再点又跳出来」。
+- **修复**：`<ReactFlow deleteKeyCode={null}>`，关掉这个快捷键。删除只剩节点上的
+  删除按钮一条路，走 `handleDeleteNode`（确认 + 撤销 + 写 store）。
+  回归：`node-ux-check` 选中节点按 Backspace，节点必须还在。
+
+**次因：`updateNodeInSession` 的 upsert**
+
+- 它以前是 upsert（store 里找不到该 id 就 `append`）。健壮性补丁：删掉节点后，
+  任何「迟到」的更新（流式落盘、输入框 `onBlur` 草稿、中止回调）都不该复活它。
+- **修复**：改成只更新已存在的节点，找不到直接 `return`。新节点一律走
+  `addNodeToSession`（同步写 store，不需要兜底 append）。
+- **加固**：`handleDeleteNode` 顺带 `abort()` 掉被删子树里正在跑的请求。
+- 回归：store 级断言 —— 删除后调用 `updateNodeInSession`，节点不得复活。
+
+### 2. 让「点气泡=收藏」看得见
+
+- 鼠标移到整行时，行首气泡 `MessageSquare` 变成**星形轮廓**；
+  **颜色只表示状态**（灰=未收藏 / 琥珀实心=已收藏），**形只表示可点**（气泡→星）。
+- tooltip 从「收藏会话」改成「**点击气泡收藏这个会话**」。
+
+### 3. 不再用浏览器/系统原生弹窗
+
+- 新增 `src/stores/confirmStore.ts`（`requestConfirm()` 返回 Promise<boolean>）
+  + `src/components/ConfirmDialog.tsx`（portal 到 body，Esc / 点遮罩取消，Enter 确定，
+  危险操作红色确认键）。挂在 `App.tsx` 根部。
+- 替换掉的 `window.confirm`：删除节点（`ChatFlow`）、删除文件夹（`Sidebar`）、
+  删除模型（`ModelsPanel`）。标题与正文间距 `mb-1` → `mb-3`。
+
+### 4. 默认会话标题 i18n + hover 不再把标题挤截断
+
+- **不再写死英文**：`utils/sessionTitle.ts` 的 `DEFAULT_SESSION_TITLE = 'New Conversation'`
+  是常量、不过 `t()`，所以中文界面新建会话也显示英文。现在改成
+  `defaultSessionTitle()`（= `t('新会话')`）+ `isDefaultSessionTitle()`。
+- **旧数据也本地化**：标题是落库数据，中文建的存「新会话」、英文建的存
+  `New Conversation`。侧栏显示时用 `isDefaultSessionTitle()` 判断，是默认标题就按
+  当前语言渲染；自动命名也用同一个判断，切换语言不会失灵。
+- **hover 遮挡**：行内标题原来的 `group-hover:pr-24` 为操作区预留 96px，
+  把 `New Conversation` 截成 `New Conv…`。去掉这个预留，让标题用满整行；
+  按钮是绝对定位、带 `bg-inherit`，短标题（含「新会话」）根本不会被盖到。
+
+---
+
+## 待办：移动端设计（尚未实现）
+
+现状：布局是固定的侧栏 + 画布，卡片固定 548px；触屏只能靠拖拽，没有手势语义。
+真正做之前先明确取舍，别做成「缩小版桌面」。
+
+### 需要先拍板的取舍
+
+1. **要不要在手机（< 768px）上提供完整体验？** 树状画布在手机上先天别扭
+   （卡片比屏幕宽）。两个方向：
+   - **A（推荐）**：手机只读 + 单链浏览 —— 隐藏侧栏抽屉、卡片宽度自适应、
+     点节点进「路径视图」（复用第 16 条的覆盖层，只显示根→当前的链）。
+   - **B**：完整画布 + 双指缩放，接受横向滚动。
+2. **侧栏**：改为抽屉（`< 768px` 默认收起，左上角汉堡按钮），宽度 `min(80vw, 320px)`。
+3. **卡片宽度**：`NODE_WIDTH` 现在被布局算法当常量用，移动端需要改成
+   `min(548px, 92vw)`，并让布局用**实测宽度**，否则子树宽度会算错、兄弟重叠。
+4. **触屏手势语义**（对应本轮 #7 的延续）：
+   - 单指拖 = 平移画布；双指捏合 = 缩放（React Flow 已支持）。
+   - 节点内滑条 / 输入框：必须 `nodrag nopan`（本轮已加）。
+   - 长按节点 = 拖拽节点？还是打开操作菜单？需定。
+5. **虚拟键盘**：聚焦输入框时 `visualViewport` 会缩，画布 `fitView` 要避开键盘区域。
+
+### 验收清单（做到哪条算哪条）
+
+- [ ] ≤768px 侧栏变抽屉，不遮挡画布
+- [ ] 卡片宽度自适应，不再出现横向滚动条
+- [ ] 单节点「路径视图」可读，上下滑动顺畅
+- [ ] 滑条 / 输入框不会误拖画布
+- [ ] 软键盘弹出时输入框不被遮
+- [ ] 横竖屏旋转不丢视口

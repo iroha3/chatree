@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { generateId } from '../utils/id';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -8,6 +9,9 @@ export interface Notification {
   message: string;
   duration?: number; // 毫秒，如果不设置则需要手动关闭
   createdAt: number;
+  /** 可选的行动按钮（如「撤销」）。点击后先执行 onAction，再关掉通知。 */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface NotificationStore {
@@ -26,7 +30,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   notificationsToRemove: [],
   
   addNotification: (notification) => {
-    const id = crypto.randomUUID();
+    const id = generateId();
     const newNotification = {
       ...notification,
       id,

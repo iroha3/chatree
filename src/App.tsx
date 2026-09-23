@@ -4,11 +4,13 @@ import ChatFlow from './components/ChatFlow';
 import SettingsModal from './components/SettingsModal';
 import type { SettingsTab } from './components/SettingsModal';
 import NotificationContainer from './components/Notification';
+import ConfirmDialog from './components/ConfirmDialog';
 import { useSessionStore } from './stores/sessionStore';
 import { useModelStore } from './stores/modelStore';
 import { useDatabaseContext } from './context/DatabaseContext';
 import { Session } from './types';
-import { DEFAULT_SESSION_TITLE } from './utils/sessionTitle';
+import { defaultSessionTitle } from './utils/sessionTitle';
+import { generateId } from './utils/id';
 import { ChevronRight, Loader2, PlusCircle } from 'lucide-react';
 import { useT } from './i18n';
 
@@ -85,7 +87,7 @@ const App: React.FC = () => {
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-subtle border border-neutral-100">
-              <h2 className="text-xl font-medium text-neutral-800 mb-4">{t('欢迎使用 Tree AI Plus')}</h2>
+              <h2 className="text-xl font-medium text-neutral-800 mb-4">{t('欢迎使用 Chatree')}</h2>
               <p className="text-neutral-600 mb-6 text-sm leading-relaxed">
                 {t('创建一个新会话，开始与 AI 进行树状结构的对话。')}
               </p>
@@ -96,8 +98,8 @@ const App: React.FC = () => {
                     setSettingsTab('models');
                   } else {
                     const newSession: Session = {
-                      id: crypto.randomUUID(),
-                      title: DEFAULT_SESSION_TITLE,
+                      id: generateId(),
+                      title: defaultSessionTitle(),
                       createdAt: new Date().toISOString(),
                       updatedAt: new Date().toISOString(),
                       nodes: []
@@ -123,6 +125,7 @@ const App: React.FC = () => {
       )}
       
       <NotificationContainer />
+      <ConfirmDialog />
     </div>
   );
 };

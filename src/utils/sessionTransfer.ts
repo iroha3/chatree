@@ -114,7 +114,7 @@ export function parseExportFile(text: string): { data: ParsedExportFile } | { er
   const file = raw as Partial<SessionExportFile>;
 
   if (file.format !== EXPORT_FORMAT) {
-    return { error: t('这不是 Tree AI Plus 导出的备份文件') };
+    return { error: t('这不是 Chatree 导出的备份文件') };
   }
   if (typeof file.version !== 'number') {
     return { error: t('文件缺少版本号') };

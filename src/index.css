@@ -156,10 +156,11 @@ body {
   flex-direction: column;
   /* 固定宽度：ChatFlow.tsx 的树形布局是按固定宽度算子树宽度的，
      节点宽度不固定会让兄弟节点重叠。改这里必须同步改 ChatFlow.tsx
-     里的 NODE_WIDTH 常量（两边必须一致）。 */
-  width: 644px;
-  min-width: 644px;
-  max-width: 644px;
+     里的 NODE_WIDTH 常量（两边必须一致）。
+     644px → 548px：用户反馈卡片太宽，缩了约 15%。 */
+  width: 548px;
+  min-width: 548px;
+  max-width: 548px;
   max-height: 760px;
   scroll-behavior: smooth;
   overflow-wrap: break-word;
@@ -259,15 +260,15 @@ body {
 }
 
 /* 回答里的标题：md-editor 的 vuepress 主题给 h1 设了 2.2em（约 35px），
-   Tailwind prose 也是 2.25em，塞在 560px 宽的节点里显得非常大。
+   Tailwind prose 也是 2.25em，塞在卡片里显得非常大。用户要求 # / ## 再小一点。
    注意 md-editor 的选择器是 `div.vuepress-theme h1`（特异度 0,1,2），
    高于 `.md-preview h1`（0,1,1），所以这里必须用 !important 才压得住。 */
-.md-preview h1 { font-size: 1.4em !important; }
-.md-preview h2 { font-size: 1.25em !important; }
-.md-preview h3 { font-size: 1.1em !important; }
+.md-preview h1 { font-size: 1.15em !important; }
+.md-preview h2 { font-size: 1.05em !important; }
+.md-preview h3 { font-size: 1em !important; }
 .md-preview h4,
 .md-preview h5,
-.md-preview h6 { font-size: 1em !important; }
+.md-preview h6 { font-size: 0.95em !important; }
 
 .md-preview table {
   display: block;

@@ -32,7 +32,7 @@ const DataPanel: React.FC = () => {
     // 否则导入后每个节点的温度/token 上限都失效、会话也全变成未分类。
     const file = buildExportFile(sessions, models, folders);
     downloadJson(
-      `treeai-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      `chatree-backup-${new Date().toISOString().slice(0, 10)}.json`,
       file
     );
     showSuccess(t('已导出 {n} 个会话', { n: sessions.length }));

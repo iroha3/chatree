@@ -1,11 +1,11 @@
 {
-  "name": "treeai",
+  "name": "chatree",
   "private": true,
   "version": "0.1.0",
   "engines": {
     "node": ">=18"
   },
-  "description": "A local-first visual workspace for branching, comparing, and exporting LLM conversation trees.",
+  "description": "Chatree — a local-first visual workspace for branching, comparing, and exporting LLM conversation trees.",
   "license": "MIT",
   "repository": {
     "type": "git",

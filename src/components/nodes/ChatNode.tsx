@@ -2,24 +2,31 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
-import { Plus, Send, RefreshCcw, Copy, Settings, Trash2, MessageSquare, Brain, ChevronDown } from 'lucide-react';
+import { Plus, Send, RefreshCcw, Copy, Settings, Trash2, MessageSquare, Brain, ChevronDown, Square, Maximize2 } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { gsap } from 'gsap';
-import { showSuccess, showInfo, showWarning } from '../../utils/notification';
+import { showSuccess, showInfo } from '../../utils/notification';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
+import NodeReadOverlay from './NodeReadOverlay';
 
 const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
-  const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
+  const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onStop, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
   const [isEditingUser, setIsEditingUser] = useState(!node.userMessage);
   const [showSettings, setShowSettings] = useState(false);
+  // 思考过程默认折叠。以前一有思维链就自动展开，长推理会把回答挤到屏幕外。
   const [showReasoning, setShowReasoning] = useState(false);
+  const [isReading, setIsReading] = useState(false);
   
   const { models } = useModelStore();
   const { theme } = useThemeStore();
   const t = useT();
+
+  // 头部原来写「对话节点」四个字，纯占位。换成这个节点实际用的模型名，
+  // 一眼就能看出这条分支是哪个模型答的（换模型对比时特别有用）。
+  const modelName = models.find(m => m.id === node.modelId)?.name;
   
   // ---- 统计信息 ----
   const usage = node.usage;
@@ -48,15 +55,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     ? streamingResponse
     : node.assistantMessage;
 
-  // 思维链一产生就自动展开，否则「流式显示」等于没显示。
-  // 用 ref 保证每个节点只自动展开一次，之后尊重用户的折叠操作。
-  const autoExpandedReasoning = useRef(false);
-  useEffect(() => {
-    if (isLiveReasoning && !autoExpandedReasoning.current) {
-      autoExpandedReasoning.current = true;
-      setShowReasoning(true);
-    }
-  }, [isLiveReasoning]);
+  /*
+   * 思维链默认折叠，也不再自动展开。
+   *
+   * 以前的做法是「一有 reasoning_content 就自动展开一次」——但推理模型在前面
+   * 吐几百上千字思考时，会把真正的回答一路挤到节点外面，用户还得先滚过一整段
+   * 思维链。折叠起来、想看再点，是更安静的默认。
+   */
   
   const userInputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -283,8 +288,15 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     };
   }, [handleWheel]);
 
+  // 双击节点打开阅读覆盖层。落在输入框 / 按钮 / 滑条上时不触发，
+  // 否则双击选词、点两下按钮都会莫名其妙弹出覆盖层。
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('input, textarea, button, select, a, [role="slider"]')) return;
+    setIsReading(true);
+  };
+
   return (
-    <div ref={nodeRef} className="relative group">
+    <div ref={nodeRef} className="relative group" onDoubleClick={handleDoubleClick}>
       <div className="node-content bg-white rounded-lg overflow-hidden border border-neutral-200 shadow-minimal">
       <Handle
         type="target"
@@ -292,13 +304,15 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         className="!bg-neutral-400 !border-white"
       />
 
-      <div className="flex justify-between items-center p-2 text-neutral-700 border-b border-neutral-100 shrink-0">
-        <div className="flex items-center">
-          <MessageSquare size={14} className="mr-1.5 text-neutral-500" />
-          <span className="text-xs font-medium">{t('对话节点')}</span>
+      <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
+        <div className="flex min-w-0 items-center">
+          <MessageSquare size={14} className="mr-1.5 shrink-0 text-neutral-500" />
+          <span className="truncate text-xs font-medium" title={modelName || t('对话节点')}>
+            {modelName || t('对话节点')}
+          </span>
         </div>
         
-        <div className="flex space-x-1 node-toolbar">
+        <div className="flex shrink-0 space-x-1 node-toolbar nodrag nopan">
           <button 
             className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
             onClick={() => setShowSettings(!showSettings)}
@@ -308,10 +322,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           </button>
           <button 
             className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
-            onClick={() => {
-              onDelete(node.id);
-              showWarning(t('节点已删除'));
-            }}
+            onClick={() => onDelete(node.id)}
             title={t('删除节点')}
           >
             <Trash2 size={12} />
@@ -320,7 +331,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       {showSettings && (
-        <div className="p-3 bg-neutral-50 border-b border-neutral-100 shrink-0">
+        <div className="p-4 bg-neutral-50 border-b border-neutral-100 shrink-0 nodrag nopan">
           <div className="mb-3">
             <label className="block text-xs font-medium text-neutral-700 mb-1">
               {t('模型')}
@@ -331,7 +342,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 // 提示由 ChatFlow 统一发出 —— 只有它知道系统提示词有没有被一并替换
                 onModelChange(node.id, e.target.value);
               }}
-              className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
             >
               {models.map(model => (
                 <option key={model.id} value={model.id}>{model.name}</option>
@@ -353,7 +364,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               step="0.1"
               value={node.temperature}
               onChange={(e) => onTemperatureChange(node.id, parseFloat(e.target.value))}
-              className="w-full accent-neutral-700"
+              className="w-full accent-neutral-700 nodrag nopan"
             />
           </div>
           
@@ -371,14 +382,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               step="1"
               value={node.maxTokens}
               onChange={(e) => onMaxTokensChange(node.id, parseInt(e.target.value))}
-              className="w-full accent-neutral-700"
+              className="w-full accent-neutral-700 nodrag nopan"
             />
           </div>
         </div>
       )}
 
       <div 
-        className="p-3 border-b border-neutral-100 shrink-0"
+        className="px-4 py-3 border-b border-neutral-100 shrink-0"
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -398,7 +409,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                   showInfo(t('消息已保存'));
                 }
               }}
-              className="w-full p-2.5 border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed"
+              className="w-full p-3 border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
               placeholder={t('在此输入您的消息...')}
               onKeyDown={handleKeyDown}
               rows={3}
@@ -439,7 +450,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       <div 
-        className="assistant-message p-3 relative"
+        className="assistant-message px-4 py-3 relative"
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -450,6 +461,17 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             <div className="animate-bounce delay-100">.</div>
             <div className="animate-bounce delay-200">.</div>
             <div className="animate-bounce delay-300">.</div>
+            {/* 生成 / 停止互相切换：生成时这里就是停止按钮。
+                点停止会中止请求，并把已经生成的部分保存下来。 */}
+            <button
+              type="button"
+              onClick={() => onStop(node.id)}
+              className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-800"
+              title={t('停止生成并保存已生成的内容')}
+            >
+              <Square size={11} fill="currentColor" />
+              {t('停止')}
+            </button>
           </div>
         ) : node.error ? (
           <div className="text-red-500 mb-2">
@@ -466,7 +488,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             >
               <span className="flex items-center">
                 <Brain size={12} className="mr-1.5" />
-                {t('思考过程 · {n} 字', { n: reasoningText.length })}
+                {t('思考过程')}
                 {isLiveReasoning && (
                   <span className="ml-1.5 animate-pulse text-neutral-400">{t('思考中…')}</span>
                 )}
@@ -542,7 +564,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             )}
             {usage && (
               <span title={t('输入 token · 输出 token')}>
-                ↓ {usage.promptTokens} · ↑ {usage.completionTokens}
+                ↓ {usage.promptTokens} · ↑ {usage.completionTokens} tok
               </span>
             )}
             {usage?.reasoningTokens ? (
@@ -584,6 +606,26 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           >
             <RefreshCcw size={14} />
           </button>
+          <button
+            className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
+            onClick={() => setIsReading(true)}
+            title={t('放大阅读')}
+          >
+            <Maximize2 size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* 生成中时右下角换成停止按钮（和「重新生成」这个运行入口互相切换）。 */}
+      {node.isStreaming && (
+        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-0.5">
+          <button
+            className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 transition-colors"
+            onClick={() => onStop(node.id)}
+            title={t('停止生成并保存已生成的内容')}
+          >
+            <Square size={14} />
+          </button>
         </div>
       )}
 
@@ -603,6 +645,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       >
         <Plus size={14} />
       </button>
+
+      {isReading && (
+        <NodeReadOverlay
+          node={node}
+          streamingReasoning={streamingReasoning}
+          onClose={() => setIsReading(false)}
+        />
+      )}
     </div>
   );
 };

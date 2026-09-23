@@ -23,9 +23,11 @@ import { sendChatRequest } from '../services/apiService';
 import { Share2, LayoutGrid, FileJson, BarChart3, Settings } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
 import { exportSessionToFile } from '../utils/sessionTransfer';
-import { showSuccess, showError, showInfo } from '../utils/notification';
+import { showSuccess, showError, showInfo, showUndo } from '../utils/notification';
+import { requestConfirm } from '../stores/confirmStore';
 import { deriveSessionTitle } from '../utils/sessionTitle';
 import { DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/modelDefaults';
+import { generateId } from '../utils/id';
 
 /*
  * 画布布局常量。
@@ -38,10 +40,15 @@ import { DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/modelDefaults'
  * 这几个值必须放模块级：建图有两条路径（calculateNodeLayout 和下面那个
  * 渲染 useEffect），放函数里就没法共用了。
  */
-const NODE_WIDTH = 644;
+const NODE_WIDTH = 548;
 const NODE_HEIGHT = 420;
 const H_GAP = 220;
-const V_GAP = 140;
+/*
+ * 父子节点之间的垂直间距（也就是那条竖线的长度）。
+ * 原来 140px 太散，一屏装不下几层；用户反馈「现在的 1/3 看起来合适」，
+ * 于是收到 48px —— 仍然留得下节点底部的「+」圆钮（约 -14px）不压到子节点。
+ */
+const V_GAP = 48;
 
 /*
  * 跨会话保留的视口（平移 + 缩放），**按会话分开存**。
@@ -213,7 +220,7 @@ interface ChatFlowProps {
 }
 
 const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }) => {
-  const { sessions, addNodeToSession, updateNodeInSession, replaceSessionNodes, deleteNodeFromSession, autoTitleSession } = useSessionStore();
+  const { sessions, addNodeToSession, updateNodeInSession, updateSession, replaceSessionNodes, deleteNodeFromSession, autoTitleSession } = useSessionStore();
   const { models, defaultModelId } = useModelStore();
   const { theme } = useThemeStore();
   const session = sessions.find(s => s.id === sessionId);
@@ -504,7 +511,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     if (!parentNode) return;
 
     const newNode: ChatNodeType = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       parentId,
       type: 'chat',
       userMessage: "",
@@ -529,7 +536,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     let updatedNode: ChatNodeType;
     
     if (type === 'system') {
-      updatedNode = { ...node, userMessage: content };
+      updatedNode = {
+        ...node,
+        userMessage: content,
+        // 只有内容真的变了才算「用户改过」——换模型时若没改过就把提示词
+        // 跟着换成新模型的默认值；改过则绝不覆盖。
+        systemPromptTouched: content !== node.userMessage ? true : node.systemPromptTouched,
+      };
     } else if (type === 'user') {
       updatedNode = { ...node, userMessage: content };
     } else {
@@ -539,22 +552,69 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     updateNodeInSession(sessionId, updatedNode);
   };
 
+  /**
+   * 删除节点（递归连子节点一起删）。
+   *
+   * 以前直接删、没有任何确认，而节点上那个删除按钮和数据只隔一次点击。
+   * 现在两层保护：
+   *   1) 确认框里写清会连带删掉几个子节点；
+   *   2) 删掉后弹一个带「撤销」的通知，撤销把刚才那棵子树原样放回去。
+   * 撤销只补回被删的节点，不整体回写旧快照 —— 否则撤销期间新生成的内容会被抹掉。
+   */
   const handleDeleteNode = (nodeId: string) => {
     if (!session) return;
-    deleteNodeFromSession(sessionId, nodeId);
-    
-    // 删除后不需要手动计算布局，useEffect会处理
-    // setTimeout(() => {
-    //   calculateNodeLayout();
-    // }, 100);
+
+    const toRemove = new Set<string>();
+    const collect = (id: string) => {
+      toRemove.add(id);
+      session.nodes.filter(n => n.parentId === id).forEach(child => collect(child.id));
+    };
+    collect(nodeId);
+
+    const descendants = toRemove.size - 1;
+    void requestConfirm({
+      title: t('删除节点'),
+      message: descendants > 0
+        ? t('删除这个节点？会连带删掉 {n} 个子节点。', { n: descendants })
+        : t('删除这个节点？'),
+      confirmLabel: t('删除'),
+      cancelLabel: t('取消'),
+      danger: true,
+    }).then((ok) => {
+      if (!ok) return;
+
+      // 从最新 store 里取被删的节点，作为「撤销」的还原素材。
+      // 用 render 闭包里的 session 也行，但确认框可能开着等用户点，取新的更稳。
+      const current = useSessionStore.getState().sessions.find(s => s.id === sessionId);
+      const removedNodes = (current?.nodes ?? session.nodes).filter(n => toRemove.has(n.id));
+      // 中止这棵子树里正在跑的生成，否则请求结束后那次落盘会想写回已删的节点。
+      // （updateNodeInSession 现在只更新已存在的节点，双保险。）
+      toRemove.forEach(id => abortControllerRef.current[id]?.abort());
+      deleteNodeFromSession(sessionId, nodeId);
+
+      showUndo(
+        descendants > 0
+          ? t('已删除节点及其 {n} 个子节点', { n: descendants })
+          : t('已删除节点'),
+        t('撤销'),
+        () => {
+          const latest = useSessionStore.getState().sessions.find(s => s.id === sessionId);
+          if (!latest) return;
+          const existing = new Set(latest.nodes.map(n => n.id));
+          replaceSessionNodes(sessionId, [
+            ...latest.nodes,
+            ...removedNodes.filter(n => !existing.has(n.id)),
+          ]);
+        }
+      );
+    });
   };
 
   /**
    * 跑一次生成请求。
    *
-   * `contextNodes` 是拼上下文用的节点快照 —— 分支场景下新节点还没写进 store，
-   * 必须显式传进来，否则第一次请求会漏掉它自己的 userMessage。落库那边用
-   * updateNodeInSession 的 upsert，所以不怕调用时 store 里还没有这个 id。
+   * `contextNodes` 是拼上下文用的节点快照 —— 分支场景下要拿它拼出包含新节点
+   * 自己的 userMessage 的消息链。节点落库走 addNodeToSession（同步写 store）。
    */
   const runNodeGeneration = async (nodeId: string, contextNodes: ChatNodeType[]) => {
     if (!session) return;
@@ -677,24 +737,53 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     } catch (error: unknown) {
       console.error('Chat request failed:', error);
+      const aborted =
+        error instanceof Error && (error.name === 'AbortError' || /cancel/i.test(error.message));
       const message = error instanceof Error ? error.message : 'Failed to get response';
 
-      updateNodeInSession(sessionId, {
-        ...node,
-        isStreaming: false,
-        error: message,
-        // 中途失败也保留已经产生的思维链，便于排查
-        reasoning: accumulatedReasoning || undefined,
-        usage: accumulatedUsage
-          ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
-          : undefined
-      });
+      if (aborted) {
+        // 用户点了「停止」：**把已经生成的部分保存下来**，而不是丢掉。
+        // 这正是「停止点了就保存」的含义 —— 之前流式内容只在内存里，
+        // 刷新或停止都会白写。
+        updateNodeInSession(sessionId, {
+          ...node,
+          assistantMessage: accumulatedResponse,
+          reasoning: accumulatedReasoning || undefined,
+          usage: accumulatedUsage
+            ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
+            : undefined,
+          isStreaming: false,
+          error: undefined,
+        });
+      } else {
+        updateNodeInSession(sessionId, {
+          ...node,
+          isStreaming: false,
+          error: message,
+          // 中途失败也保留已经产生的部分，便于排查
+          assistantMessage: accumulatedResponse || node.assistantMessage,
+          reasoning: accumulatedReasoning || undefined,
+          usage: accumulatedUsage
+            ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
+            : undefined
+        });
+      }
 
       // 清除流式状态
       clearStreamingState(nodeId);
     } finally {
       delete abortControllerRef.current[nodeId];
     }
+  };
+
+  /**
+   * 停止这场生成。
+   *
+   * 只负责中止请求；真正「保存已生成内容」发生在 runNodeGeneration 的
+   * catch 里（那里才拿得到累积的文本）。中止后 fetch 会 reject，走同一条路径。
+   */
+  const handleStopNode = (nodeId: string) => {
+    abortControllerRef.current[nodeId]?.abort();
   };
 
   /**
@@ -719,7 +808,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     if (node.assistantMessage || node.reasoning) {
       const branch: ChatNodeType = {
         ...node,
-        id: crypto.randomUUID(),
+        id: generateId(),
         assistantMessage: '',
         reasoning: undefined,
         usage: undefined,
@@ -731,8 +820,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
       addNodeToSession(sessionId, branch);
       setPendingFocusId(branch.id);
-        showInfo(t('已创建新分支，正在重新生成…'));
-      // 新节点还没进 store，上下文要手动带上它
+      showInfo(t('已创建新分支，正在重新生成…'));
+      // 拼消息链需要包含新分支自己的 userMessage，所以显式把它带进快照
       void runNodeGeneration(branch.id, [...session.nodes, branch]);
       return;
     }
@@ -794,16 +883,24 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     // system 节点的正文就是系统提示词，默认取的是「首次创建时那个模型」的
     // defaultSystemPrompt。所以换模型时，如果用户没动过这段提示词，就跟着换；
     // 一旦用户改过，就绝不覆盖 —— 那是他自己写的内容。
+    //
+    // 判断「动没动过」用节点上的 `systemPromptTouched` 标记，而不是拿文本和
+    // 上一个模型的默认值做字符串比较：后者在「多个系统节点」「默认值恰好相等」
+    // 这些边界上会把两份提示词串在一起。旧数据没有这个字段，退回原来的比较。
     let userMessage = node.userMessage;
     let promptReplaced = false;
     if (node.type === 'system') {
       const previousModel = models.find(m => m.id === node.modelId);
-      const isUntouched = previousModel
-        ? node.userMessage === previousModel.defaultSystemPrompt
-        : node.userMessage.trim() === '';
-      
-      if (isUntouched && nextModel.defaultSystemPrompt !== node.userMessage) {
-        userMessage = nextModel.defaultSystemPrompt;
+      const isUntouched =
+        node.systemPromptTouched === undefined
+          ? previousModel
+            ? node.userMessage === (previousModel.defaultSystemPrompt ?? '')
+            : node.userMessage.trim() === ''
+          : node.systemPromptTouched !== true;
+
+      const nextDefault = nextModel.defaultSystemPrompt ?? '';
+      if (isUntouched && nextDefault !== node.userMessage) {
+        userMessage = nextDefault;
         promptReplaced = true;
       }
     }
@@ -898,37 +995,86 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     }, 150);
   }, [calculateNodeLayout, reactFlowInstance]);
 
+  /*
+   * 空会话补一个根节点（系统提示词节点）。
+   *
+   * 两个坑都出在这个 effect 上：
+   *   1) StrictMode 会把 effect 跑两遍，两遍都看到「节点数为 0」，于是补出
+   *      **两个系统提示词框**；
+   *   2) 用户手动删掉系统节点后，会话变回 0 节点，effect 又把它补回来 ——
+   *      「删了还会自动出来」。
+   * 现在两层护栏：进程内用 ref 保证每个会话只补一次；同时把
+   * `systemNodeSeeded` 落库，刷新/重进也不会再补。
+   */
+  const seededSessionsRef = useRef<Set<string>>(new Set());
+
+  /*
+   * 去掉历史遗留的重复系统节点。
+   *
+   * StrictMode 双跑那个 bug 在修复前已经把重复节点**落了库**，光靠
+   * `systemNodeSeeded` 拦不住已经存在的数据。这里把多出来的系统节点删掉，
+   * 保留第一个；如果被删的那个还挂着子节点，就把子节点改挂到保留的那个上，
+   * 避免出现找不到父节点的孤立子树。
+   */
   useEffect(() => {
-    if (session && session.nodes.length === 0 && models.length > 0) {
-      // 用当前选中的默认模型，而不是模型列表里的第一个。
-      // （defaultModelId 别处都在用，就这里漏了。）
-      const initialModel = models.find(m => m.id === defaultModelId) ?? models[0];
-      const systemNode: ChatNodeType = {
-        id: crypto.randomUUID(),
-        parentId: null,
-        type: 'system',
-        userMessage: initialModel.defaultSystemPrompt,
-        assistantMessage: "",
-        modelId: initialModel.id,
-        temperature: initialModel.temperature ?? DEFAULT_TEMPERATURE,
-        maxTokens: initialModel.maxTokens || DEFAULT_MAX_TOKENS,
-        createdAt: new Date().toISOString(),
-      };
-      
-      addNodeToSession(sessionId, systemNode);
-    }
-  }, [session, sessionId, models, defaultModelId, addNodeToSession]);
+    if (!session) return;
+    const systemNodes = session.nodes.filter(n => n.type === 'system');
+    if (systemNodes.length <= 1) return;
+
+    const keep = systemNodes[0];
+    const extraIds = new Set(systemNodes.slice(1).map(n => n.id));
+    const nodes = session.nodes
+      .filter(n => !extraIds.has(n.id))
+      .map(n => (n.parentId && extraIds.has(n.parentId) ? { ...n, parentId: keep.id } : n));
+
+    updateSession({ ...session, nodes });
+  }, [session, updateSession]);
+
+  useEffect(() => {
+    if (!session) return;
+    // 曾经补过就不再补（包括用户后来把它删掉的情况）
+    if (session.systemNodeSeeded) return;
+    if (session.nodes.length > 0) return;
+    if (models.length === 0) return;
+    if (seededSessionsRef.current.has(sessionId)) return;
+    seededSessionsRef.current.add(sessionId);
+
+    // 用当前选中的默认模型，而不是模型列表里的第一个。
+    // （defaultModelId 别处都在用，就这里漏了。）
+    const initialModel = models.find(m => m.id === defaultModelId) ?? models[0];
+    const systemNode: ChatNodeType = {
+      id: generateId(),
+      parentId: null,
+      type: 'system',
+      userMessage: initialModel.defaultSystemPrompt,
+      assistantMessage: "",
+      modelId: initialModel.id,
+      temperature: initialModel.temperature ?? DEFAULT_TEMPERATURE,
+      maxTokens: initialModel.maxTokens || DEFAULT_MAX_TOKENS,
+      createdAt: new Date().toISOString(),
+      // 明确标成「没改过」，换模型时才会跟着换新模型的默认提示词
+      systemPromptTouched: false,
+    };
+
+    // 一次写入：既加节点，也把「已补过根节点」落库。
+    // 不用 addNodeToSession 是因为它不会写这个标记。
+    updateSession({
+      ...session,
+      systemNodeSeeded: true,
+      nodes: [...session.nodes, systemNode],
+    });
+  }, [session, sessionId, models, defaultModelId, updateSession]);
 
 
   // 节点 data 里的回调必须是稳定引用 —— 只要引用变了，所有节点都会重渲染。
   // 但回调本身又必须读到最新的 session / state，所以用 ref 转发：
   // 引用恒定，真正被调用时再去取当前渲染里那份实现。
   const latestHandlers = useRef({
-    handleAddChildNode, handleEditNode, handleDeleteNode, handleRetryNode, handleResubmitNode,
+    handleAddChildNode, handleEditNode, handleDeleteNode, handleRetryNode, handleResubmitNode, handleStopNode,
     handleModelChange, handleTemperatureChange, handleMaxTokensChange,
   });
   latestHandlers.current = {
-    handleAddChildNode, handleEditNode, handleDeleteNode, handleRetryNode, handleResubmitNode,
+    handleAddChildNode, handleEditNode, handleDeleteNode, handleRetryNode, handleResubmitNode, handleStopNode,
     handleModelChange, handleTemperatureChange, handleMaxTokensChange,
   };
 
@@ -937,6 +1083,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     onEdit: (nodeId: string, content: string, type: 'user' | 'assistant' | 'system', isDraft?: boolean) =>
       latestHandlers.current.handleEditNode(nodeId, content, type, isDraft),
     onDelete: (nodeId: string) => latestHandlers.current.handleDeleteNode(nodeId),
+    onStop: (nodeId: string) => latestHandlers.current.handleStopNode(nodeId),
     onRetry: (nodeId: string) => latestHandlers.current.handleRetryNode(nodeId),
     onResubmit: (nodeId: string) => latestHandlers.current.handleResubmitNode(nodeId),
     onModelChange: (nodeId: string, modelId: string) => latestHandlers.current.handleModelChange(nodeId, modelId),
@@ -1062,6 +1209,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         proOptions={{ hideAttribution: true }}
         nodesDraggable={true}
         elementsSelectable={true}
+        // 关掉 React Flow 自带的 Backspace/Delete 删除。
+        //
+        // 它只把节点从 React Flow 的局部 nodes 里删掉，**完全没经过 store**，
+        // 也跳过了我们特意加的确认 + 撤销。删完看着没了，可下一次 store 一变
+        // （比如点「+」加节点），渲染 effect 会从 session.nodes 重建 nodes，
+        // 被删的节点就「跳回来」了 —— 这正是用户报的那个 bug。
+        // 删除现在只有节点上的删除按钮一条路，走 handleDeleteNode（确认 + 撤销）。
+        deleteKeyCode={null}
         fitView={false}
         defaultEdgeOptions={{ 
           type: 'smoothstep',

@@ -26,7 +26,7 @@ const Logo: React.FC<LogoProps> = ({ size = 28, className = '' }) => (
     viewBox="0 0 64 64"
     className={className}
     role="img"
-    aria-label="Tree AI Plus"
+    aria-label="Chatree"
   >
     <rect width="64" height="64" rx="16" fill="#13231d" />
 

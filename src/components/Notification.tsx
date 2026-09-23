@@ -111,16 +111,29 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
         <div className={`mr-3 ${styles.iconColor}`}>
           {styles.icon}
         </div>
-        <div className={`${styles.textColor}`}>
+        <div className={`${styles.textColor} min-w-0 break-words`}>
           {notification.message}
         </div>
       </div>
-      <button
-        onClick={handleClose}
-        className="ml-4 text-gray-400 hover:text-gray-600 focus:outline-none"
-      >
-        <X size={18} />
-      </button>
+      <div className="ml-4 flex shrink-0 items-center gap-1">
+        {notification.actionLabel && notification.onAction && (
+          <button
+            onClick={() => {
+              notification.onAction?.();
+              handleClose();
+            }}
+            className="rounded-md border border-black/10 px-2 py-0.5 text-xs font-medium hover:bg-black/5"
+          >
+            {notification.actionLabel}
+          </button>
+        )}
+        <button
+          onClick={handleClose}
+          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+        >
+          <X size={18} />
+        </button>
+      </div>
     </div>
   );
 };

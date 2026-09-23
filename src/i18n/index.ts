@@ -47,11 +47,12 @@ const en: Record<string, string> = {
 
   // ── App ───────────────────────────────────────────────
   '加载中...': 'Loading...',
-  '欢迎使用 Tree AI Plus': 'Welcome to Tree AI Plus',
+  '欢迎使用 Chatree': 'Welcome to Chatree',
   '创建一个新会话，开始与 AI 进行树状结构的对话。':
     'Create a session and start a tree-structured conversation with AI.',
   设置模型: 'Set up a model',
   创建新会话: 'New session',
+  新会话: 'New Conversation',
 
   // ── Sidebar ───────────────────────────────────────────
   会话名称已更新: 'Session renamed',
@@ -76,6 +77,8 @@ const en: Record<string, string> = {
   暂无会话: 'No sessions yet',
   取消收藏: 'Unstar',
   收藏会话: 'Star session',
+  '点击气泡收藏这个会话': 'Click the bubble to star this session',
+  确定: 'Confirm',
   移动到文件夹: 'Move to folder',
   移动到: 'Move to',
   '拖动会话到文件夹即可归类': 'Drag a session onto a folder to file it',
@@ -91,8 +94,18 @@ const en: Record<string, string> = {
   '在此输入您的消息...': 'Type your message...',
   '点击添加消息...': 'Click to add message...',
   'AI 正在思考...': 'AI is thinking...',
+  '思考过程': 'Reasoning',
   '思考过程 · {n} 字': 'Reasoning · {n} chars',
   '思考中…': 'Thinking…',
+  停止: 'Stop',
+  '停止生成并保存已生成的内容': 'Stop and save what has been generated',
+  复制: 'Copy',
+  放大阅读: 'Expand to read',
+  '删除这个节点？': 'Delete this node?',
+  '删除这个节点？会连带删掉 {n} 个子节点。': 'Delete this node? Its {n} descendant(s) will be deleted too.',
+  已删除节点: 'Node deleted',
+  '已删除节点及其 {n} 个子节点': 'Node and its {n} descendant(s) deleted',
+  撤销: 'Undo',
   '请求失败，可重试': 'Request failed — you can retry',
   AI回复将显示在这里: 'The AI reply will appear here',
   '{n} 字': '{n} chars',
@@ -157,6 +170,7 @@ const en: Record<string, string> = {
 
   // ── ModelsPanel ───────────────────────────────────────
   '确定要删除这个模型吗？': 'Delete this model?',
+  删除模型: 'Delete model',
   模型列表: 'Models',
   暂无配置模型: 'No models configured',
   模型名称: 'Name',
@@ -242,7 +256,7 @@ const en: Record<string, string> = {
     'Sessions and model configs are saved in this browser; uninstalling or clearing browser data deletes them too. ',
   '请定期用「设置 → 数据」导出备份。API Key 绝不会进入备份文件。':
     'Back up regularly via Settings → Data. API keys never enter backup files.',
-  'Tree AI Plus 是': 'Tree AI Plus is an enhanced fork of ',
+  'Chatree 是': 'Chatree is an enhanced fork of ',
   '的增强分支。': '.',
   '如果你觉得有用，欢迎给两个仓库都点个 Star。':
     'If you find it useful, a star on both repos is appreciated.',
@@ -259,7 +273,7 @@ const en: Record<string, string> = {
   // ── sessionTransfer ───────────────────────────────────
   '不是有效的 JSON 文件': 'Not a valid JSON file',
   '文件内容不是一个对象': 'The file content is not an object',
-  '这不是 Tree AI Plus 导出的备份文件': 'This is not a backup exported by Tree AI Plus',
+  '这不是 Chatree 导出的备份文件': 'This is not a backup exported by Chatree',
   '文件缺少版本号': 'The file has no version number',
   '文件版本 v{v} 比当前程序新（最高支持 v{max}），请先升级':
     'File version v{v} is newer than this app (max v{max}); please update first',

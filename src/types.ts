@@ -52,6 +52,16 @@ export interface Session {
   starred?: boolean;
   /** 所属文件夹。undefined / null 表示未分类。旧数据没有这个字段。 */
   folderId?: string | null;
+  /**
+   * 是否已经自动补过根节点（系统提示词节点）。
+   *
+   * 用来解决两个问题：
+   *   1) StrictMode 下「空会话补根节点」的 effect 会跑两次，一次补出两个系统节点；
+   *   2) 用户手动删掉系统节点后，会话变回 0 节点，effect 又会把它补回来 ——
+   *      「删了还会自动出来」。
+   * 只要曾经补过就置 true 并落库，之后无论剩下几个节点都不再自动补。
+   */
+  systemNodeSeeded?: boolean;
 }
 
 export interface ChatNode {
@@ -74,6 +84,12 @@ export interface ChatNode {
   /** 最近一次请求的 token 用量统计 */
   usage?: UsageStats;
   position?: NodePosition;
+  /**
+   * 系统节点专用：用户是否手动改过这段提示词。
+   * 没改过时换模型会跟着换上新模型的默认提示词；改过就绝不覆盖。
+   * 旧数据没有这个字段，当作「没改过」。
+   */
+  systemPromptTouched?: boolean;
 }
 
 export interface Position {
@@ -89,6 +105,8 @@ export interface NodeData {
   onAddChild: (parentId: string) => void;
   onEdit: (nodeId: string, content: string, type: 'user' | 'assistant' | 'system', isDraft?: boolean) => void;
   onDelete: (nodeId: string) => void;
+  /** 中止这场生成。已生成的部分会保留下来并落盘。 */
+  onStop: (nodeId: string) => void;
   onRetry: (nodeId: string) => void;
   /**
    * 原地重出：改了这条消息后重新生成，结果写回**本节点**，不另起分支。
