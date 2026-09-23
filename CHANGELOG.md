@@ -7,6 +7,8 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-23
+
 ### Added
 
 - **Desktop app** built with Pake (Windows / macOS / Linux), fully offline and self-contained.
@@ -35,6 +37,14 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   bottom-right corner: **send** while editing → **stop** while streaming → **regenerate** when idle.
   The inline send button inside the input box is gone, so leaving edit mode no longer hides the
   send action.
+  - Later in the same release this was split up again, because a button that has nothing to do with
+    typing shouldn't sit in the input box: **send** now lives in the input box's bottom-right and
+    only appears while editing; **stop / regenerate / copy / expand** form one hover-revealed row
+    at the card's bottom-right, all right-aligned to the same 24px column.
+- Every icon button on a card is the same size (14px, `p-1`), and the model name in the card header
+  is one step larger.
+- The per-node **max-tokens slider is gone** — a 256–65535 range with `step=1` can't land on a value
+  you actually want. Max tokens is configured per model instead, as a number input.
 - Leaving a node's edit mode no longer requires pressing send: clicking outside the node or
   pressing `Esc` also exits. The draft is kept, and controls inside the node don't interrupt editing.
 - Reasoning output auto-expands while the model is thinking and quietly collapses when it finishes.
@@ -56,13 +66,25 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   strip with the three dots was 12px wider on each side) and a gap between the two.
 - Token stats now use ↑ for input and ↓ for output, and every metric carries its unit
   (`tok` / `chars` / `%` / `tok/s`) instead of only the last one.
+- The send button no longer covers the textarea's native resize handle (the textarea is no longer
+  resizable, and the button sits 8px inside its corner).
+- The browser tab / desktop window title now follows the UI language instead of always being English.
+- **Session ordering**: a session only moves to the top when you actually start a generation.
+  Editing a message (or entering edit mode and leaving it untouched), changing the model or
+  temperature, dragging a card, renaming, and deleting a node no longer reorder the sidebar.
+  The stats panel row that used to read "Updated" is now "Last message".
+
+### Documentation
+
+- Added a **Deployment** section (Cloudflare Pages settings, SPA fallback, Docker) and fixed the
+  build failure caused by `vite` being a devDependency that the host never installed.
 
 ### Security
 
 - Disabled raw HTML in Markdown rendering (`markdownItConfig: md => md.set({ html: false })`),
   closing a real XSS vector reachable through model output.
 
-## [0.1.0]
+## [0.1.0] - 2026-09-23
 
 ### Added
 
