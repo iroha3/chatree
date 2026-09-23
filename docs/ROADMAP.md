@@ -16,8 +16,9 @@
   ② 在 `scripts/pake.mjs` 里加一层兜底：从报错路径反推出 target 目录，
   直接扫 `bundle/**` 里真正的产物。目前先不做 ——
   **Windows on ARM 直接跑我们的 x64 包**（系统自带 x64 模拟）就够用了。
-- 📋 **代码签名**：现在没签名，首次运行 Windows 会弹 SmartScreen「未知发布者」，
-  点「更多信息 → 仍要运行」。要消除得买代码签名证书。
+- 🚫 **代码签名**：**决定不做**（用户原话：“没 exe 签名就没有吧，没关系的”）。
+  代价已知且接受：Windows 首次运行弹 SmartScreen「未知发布者」，点「更多信息 → 仍要运行」；
+  macOS 首次打开要右键「打开」。要消除只能买证书（年费），不做。
 - 🟡 **更新方式**：当前是"半自动"——关于页查 GitHub latest release，有新版本给下载链接。
   够用；静默自动更新需要 Tauri updater 插件 + 更新包签名 + 自己维护 `src-tauri`，
   押后。
@@ -40,6 +41,9 @@
 
 ## 正确性 / 测试
 
+- 🟡 **发版的 `concurrency` 会误杀正在跑的构建**：见 `DEV.md` §8.1 的 ⚠️。
+  `cancel-in-progress: true` 是工作流级的，所以发版跑着的时候**任何** push 都会把它取消。
+  初步修法：闸门拆成独立 workflow，或去掉 `cancel-in-progress`。待实测后定。
 - 📋 **补自动测试**：分支上下文组装、持久化、SSE 解析、`sessionTransfer` 导入校验、
   `sessionStore.importSessions` 去重、`computeChildPosition` 落点不重叠。
 - 📋 **假 SSE 服务器的端到端测试**：现在没有覆盖"流式请求 → 停止 → 已生成内容落盘"。
@@ -92,6 +96,7 @@
 
 这些是被明确否决过的，别下次又当成新点子提出来：
 
+- **代码签名**（接受 SmartScreen / Gatekeeper 提示；要买证书，不做）
 - 兄弟分支切换器（`← 2/3 →`）
 - 标签、云同步、插件化、mermaid 渲染
 - 纯美化类改造
