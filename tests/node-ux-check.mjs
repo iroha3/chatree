@@ -402,40 +402,85 @@ async function main() {
       stats.includes('思考 33 tok'),
     JSON.stringify(stats));
 
-  // 右下角「运行」按钮：ChatGPT 式，一个按钮走完生命周期，而且**恒可见**。
-  // 以前发送键只在编辑态存在、重新生成只在悬停时才出现，离开编辑态就找不到发送键。
-  const readRun = () => cdp.eval(`(() => {
+  // ── 卡片上的动作按钮 ────────────────────────────────────
+  // 发送键在输入框右下角（你打字的地方）；停止 / 重生成 / 复制 / 放大
+  // 全部待在卡片右下角的**悬浮簇**里 —— 悬停才出现，右对齐成一列。
+  // 必须用**真实鼠标移动**来量 opacity：:hover 是 CSS 状态，
+  // 合成的 MouseEvent 不会改变它。
+  const readCluster = () => cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    const btn = n.querySelector('button[title="发送"], button[title="停止生成并保存已生成的内容"], button[title="重新生成回复（另起一个新分支，保留当前回答）"]');
-    if (!btn) return { error: 'no run button' };
-    const inputRow = Array.from(n.querySelectorAll('div')).find(d => d.className.includes('relative px-4 py-3'));
+    const cluster = Array.from(n.querySelectorAll('div')).find(d =>
+      typeof d.className === 'string' && d.className.includes('opacity-0') &&
+      d.className.includes('right-6') && d.className.includes('gap-0.5'));
+    if (!cluster) return { error: 'no cluster' };
+    const inputRow = Array.from(n.querySelectorAll('div')).find(d =>
+      typeof d.className === 'string' && d.className.includes('relative px-4 py-3'));
+    const has = (sel) => !!cluster.querySelector(sel);
+    const sendBtn = n.querySelector('button[title="发送"]');
     return {
-      opacity: getComputedStyle(btn.parentElement).opacity,
-      send: !!btn.querySelector('.lucide-send'),
-      refresh: !!btn.querySelector('.lucide-refresh-ccw'),
-      stop: !!btn.querySelector('.lucide-square'),
-      // 运行按钮必须长在**输入框那一块**里（ChatGPT 式：发送键在你打字的地方），
-      // 而不是节点最底部跟复制/放大堆在一起。
-      inInputRow: !!(inputRow && inputRow.contains(btn)),
+      opacity: getComputedStyle(cluster).opacity,
+      stop: has('.lucide-square'),
+      refresh: has('.lucide-refresh-ccw'),
+      copy: has('.lucide-copy'),
+      // 注意：lucide 的 toKebabCase 对「数字结尾」不插连字符，
+      // 所以是 lucide-maximize2 而不是 lucide-maximize-2。
+      expand: has('.lucide-maximize2'),
+      inInputRow: !!(inputRow && inputRow.contains(cluster)),
+      sendExists: !!sendBtn,
+      sendInInputRow: !!(inputRow && sendBtn && inputRow.contains(sendBtn)),
+      clusterRight: +cluster.getBoundingClientRect().right.toFixed(1),
+      sendRight: sendBtn ? +sendBtn.getBoundingClientRect().right.toFixed(1) : null,
+      // 卡片自己的图标（不算 Markdown 代码块里 md-editor 塞的那些）
+      iconSizes: Array.from(n.querySelectorAll('button svg'))
+        .filter((s) => !s.closest('.md-preview, .md-editor-code'))
+        .map((s) => Number(s.getAttribute('width'))),
     };
   })()`);
 
-  await cdp.eval(`document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))`);
-  await sleep(200);
-  const idleRun = await readRun();
-  check('运行按钮恒可见（不靠悬停）且长在输入框里，空闲时是「重新生成」',
-    idleRun.opacity === '1' && idleRun.inInputRow === true && idleRun.refresh === true && idleRun.send === false && idleRun.stop === false,
-    JSON.stringify(idleRun));
+  const geom2 = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const r = n.getBoundingClientRect();
+    const p = document.querySelector('.react-flow__pane').getBoundingClientRect();
+    const inside = (x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const corners = [
+      [p.left + 8, p.top + 8], [p.right - 8, p.top + 8],
+      [p.left + 8, p.bottom - 8], [p.right - 8, p.bottom - 8],
+    ];
+    const away = corners.find(([x, y]) => !inside(x, y)) || [p.right - 8, p.top + 8];
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, awayX: away[0], awayY: away[1] };
+  })()`);
+
+  await move(geom2.awayX, geom2.awayY);
+  await sleep(250);
+  const away = await readCluster();
+  check('没悬停时，右下角那一列动作按钮全部隐藏',
+    away.opacity === '0', JSON.stringify({ opacity: away.opacity }));
+
+  await move(geom2.x, geom2.y);
+  await sleep(300);
+  const hovered = await readCluster();
+  check('悬停后出现：重生成 + 复制 + 放大，且不在输入框里',
+    hovered.opacity === '1' && hovered.refresh && hovered.copy && hovered.expand &&
+      hovered.stop === false && hovered.inInputRow === false,
+    JSON.stringify(hovered));
+  check('卡片上所有图标按钮的图标一样大（14）',
+    hovered.iconSizes.length >= 5 && hovered.iconSizes.every((s) => s === 14),
+    JSON.stringify(hovered.iconSizes));
+  check('空闲时输入框右下角没有按钮（只有编辑时才出现发送键）',
+    hovered.sendExists === false, JSON.stringify({ sendExists: hovered.sendExists }));
 
   await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
     n.querySelector('[class*="max-h-"]').click();
   })()`);
   await sleep(250);
-  const editRun = await readRun();
-  check('进入编辑态后同一个按钮变成「发送」',
-    editRun.send === true && editRun.refresh === false && editRun.stop === false,
-    JSON.stringify(editRun));
+  await move(geom2.x, geom2.y);
+  await sleep(300);
+  const editing = await readCluster();
+  check('编辑态发送键在输入框右下角，且与重生成按钮右对齐',
+    editing.sendExists === true && editing.sendInInputRow === true &&
+      Math.abs(editing.clusterRight - editing.sendRight) <= 0.5,
+    JSON.stringify({ clusterRight: editing.clusterRight, sendRight: editing.sendRight }));
 
   // 编辑框右下角：textarea 自带的那根拖拽斜杠正好在按钮底下，两个叠一起又丑又看不清。
   // 所以 textarea 必须 resize-none；按钮必须**嵌在框内**，不能浮在框外面。
@@ -474,12 +519,48 @@ async function main() {
   })()`);
   await sleep(250);
 
-  // 停止入口：非流式时不应出现方形停止图标（它和「重新生成」互斥，同一颗按钮）。
-  const stopVisible = await cdp.eval(`(() => {
+  // 卡片设置里那条「最大令牌数」滑块已删：256–65535 / step=1 一拖就跳好几千，
+  // 根本停不到想要的值。面板里现在只应该剩「模型」下拉 +「温度」一条滑块。
+  await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    return !!n.querySelector('.lucide-square');
+    n.querySelector('button[title="模型设置"]').click();
   })()`);
-  check('非流式节点不显示停止按钮', stopVisible === false);
+  await sleep(350);
+  const settingsPanel = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const panel = n.querySelector('.bg-neutral-50');
+    if (!panel) return { error: 'no settings panel' };
+    return {
+      ranges: panel.querySelectorAll('input[type=range]').length,
+      selects: panel.querySelectorAll('select').length,
+      hasMaxTokens: panel.textContent.includes('最大令牌数'),
+    };
+  })()`);
+  check('卡片设置里没有「最大令牌数」滑块，只剩模型 + 温度',
+    settingsPanel.ranges === 1 && settingsPanel.selects === 1 && settingsPanel.hasMaxTokens === false,
+    JSON.stringify(settingsPanel));
+  await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    n.querySelector('button[title="模型设置"]').click();
+  })()`);
+  await sleep(250);
+
+  // 浏览器标签页标题：以前是 index.html 里写死的英文，界面切中文了它也不变。
+  const titleSwitch = await cdp.eval(`(async () => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/i18n/index.ts'));
+    if (!url) return { error: 'i18n module not found', sample: performance.getEntriesByType('resource').map(e => e.name).slice(0, 5) };
+    const m = await import(url);
+    const before = document.title;
+    m.useLangStore.getState().setLang('en');
+    const en = document.title;
+    m.useLangStore.getState().setLang('zh');
+    return { before, en, back: document.title };
+  })()`, true);
+  check('标签页标题跟随语言（zh/en 都换）',
+    !!titleSwitch && titleSwitch.before?.includes('让每个念头都能分叉') &&
+      titleSwitch.en?.includes('Branch every line of thought') &&
+      titleSwitch.back === titleSwitch.before,
+    JSON.stringify(titleSwitch));
 
   // 回归：删除节点后，任何「迟到」的 updateNodeInSession（流式结束落盘 /
   // 输入框 onBlur 草稿保存 / 中止回调）都不能把节点复活 —— 这正是

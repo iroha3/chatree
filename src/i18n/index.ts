@@ -18,6 +18,9 @@ export type Lang = 'zh' | 'en';
 
 const STORAGE_KEY = 'treeai-lang';
 
+/** 窗口标题。index.html 里的 <title> 是同一句中文，两边保持一致。 */
+export const APP_TITLE_ZH = 'Chatree - 让每个念头都能分叉';
+
 /** zh → en。key 是界面上的中文原文。 */
 const en: Record<string, string> = {
   // ── 通用 ──────────────────────────────────────────────
@@ -46,6 +49,7 @@ const en: Record<string, string> = {
     'Regenerate (new sibling branch, keeps this answer)',
 
   // ── App ───────────────────────────────────────────────
+  'Chatree - 让每个念头都能分叉': 'Chatree - Branch every line of thought',
   '加载中...': 'Loading...',
   '欢迎使用 Chatree': 'Welcome to Chatree',
   '创建一个新会话，开始与 AI 进行树状结构的对话。':
@@ -339,6 +343,9 @@ function detectLang(): Lang {
 
 export function applyLang(lang: Lang): void {
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  // 浏览器标签页 / Pake 窗口的标题也跟着切。以前它是 index.html 里写死的英文，
+  // 界面全中文了标题栏还是英文。
+  document.title = lang === 'zh' ? APP_TITLE_ZH : en[APP_TITLE_ZH] ?? APP_TITLE_ZH;
 }
 
 const initialLang: Lang = readStoredLang() ?? detectLang();

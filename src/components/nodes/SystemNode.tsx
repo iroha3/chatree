@@ -8,7 +8,7 @@ import { useT } from '../../i18n';
 import NodeReadOverlay from './NodeReadOverlay';
 
 const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
-  const { node, onEdit, onAddChild, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
+  const { node, onEdit, onAddChild, onModelChange, onTemperatureChange } = data;
   const [isEditing, setIsEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(node.userMessage || '');
@@ -115,16 +115,17 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
         <div className="flex items-center">
           <Settings size={14} className="mr-1.5 text-neutral-500" />
-          <span className="text-xs font-medium">{t('系统提示词')}</span>
+          <span className="text-sm font-medium">{t('系统提示词')}</span>
         </div>
         
+        {/* 图标尺寸跟对话节点对齐：一律 14（见 ChatNode 头部那段注释）。 */}
         <div className="flex space-x-1 node-toolbar">
           <button 
             className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
             onClick={() => setShowSettings(!showSettings)}
             title={t('模型设置')}
           >
-            <Settings size={12} />
+            <Settings size={14} />
           </button>
         </div>
       </div>
@@ -163,24 +164,8 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               className="w-full accent-neutral-700 nodrag nopan"
             />
           </div>
-          
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-medium text-neutral-700">
-                {t('最大令牌数')}
-              </label>
-              <span className="text-xs text-neutral-500">{node.maxTokens}</span>
-            </div>
-            <input
-              type="range"
-              min="256"
-              max="65535"
-              step="1"
-              value={node.maxTokens}
-              onChange={(e) => onMaxTokensChange(node.id, parseInt(e.target.value))}
-              className="w-full accent-neutral-700 nodrag nopan"
-            />
-          </div>
+          {/* 最大令牌数跟对话节点一样去掉了：那条 256–65535 的滑块根本停不到
+              想要的值。要改就去「设置 → 模型」改模型默认值。 */}
         </div>
       )}
 

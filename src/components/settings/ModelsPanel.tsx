@@ -294,22 +294,38 @@ const ModelsPanel: React.FC = () => {
                 />
               </div>
 
+              {/* 这里原来也是一条 256–65535、step=1 的滑块 —— 同样没法用：
+                  一拖就跳好几千，永远停不到 4096 这种整数。换成数字输入框。
+                  （节点卡片上的那个已经删了，这里是全应用**唯一**能设 max tokens
+                  的地方，所以它必须真的好用。） */}
               <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-medium text-neutral-700">
-                    {t('默认最大令牌数')}
-                  </label>
-                  <span className="text-xs text-neutral-500">{editingModel.maxTokens}</span>
-                </div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  {t('默认最大令牌数')}
+                </label>
                 <input
-                  type="range"
-                  min="256"
+                  type="number"
+                  min={256}
                   max={MAX_TOKENS_LIMIT}
-                  step="1"
+                  step={256}
                   value={editingModel.maxTokens}
-                  onChange={(e) => setEditingModel({ ...editingModel, maxTokens: parseInt(e.target.value) })}
-                  className="w-full accent-neutral-700"
+                  // 输入中**不**夹逼：一失焦就夹的话，「4」会被立刻拉成 256，
+                  // 后面再敲「096」就永远接不上。只在失焦时收尾。
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (Number.isFinite(v)) setEditingModel({ ...editingModel, maxTokens: v });
+                  }}
+                  onBlur={() => {
+                    const v = Math.min(
+                      Math.max(editingModel.maxTokens || DEFAULT_MAX_TOKENS, 256),
+                      MAX_TOKENS_LIMIT,
+                    );
+                    if (v !== editingModel.maxTokens) setEditingModel({ ...editingModel, maxTokens: v });
+                  }}
+                  className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 />
+                <p className="mt-1 text-xs text-neutral-400">
+                  {t('单次回复最多允许多少 token（256–{max}）', { max: MAX_TOKENS_LIMIT })}
+                </p>
               </div>
             </div>
 
