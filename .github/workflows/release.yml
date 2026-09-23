@@ -31,7 +31,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       release: ${{ steps.check.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: check
         run: |
           VERSION=$(jq -r .version package.json)
@@ -50,7 +50,7 @@ jobs:
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -61,13 +61,27 @@ jobs:
         run: |
           cd dist
           zip -r "../chatree-web-${{ needs.version.outputs.version }}.zip" .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: web
           path: chatree-web-*.zip
           if-no-files-found: error
 
   # ── 2. 桌面版：每个 runner 原生构建自己的架构（Pake 没有 --arch）──
+  #
+  # 第一版矩阵碰到的两个坑（已解决，别再改回去）：
+  #
+  #   * macos-13（Intel）**排队 19 分钟都拿不到机器** —— 这个 label 已经
+  #     没人权了。改成 macos-14 + `--multi-arch` 出一个 x64+arm64 通用包，
+  #     一次构建顶两个，也不用赌 Intel runner 什么时候被彻底下线。
+  #     （代价：要自己 `rustup target add x86_64-apple-darwin`，Pake 不管这事。）
+  #
+  #   * `windows-11-arm` **必定失败**：Pake 3.17.1 在 Windows ARM64 上有个
+  #     文件名 bug —— Tauri 产出 `Chatree_0.1.0_arm64_en-US.msi`，而 Pake 去找
+  #     `Chatree_0.1.0_aarch64_en-US.msi`（ARCH_DISPLAY_NAMES.arm64 = 'aarch64'），
+  #     于是 ENOENT → BUILD_FAILED，连 keepBinary 都来不及拷原始 exe。
+  #     所以先不出 Windows ARM64；Windows on ARM 可以直接跑下面的 x64 包
+  #     （系统自带 x64 模拟）。详见 docs/ROADMAP.md。
   desktop:
     needs: version
     if: needs.version.outputs.release == 'true'
@@ -78,18 +92,10 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x64
-          # GitHub 公开仓库的 arm64 Windows runner
-          - os: windows-11-arm
-            platform: windows
-            arch: arm64
-          # macos-13 是 Intel；macos-14 是 Apple Silicon。
-          # 若 13 被下线，改成一个 macos-14 + `--multi-arch` 出通用包。
-          - os: macos-13
-            platform: macos
-            arch: x64
           - os: macos-14
             platform: macos
-            arch: arm64
+            arch: universal
+            extra: --multi-arch
           - os: ubuntu-22.04
             platform: linux
             arch: x64
@@ -98,8 +104,12 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    env:
+      # collect-artifacts.mjs 靠这两个变量给产物起名，不然会跨平台重名覆盖
+      CHATREE_PLATFORM: ${{ matrix.platform }}
+      CHATREE_ARCH: ${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -118,15 +128,20 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+      # --multi-arch 要两个目标都装上；GitHub 的 arm64 Mac 只带了宿主那个。
+      - name: Add the other macOS Rust target
+        if: matrix.platform == 'macos'
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
       # 打包。scripts/pake.mjs 会用 package.json 的版本 + 平台对应的图标，
       # 并把产物清单写进 pake-artifacts.json。
       - name: Build desktop app
-        run: bun run desktop:build:ci
+        run: bun run desktop:build:ci ${{ matrix.extra }}
 
       - name: Collect artifacts
         run: bun scripts/collect-artifacts.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
           path: release/**
@@ -138,14 +153,14 @@ jobs:
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -154,19 +169,23 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
 
   # ── 4. 建 tag + Release，附上所有产物 ────────────────────────
+  #
+  # 注意 if 里用的是 !cancelled() 而不是 needs.desktop.result == 'success'：
+  # 某一个平台的打包挂掉，不应该把已经成功的那几个平台也一起埋掉 ——
+  # 发布“能出的那些”比什么都不发好，失败在 Actions 页面照样是红的。
   release:
     needs: [version, web, desktop, docker]
-    if: needs.version.outputs.release == 'true'
+    if: ${{ !cancelled() && needs.version.outputs.release == 'true' && needs.web.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
       - name: List collected files
         run: find artifacts -type f -printf '%f\t%k KB\n' | sort
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.version.outputs.version }}
           name: Chatree v${{ needs.version.outputs.version }}

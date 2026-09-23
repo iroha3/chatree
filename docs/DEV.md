@@ -251,6 +251,39 @@ bun run desktop:build:fast   # 本地快速（只出可执行文件，不出安�
    `http://127.0.0.1:5175` **不共享 IndexedDB**。所以「浏览器 → 桌面」需要
    「导出 JSON → 重填 API Key → 导入」。但**桌面版本之间**升级不受影响（identifier 不变）。
 
+### 8.1 发布流水线（`.github/workflows/release.yml`）
+
+push 到 master 就发版：先看 `package.json` 的 version 对应的 tag `v<version>`
+存不存在，不存在才真发布（**幂等**，重跑不会重复发）。改版本号 = 一次普通提交。
+
+矩阵（公开仓库的 runner 不计费，所以三平台都出）：
+
+| runner | 产物 |
+|---|---|
+| `windows-latest` | `.msi` + 便携 `Chatree.exe` |
+| `macos-14` + `--multi-arch` | **通用包**（x64+arm64 一个 dmg） |
+| `ubuntu-22.04` | `.deb` + `.AppImage` |
+| `ubuntu-24.04-arm` | `.deb` |
+
+再加上网页版 `dist.zip` 和 GHCR 上的 Docker 镜像。**不做 GitHub Pages**（网页版在 Cloudflare）。
+
+踩过的坑，别再踩：
+
+1. **Pake 的安装包是裸名**（`Chatree.msi` / `chatree.deb` / `Chatree-binary`），
+   跨平台/跨架构会重名 —— linux x64 和 arm64 都叫 `chatree.deb`，合并到同一个
+   Release 时会互相覆盖。所以 `scripts/collect-artifacts.mjs` 统统重命名成
+   `Chatree-<版本>-<平台>-<架构>[.扩展名]`（平台/架构从 `CHATREE_PLATFORM` /
+   `CHATREE_ARCH` 读，由矩阵传）。
+2. **`macos-13`（Intel）拿不到机器** —— 实测排队 19 分钟仍是 `queued`。
+   改用 `macos-14` + `--multi-arch`；但**得自己 `rustup target add x86_64-apple-darwin`**，
+   Pake 不会帮你装（它只负责传 `--target universal-apple-darwin`）。
+3. **`windows-11-arm` 必挂** —— Pake 3.17.1 的命名 bug，详见 `ROADMAP.md`。
+4. `release` job 的 `if` 用的是 `!cancelled()` 而不是 `needs.desktop.result == 'success'`：
+   某一个平台挂了不该把其余已成功的平台一起埋掉。
+5. Pake 找不到某个安装包时会报 `BUILD_FAILED` + ENOENT，而且**因为报错发生在
+   `copyRawBinary` 之前，连原始 exe 都不会被拷出来**（`outputs` 是空的）——
+   看日志时别被 “安装包构建成功” 那几行骗了。
+
 ---
 
 ## 9. 已知坑：Vite 缓存中毒

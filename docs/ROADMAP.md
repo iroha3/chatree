@@ -8,6 +8,14 @@
 
 ## 桌面 / 分发
 
+- 📋 **Windows ARM64 包**：`windows-11-arm` 现在是**不能出**的 —— Pake 3.17.1 的
+  文件名 bug：Tauri 产出 `Chatree_0.1.0_arm64_en-US.msi`，而 Pake 去找
+  `Chatree_0.1.0_aarch64_en-US.msi`（`ARCH_DISPLAY_NAMES.arm64 = 'aarch64'`），
+  于是 ENOENT → `BUILD_FAILED`，而且报错发生在 `copyRawBinary` 之前，
+  连原始 exe 都不会被拷出来。可选项：① 等上游修（升 Pake 版本后重试）；
+  ② 在 `scripts/pake.mjs` 里加一层兜底：从报错路径反推出 target 目录，
+  直接扫 `bundle/**` 里真正的产物。目前先不做 ——
+  **Windows on ARM 直接跑我们的 x64 包**（系统自带 x64 模拟）就够用了。
 - 📋 **代码签名**：现在没签名，首次运行 Windows 会弹 SmartScreen「未知发布者」，
   点「更多信息 → 仍要运行」。要消除得买代码签名证书。
 - 🟡 **更新方式**：当前是"半自动"——关于页查 GitHub latest release，有新版本给下载链接。
@@ -41,9 +49,9 @@
 
 ## 交互（讨论中）
 
-- 🟡 **停止按钮语义**：现在是右下角"生成中=停止 / 结束=重新生成"。用户提过
-  "发送键变停止"那种 ChatGPT 式交互 —— 但发送后节点进入只读、没有发送键了，
-  所以语义要先讨论清楚，别直接改。
+- 🟡 **从上游合并**：本仓库是从 `Anionex/treeAI` 迁过来的独立仓库（不再挂 fork 标记），
+  上游若继续更新，需要手动 `git remote add upstream` + cherry-pick。要不要跟、
+  跟多频繁，未定。
 - ⏸ **复制整条路径为 Markdown**：「根 → 本节点」整条对话导出为 Markdown。
 - ⏸ **子树折叠**：节点太多时折叠整棵子树。
 - ⏸ **快捷键补齐**。
