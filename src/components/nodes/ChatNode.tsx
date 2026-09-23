@@ -434,8 +434,16 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           e.stopPropagation();
         }}
       >
+        {/* 这一层是「运行」按钮的定位基准：按钮要贴在**输入框自己的**右下角，
+            不能贴外层容器的角（贴外层会浮在输入框外面，像块补丁）。 */}
+        <div className="relative group">
         {isEditingUser ? (
-          // 右侧留出 pr-12，给下面那颗绝对定位的“运行”按钮让位。
+          // pr-12：给右下角那颗“运行”按钮腾位置，别让字跑到按钮底下。
+          // resize-none：**必须加**。textarea 右下角那根原生拖拽斜杠正好在按钮
+          //   底下 —— 两个叠在一起，又丑又都看不清（用户：“巨丑且看不清”）。
+          //   rows 已经固定 3 行，本来也不需要让用户拖。
+          // block：textarea 默认是 inline-block，会给父层底部留下一道基线空隙，
+          //   导致绝对定位的按钮看起来“沉”到了边框上（实测只差 0.3px）。
           <textarea
             ref={userInputRef}
             value={userMessage}
@@ -449,13 +457,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 showInfo(t('消息已保存'));
               }
             }}
-            className="w-full p-3 pr-12 border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
+            className="w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
             placeholder={t('在此输入您的消息...')}
             onKeyDown={handleKeyDown}
             rows={3}
           />
         ) : (
-          <div className="relative group">
+          <>
             <div 
               className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap"
               onClick={() => setIsEditingUser(true)}
@@ -468,7 +476,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
               />
             </div>
-          </div>
+          </>
         )}
 
         {/* 运行入口（ChatGPT 式）：**一颗**按钮走完整个生命周期，就长在输入框的
@@ -510,6 +518,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               <RefreshCcw size={14} />
             </button>
           )}
+        </div>
         </div>
       </div>
 

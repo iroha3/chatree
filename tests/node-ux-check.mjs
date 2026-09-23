@@ -437,6 +437,33 @@ async function main() {
     editRun.send === true && editRun.refresh === false && editRun.stop === false,
     JSON.stringify(editRun));
 
+  // 编辑框右下角：textarea 自带的那根拖拽斜杠正好在按钮底下，两个叠一起又丑又看不清。
+  // 所以 textarea 必须 resize-none；按钮必须**嵌在框内**，不能浮在框外面。
+  //
+  // 注：React Flow 会给节点加 transform: scale()，getBoundingClientRect 拿到的是
+  // 屏幕像素。测试里是缩到 20% 的，所以 8px 内边距会量成 1.6px —— 必须除回 scale，
+  // 不然断言就变成“看当前缩放多少”了（很容易误判）。
+  const editGeom = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const ta = n.querySelector('textarea');
+    const btn = n.querySelector('button[title="发送"]');
+    if (!ta || !btn) return { error: 'missing' };
+    const t = ta.getBoundingClientRect();
+    const b = btn.getBoundingClientRect();
+    const scale = n.getBoundingClientRect().width / n.offsetWidth || 1;
+    return {
+      resize: getComputedStyle(ta).resize,
+      inside: b.top >= t.top && b.bottom <= t.bottom && b.left >= t.left && b.right <= t.right,
+      scale: +scale.toFixed(3),
+      insetRight: +((t.right - b.right) / scale).toFixed(1),
+      insetBottom: +((t.bottom - b.bottom) / scale).toFixed(1),
+    };
+  })()`);
+  check('编辑框右下角：无原生拖拽斜杠，运行按钮嵌在框内且留出内边距',
+    editGeom.resize === 'none' && editGeom.inside === true &&
+      editGeom.insetRight >= 4 && editGeom.insetBottom >= 4,
+    JSON.stringify(editGeom));
+
   // 退出编辑态，别影响后面的用例
   await cdp.eval(`(() => {
     const pane = document.querySelector('.react-flow__pane');

@@ -115,6 +115,14 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
     节点**内部**的控件（模型下拉、温度滑块、思考链开关…）不算外面，不会打断正在编辑的人。
   - 草稿每次击键都已经同步进 store，退出只是收皮，**不回滚**。
 - Ctrl/Cmd+Enter 也能发送。
+- **`textarea` 上 `resize-none` 和 `block` 两个 class 都不能删：**
+  - `resize-none`：浏览器画在输入框右下角的那根拖拽斜杠，正好落在「运行」按钮下面 ——
+    两个坟在一起，又丑又都看不清。（`rows={3}` 固定行高，本来也不需要拖。）
+  - `block`：`textarea` 默认是 `inline-block`，会给父层底部留一道基线空隙（约 6.5px），
+    导致绝对定位的按钮“沉”到边框上（实测只剩 0.3px）。
+  - 它们一起保证按钮距输入框右下角**恰好 8px**。`tests/node-ux-check.mjs` 里有断言；
+    注意测试里要把 React Flow 的 `transform: scale()` 除回去（headless 下常常只有 0.2），
+    否则 8px 会被量成 1.6px。
 
 ### 3.5 复制
 - 一律用 `CopyButton`：点击后**立即**变对号（1.5s）。
