@@ -31,7 +31,7 @@ body:
     attributes:
       label: Checks
       options:
-        - label: I read SUPPORT.md and the README compatibility section.
+        - label: I read the README compatibility section first.
           required: true
         - label: I removed credentials and private data.
           required: true

@@ -120,11 +120,9 @@ Read [`docs/DEV.md`](docs/DEV.md) before making changes — it documents the dat
 
 ## Community
 
-- Questions and setup help: [Support guide](SUPPORT.md)
 - Bugs and feature requests: [Issue forms](https://github.com/iroha3/chatree/issues/new/choose)
-- Contributions: [Contributing guide](CONTRIBUTING.md)
-- Security reports: [Security policy](SECURITY.md)
-- Community standards: [Code of Conduct](CODE_OF_CONDUCT.md)
+- Development setup, data contracts, and conventions: [`docs/DEV.md`](docs/DEV.md)
+- Roadmap and known limitations: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - User-visible changes: [Changelog](CHANGELOG.md)
 
 ## About

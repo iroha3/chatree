@@ -120,11 +120,9 @@ Chatree 处于早期阶段（`0.1.0`）。核心的分支工作流可以构建�
 
 ## 社区
 
-- 使用问题与安装帮助：[支持指南](SUPPORT.md)
 - Bug 与需求：[Issue 表单](https://github.com/iroha3/chatree/issues/new/choose)
-- 参与贡献：[贡献指南](CONTRIBUTING.md)
-- 安全问题：[安全策略](SECURITY.md)
-- 行为准则：[Code of Conduct](CODE_OF_CONDUCT.md)
+- 开发环境、数据契约与约定：[`docs/DEV.md`](docs/DEV.md)
+- 路线图与已知限制：[`docs/ROADMAP.md`](docs/ROADMAP.md)
 - 版本变更：[Changelog](CHANGELOG.md)
 
 ## 关于

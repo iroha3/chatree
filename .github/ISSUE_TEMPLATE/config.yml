@@ -1,8 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Support guide
-    url: https://github.com/Anionex/treeAI/blob/master/SUPPORT.md
+  - name: Setup guide (README)
+    url: https://github.com/iroha3/chatree#compatibility-and-data-boundaries
     about: Check setup, CORS, endpoint, streaming, storage, and file-import guidance first.
-  - name: Security policy
-    url: https://github.com/Anionex/treeAI/security/policy
-    about: Report suspected vulnerabilities privately instead of opening a public issue.
