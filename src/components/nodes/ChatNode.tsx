@@ -16,6 +16,12 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onStop, onModelChange, onTemperatureChange, onMaxTokensChange } = data;
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
   const [isEditingUser, setIsEditingUser] = useState(!node.userMessage);
+  // 草稿的最新值。退出编辑态时要把它落库，但不想让下面的 mousedown 监听器
+  // 每敲一个字就重新注册，所以用 ref 拿最新值。
+  const draftRef = useRef(userMessage);
+  useEffect(() => {
+    draftRef.current = userMessage;
+  }, [userMessage]);
   const [showSettings, setShowSettings] = useState(false);
   // 思考过程：历史节点默认折叠；流式期间由下面的 effect 接管
   // （思考中自动展开 → 思考结束安静折叠）。
@@ -252,9 +258,40 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     }
   };
 
+  /*
+   * 退出编辑态：点在节点外面（画布空白、别的节点、侧边栏…）就退出。
+   *
+   * 以前只有「点发送」能退出，于是是个死胡同：改了文字又不想重发，就永远停在
+   * 输入框样式里 —— 草稿其实已经同步进 store 了，看上去却还在编辑。
+   * 现在：点外面就退出。节点**内部**的控件（模型下拉、温度滑块、思考链开关…）
+   * 不算「外面」，所以不会把正在编辑的人打断。
+   *
+   * 草稿在这里显式落库，不指望 textarea 的 onBlur —— 退出会把 textarea 卸载，
+   * 卸载引起的 blur 不一定能触到 React 的合成事件。
+   */
+  useEffect(() => {
+    if (!isEditingUser) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const el = nodeRef.current;
+      if (el && e.target instanceof Node && el.contains(e.target)) return;
+      onEdit(node.id, draftRef.current, 'user', false);
+      setIsEditingUser(false);
+    };
+    // capture 阶段：在节点内任何子元素处理之前就拿到事件
+    document.addEventListener('mousedown', onPointerDown, true);
+    return () => document.removeEventListener('mousedown', onPointerDown, true);
+  }, [isEditingUser, node.id, onEdit]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && e.ctrlKey) {
       handleSubmitUserMessage();
+    }
+    // Esc = 收起输入框（草稿保留）。惯例上 Esc 是「取消」，但草稿本来就
+    // 每次击键都存了，这里只负责退出编辑态，不假装能回滚。
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onEdit(node.id, draftRef.current, 'user', false);
+      setIsEditingUser(false);
     }
   };
 

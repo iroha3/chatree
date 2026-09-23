@@ -32,6 +32,8 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 - Card width reduced, node spacing tightened, and markdown typography polished (tighter paragraph
   and list rhythm; a smaller body size in the read overlay).
 - Stop control now lives only at the node's bottom-right, morphing between *stop* and *regenerate*.
+- Leaving a node's edit mode no longer requires pressing send: clicking outside the node or
+  pressing `Esc` also exits. The draft is kept, and controls inside the node don't interrupt editing.
 - Reasoning output auto-expands while the model is thinking and quietly collapses when it finishes.
 - Clipboard copy now gives instant feedback (icon becomes a check mark) and no longer triggers a
   native permission prompt on the desktop build.
@@ -47,6 +49,8 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 - Fixed copy toasts rendering *behind* the read overlay.
 - Fixed a CSS specificity bug that made the favorite star fail to turn gold on hover.
 - Fixed the sidebar title being truncated on hover.
+- Fixed markdown code blocks rendering with a wider header bar than code area (the language
+  strip with the three dots was 12px wider on each side).
 
 ### Security
 

@@ -70,7 +70,7 @@ async function main() {
   // Seed a session with TWO system nodes + a chat node carrying reasoning.
   // 回答里带段落和列表，用来量段落 / 列表的纵向间距（用 JSON.stringify 注入，
   // 避免在模板字符串里手写 \n 被当成真换行）。
-  const ANSWER_MD = 'hello answer\n\nsecond paragraph\n\n- a\n- b';
+  const ANSWER_MD = 'hello answer\n\nsecond paragraph\n\n- a\n- b\n\n```js\nconst a = 1;\n```';
   const seed = `new Promise((resolve) => {
     const req = indexedDB.open('TreeChatDatabase');
     req.onsuccess = () => {
@@ -122,19 +122,26 @@ async function main() {
   })()`);
   check('对话节点头部显示模型名 "Test"', headerText.includes('Test') && !headerText.includes('对话节点'), headerText.slice(0, 40));
 
-  // reasoning collapsed by default: toggle button exists, <pre> not rendered
+  // reasoning collapsed by default: toggle button exists, the reasoning <pre> is not rendered.
+  // 注意：不能直接 querySelector('pre') —— 回答里可能带代码块（md-editor 会渲染
+  // 自己的 <pre>），所以必须从「思考过程」按钮往上一层再找。
   const reasoning = await cdp.eval(`(() => {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
-    const pre = n.querySelector('pre');
-    const hasToggle = !!Array.from(n.querySelectorAll('button')).find(b => b.textContent.includes('思考过程'));
-    return { pre: !!pre, hasToggle, text: n.textContent.includes('思考过程') };
+    const toggle = Array.from(n.querySelectorAll('button')).find(b => b.textContent.includes('思考过程'));
+    const panel = toggle ? toggle.closest('div') : null;
+    return { pre: !!(panel && panel.querySelector('pre')), hasToggle: !!toggle, text: n.textContent.includes('思考过程') };
   })()`);
   check('思维链默认折叠（有入口，无 <pre>）', reasoning.hasToggle && !reasoning.pre, JSON.stringify(reasoning));
 
-  // click toggle -> pre appears
+  // click toggle -> the reasoning <pre> appears
   await cdp.eval(`(() => { const n=document.querySelector('.react-flow__node[data-id="s3c"]'); const b=Array.from(n.querySelectorAll('button')).find(x=>x.textContent.includes('思考过程')); b.click(); })()`);
   await sleep(200);
-  const expanded = await cdp.eval(`!!document.querySelector('.react-flow__node[data-id="s3c"] pre')`);
+  const expanded = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const toggle = Array.from(n.querySelectorAll('button')).find(b => b.textContent.includes('思考过程'));
+    const panel = toggle ? toggle.closest('div') : null;
+    return !!(panel && panel.querySelector('pre'));
+  })()`);
   check('点击后思维链展开', expanded === true);
 
   // 排版：卡片正文 19px，且段落 / 列表的纵向间距已收紧（prose 默认太松）。
@@ -147,6 +154,19 @@ async function main() {
   check('卡片正文 19px、段/列表间距收紧',
     cardType.font === '19px' && cardType.pMargin !== null && cardType.pMargin <= 10 && cardType.liMargin !== null && cardType.liMargin <= 4,
     JSON.stringify(cardType));
+
+  // 代码块不能「上宽下窄」：带红绿灯的标题条和代码区底色必须等宽。
+  // prose 会给 <pre> 加左右内边距，不盖掉的话头部比代码区宽 12px×2。
+  const codeWidth = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const head = n.querySelector('.md-editor-code-head');
+    const bg = n.querySelector('.md-editor-code pre code');
+    if (!head || !bg) return { head: null, bg: null };
+    return { head: +head.getBoundingClientRect().width.toFixed(2), bg: +bg.getBoundingClientRect().width.toFixed(2) };
+  })()`);
+  check('代码块标题条与代码区等宽（不再上宽下窄）',
+    codeWidth.head !== null && Math.abs(codeWidth.head - codeWidth.bg) < 1,
+    JSON.stringify(codeWidth));
 
   // double click -> overlay dialog
   await cdp.eval(`(() => {
@@ -171,6 +191,18 @@ async function main() {
   check('浮窗正文 16px、段距更紧',
     readerType.font === '16px' && readerType.pMargin !== null && readerType.pMargin <= 7,
     JSON.stringify(readerType));
+
+  // 浮窗里的代码块同样不能上宽下窄（.md-preview 是卡片和浮窗共用的）
+  const readerCodeWidth = await cdp.eval(`(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    const head = dlg.querySelector('.md-editor-code-head');
+    const bg = dlg.querySelector('.md-editor-code pre code');
+    if (!head || !bg) return { head: null, bg: null };
+    return { head: +head.getBoundingClientRect().width.toFixed(2), bg: +bg.getBoundingClientRect().width.toFixed(2) };
+  })()`);
+  check('浮窗代码块标题条与代码区等宽',
+    readerCodeWidth.head !== null && Math.abs(readerCodeWidth.head - readerCodeWidth.bg) < 1,
+    JSON.stringify(readerCodeWidth));
 
   // 覆盖层里的复制按钮：点完图标短暂变成对号（小反馈）
   await cdp.eval(`(() => {
@@ -280,6 +312,37 @@ async function main() {
   await sleep(300);
   const bsSurvived = await cdp.eval(`!!document.querySelector('.react-flow__node[data-id="s3c"]')`);
   check('Backspace 不再删除节点（快捷键已禁用）', selected === true && bsSurvived === true, JSON.stringify({ selected, bsSurvived }));
+
+  // 退出编辑态：以前只有「点发送」能退出，改了字又不想重发就是个死胡同。
+  // 现在点节点**外面**（画布空白）应该退出，草稿保留。
+  await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    const bubble = n.querySelector('[class*="max-h-"]');
+    bubble.click();
+  })()`);
+  await sleep(250);
+  const enteredEdit = await cdp.eval(`!!document.querySelector('.react-flow__node[data-id="s3c"] textarea')`);
+  check('点击用户消息进入编辑态（出现输入框）', enteredEdit === true);
+
+  // 用 mousedown 模拟点画布空白处（React Flow 的面板元素）。
+  // 必须带 view: window —— React Flow 的 nodrag 处理会读 event.view.document，
+  // 合成的 MouseEvent 默认 view=null，会把它弄崩（报错但不是产品 bug）。
+  await cdp.eval(`(() => {
+    const pane = document.querySelector('.react-flow__pane');
+    const r = pane.getBoundingClientRect();
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: r.left + 4, clientY: r.top + 4, button: 0 };
+    pane.dispatchEvent(new MouseEvent('mousedown', opts));
+    pane.dispatchEvent(new MouseEvent('mouseup', opts));
+    pane.dispatchEvent(new MouseEvent('click', opts));
+  })()`);
+  await sleep(300);
+  const exitedEdit = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s3c"]');
+    return { textarea: !!n.querySelector('textarea'), text: n.textContent.includes('hi') };
+  })()`);
+  check('点画布空白处退出编辑态，草稿保留',
+    exitedEdit.textarea === false && exitedEdit.text === true,
+    JSON.stringify(exitedEdit));
 
   // 删除节点：现在是应用内确认框（不再用 window.confirm）。点删除 → 点弹窗里的「删除」。
   await cdp.eval(`(() => {
