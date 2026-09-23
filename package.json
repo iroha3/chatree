@@ -28,7 +28,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "icons": "node scripts/make-icons.mjs",
+    "desktop:build": "npm run build && npx -y pake-cli@3.17.1 --config pake.config.json",
+    "desktop:build:ci": "npm run build && npx -y pake-cli@3.17.1 --config pake.config.json --json"
   },
   "dependencies": {
     "dexie": "^3.2.4",

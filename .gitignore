@@ -13,6 +13,10 @@ dist-ssr
 .playwright-cli
 *.local
 
+# 图标生成的中间产物：只留 build/icon.ico 与 build/icon-512.png
+build/icon-*.png
+!build/icon-512.png
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -24,3 +28,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# 桌面版打包产物（Pake 输出在仓库根目录）
+/Chatree.exe
+/Chatree.msi
+
+# Pake/构建临时文件
+.pake-build.*

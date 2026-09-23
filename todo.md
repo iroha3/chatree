@@ -366,10 +366,50 @@
 
 ---
 
-## 待办：桌面版（Pake）—— 今天不做
+## 待办：桌面版（Pake）—— 已出第一版
 
 用户提的方向：**要一个 exe**（「有个 exe 或许会很舒服」）。先试手感，手感过了再写 CI。
 下面这些是做过的调研，**已经查过的东西别再重查一遍**。
+
+### 第 14 轮：真的打出来了（实测结果）
+
+产物（在仓库根，已 gitignore）：`Chatree.exe`（便携版，~10.2 MB）+ `Chatree.msi`（安装版，~4.8 MB）。
+命令：`npm run desktop:build`（= `vite build` + `npx pake-cli@3.17.1 --config pake.config.json`）。
+配置在 `pake.config.json`（CLI 方式，仓库里**不出现 Rust**）。
+
+**会一票否决的项全部通过**（用 WebView2 远程调试连进去实测的）：
+
+| 项 | 结果 |
+|---|---|
+| origin | `http://tauri.localhost` |
+| `isSecureContext` | **true** |
+| `crypto.randomUUID()` | 存在且能调用 |
+| IndexedDB | 可用，`TreeChatDatabase` v20，stores = folders/models/sessions |
+| 剪贴板 API | `navigator.clipboard.writeText` 存在 |
+| HTML5 拖放 | `ondrop` 存在 |
+
+> 数据迁移那件事仍然成立：`http://tauri.localhost` 和 `http://127.0.0.1:5175` 是两个 origin，
+> 浏览器里的会话/模型不会跟过去，API Key 要重填。桌面版从此是主力 origin。
+
+**两个踩过的坑（下次直接照做）：**
+
+1. **`link.exe` 被 Git 的 GNU link 抢了**。从 Git Bash 跑 Rust MSVC 构建时，
+   `C:\Program Files\Git\usr\bin\link.exe` 排在 MSVC 前面，链接时报
+   `link: extra operand ... Try 'link --help'`。修法：构建前把 MSVC 的 bin 目录提到 PATH 最前，
+   或改用「x64 Native Tools 命令提示符」。
+   ```bash
+   export PATH="/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.40.33807/bin/Hostx64/x64:$PATH"
+   ```
+2. **Edge headless 用 `100vw/100vh` 截图会偶发全透明**（实测 96–160px 这个区间命中）。
+   图标脚本 `scripts/make-icons.mjs` 里把 SVG 宽高写成**固定 px** 才稳定；
+   它顺手把 `favicon.svg` 栅格化成多尺寸 `build/icon.ico`（手工拼 ICO，不引额外依赖）。
+
+**还没验的**（用户手动试手感时顺带看）：拖拽到文件夹、`Ctrl+滚轮` 缩放、窗口拖动、
+关掉再开数据是否还在、系统主题/字体。
+
+---
+
+下面是最初的调研记录（保留）。
 
 ### 为什么是 Pake（依据，不是凭记忆）
 

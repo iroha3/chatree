@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tw93/Pake/main/schema/pake.schema.json",
+  "url": "./dist",
+  "name": "Chatree",
+  "identifier": "com.chatree.desktop",
+  "icon": "./build/icon.ico",
+  "appVersion": "0.1.0",
+  "width": 1280,
+  "height": 860,
+  "minWidth": 720,
+  "minHeight": 560,
+  "enableDragDrop": true,
+  "disabledWebShortcuts": true,
+  "iterativeBuild": true,
+  "keepBinary": true
+}
