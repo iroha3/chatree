@@ -5,7 +5,7 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-25
 
 ### Added
 

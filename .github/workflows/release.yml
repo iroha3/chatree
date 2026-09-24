@@ -204,10 +204,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # ⚠️ 必须限定范围。docker job 会在同一次 run 里留下一个 buildx 缓存产物
+      # （名字形如 `<owner>~<repo>~<hash>.dockerbuild`），它不是 upload-artifact 的
+      # 正常产物、download-artifact 解不开 —— 不限 pattern 就会在**最后一步**整步挂掉。
       - uses: actions/download-artifact@v5
         with:
+          pattern: 'desktop-*'
           path: artifacts
           merge-multiple: true
+      - uses: actions/download-artifact@v5
+        with:
+          name: web
+          path: artifacts
       - name: List collected files
         run: find artifacts -type f -printf '%f\t%k KB\n' | sort
       - uses: softprops/action-gh-release@v3

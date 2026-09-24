@@ -452,9 +452,10 @@ git push               # ← 这一个 push 就会触发全平台打包并建 Re
 > 任何 push 都会在同一个 group 里建一个新 run，而 `cancel-in-progress: true` 会在新 run
 > **入队时**就把正在跑的那次发版取消掉 —— 闸门 job 属于同一个 workflow，挡不住这个取消。
 > 也就是说「版本号没变、本来会被闸门跳过的普通提交」会**误杀一次正在进行的发版**。
+> **实测过了**：0.2.0 那次发版就是这样被一条 docs 提交取消掉的（想发版就跑一次
+> `workflow_dispatch` 补）。
 > 修法（未做）：把「闸门」和「打包」拆成两个 workflow（闸门在前、用自己的 group），
 > 或者干脆去掉 `cancel-in-progress`（代价：连改两次版本号会跑两次）。
-> ❗ 这条是推理出来的，**还没实测** —— 下次发版时验证。
 
 矩阵（公开仓库的 runner 不计费，但**时间**才是真正的成本）：
 
@@ -483,6 +484,13 @@ git push               # ← 这一个 push 就会触发全平台打包并建 Re
 5. Pake 找不到某个安装包时会报 `BUILD_FAILED` + ENOENT，而且**因为报错发生在
    `copyRawBinary` 之前，连原始 exe 都不会被拷出来**（`outputs` 是空的）——
    看日志时别被 “安装包构建成功” 那几行骗了。
+6. **`download-artifact` 必须限定 `pattern`。** docker job 会在同一次 run 里留下一个 buildx
+   缓存产物（`<owner>~<repo>~<hash>.dockerbuild`），它不是 `upload-artifact` 的正常产物、
+   解不开；不限定范围就会在**最后一步**整步失败。0.2.0 那次发版就是这样：前面 5 个平台全部
+   构建成功，`release` job 卡在 `download-artifact` 上重试 5 次后放弃 → tag 和 Release 都没建。
+   现在只拉 `pattern: 'desktop-*'` + `name: web`。
+   （另一个坑：linux-arm64 上 AppImage 必挂 —— `xdg-open` 不存在 —— 但 Pake 会优雅跳过
+   （`Skipped failed Linux targets: appimage`），job 仍然是绿的，`.deb` 和裸二进制都出得来。）
 
 ---
 
