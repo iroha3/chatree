@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import { useCardWheelChain } from '../../utils/wheelChain';
-import NodeReadOverlay from './NodeReadOverlay';
+import PathReaderOverlay from './PathReaderOverlay';
 
 const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, onEdit, onAddChild, onModelChange, onTemperatureChange } = data;
@@ -217,7 +217,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </button>
 
       {isReading && (
-        <NodeReadOverlay node={node} onClose={() => setIsReading(false)} />
+        <PathReaderOverlay targetId={node.id} onClose={() => setIsReading(false)} />
       )}
     </div>
   );

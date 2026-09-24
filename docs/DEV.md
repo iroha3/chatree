@@ -57,7 +57,7 @@ src/
 │   ├── Notification.tsx      # Toast 容器（z-[300]）
 │   ├── nodes/ChatNode.tsx    # 对话节点卡片
 │   ├── nodes/SystemNode.tsx  # 系统提示词节点
-│   └── nodes/NodeReadOverlay.tsx  # 双击放大的只读阅读浮层（portal 到 body）
+│   └── nodes/PathReaderOverlay.tsx # 双击打开的连续阅读浮层（整条路径 + 分支切换，portal 到 body）
 ├── stores/                   # zustand：sessionStore / modelStore / themeStore / ...
 ├── db/db.ts                  # Dexie schema
 ├── services/apiService.ts    # OpenAI 兼容的流式请求
@@ -273,6 +273,23 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 元素的冒泡阶段，必须在它之前决定拦不拦。回归断言在 `tests/node-ux-check.mjs`：用合成 wheel
 事件在画布 pane 上挂一个**冒泡**探针，量「内层有余量时收不到、到底后收得到」。
 
+### 3.15 双击 = 连续阅读（整条路径）
+
+**双击任意节点，打开的是「根 → 这个节点」的整条路径**，不是那一个节点
+（`components/nodes/PathReaderOverlay.tsx`）。
+
+- 为什么：画布处理的是**结构**（分叉、拖动、对比）；而阅读一条 20 轮的对话，不该在画布上
+  一个节点一个节点地双击、拖着看。线性阅读交给 DOM 滚动。
+- 路径提取是 `utils/tree.ts` 的纯函数（`buildPath` / `childrenOf` / `branchGroup`），
+  回归在 `bun test:tree`。「复制整条路径为 Markdown」、导出线性文档（D-003 A 方案）以后
+  共用同一套。`branchGroup()` 是**多根安全**的（`parentId: null` 的那些算一组）。
+- 右侧那一栏就是**画布上横向的兄弟分支**，点一下就切过去。**切换的语义 = 把阅读终点
+  改成那个节点**，不做「自动走到它最深的叶子」那种猜测；终点如果还有后续，卡片流末尾会
+  出现「从这条继续」。切过去时 `scrollIntoView({ behavior: 'smooth' })` —— 这就是「丝滑」。
+  理由见 D-013。
+- **只读**：不改数据、不调用 store 的写接口。`.md-preview reader`（16px）与卡片共用，
+  所以排版微调一处生效两处（见 §3.9）。打开期间锁 body 滚动，`Esc` 关闭。
+
 ---
 
 ## 4. React Flow 的坑（血泪）
@@ -302,14 +319,15 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 
 ## 6. 回归测试
 
-四个脚本都在 `tests/`（不要放回 `scripts/` —— 那是构建/打包用的）。
+四个纯逻辑脚本加两个端到端脚本，都在 `tests/`（不要放回 `scripts/` —— 那是构建/打包用的）。
 
 | 脚本 | 依赖 | 覆盖 |
 |---|---|---|
 | `bun test:edge` | 无 | 复制 React Flow 的 `createNodeInternals/applyNodeChanges` 语义，断言"掉边"的两种取法 |
 | `bun test:usage` | 无 | `utils/usage.ts` 的字段映射（DeepSeek/OpenAI/Anthropic 缓存字段、思考 token、不估算）+ `utils/text.ts` 的码点字数 |
+| `bun test:tree` | 无 | `utils/tree.ts` 的路径 / 子节点 / 兄弟组（含父节点遗失、数据成环不许死循环） |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
-| `bun test:ux` | Edge:9222 + dev:5175 | 43 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
+| `bun test:ux` | Edge:9222 + dev:5175 | 47 项节点交互：去重、思考折叠、连续阅读（整条路径 + 分支切换）、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
 
 跑端到端前需要：
 
@@ -317,8 +335,10 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 # 1) 起 dev server（5175）
 bun run dev
 # 2) 起 headless Edge 并开 CDP
+#    --window-size 别省：不指定的话窗口可能只有 300px 宽，
+#    所有按坐标点击 / 悬停的用例都会错位。
 "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" \
-  --headless=new --disable-gpu --remote-debugging-port=9222 \
+  --headless=new --disable-gpu --window-size=1280,900 --remote-debugging-port=9222 \
   --user-data-dir=/tmp/chatree-edge about:blank
 # 3) 跑脚本
 bun test:ux
@@ -327,8 +347,13 @@ bun test:ux
 脚本里用 `Input.dispatchMouseEvent` 真实移动鼠标来测 `:hover`（**别只查 className** ——
 曾因此漏掉一个 CSS 优先级 bug：`.group:hover .x`(0,3,0) 盖过 `.x:hover`(0,2,0)）。
 
-两个容易踩的坑：
+三个容易踩的坑：
 
+- **别挑到浏览器内部页**：新 profile 会冒出 `edge://sync-confirmation/`，它也是个
+  `type: 'page'`。`getPageTarget()` 必须把它排除（那个窗口尺寸和我们启动的完全不是一回事，
+  选中它之后所有按坐标点击的用例全错位）。
+- **节点别重叠**：端到端用例的种子数据里，给一个会话塞“额外分叉节点”会改变整棵树的布局，
+  把原本按 s3 调的坐标用例全部搞歪（点 s3c 会点到它兄弟上）。需要分叉就用**另一个会话**。
 - `getBoundingClientRect()` 是**屏幕像素**，React Flow 的 `transform: scale()` 会一起缩：
   headless 下常常只有 0.2，于是 8px 内边距量出来是 1.6px。要比像素就先
   `n.getBoundingClientRect().width / n.offsetWidth` 除回 scale。
@@ -463,6 +488,7 @@ bunx tsc --noEmit -p tsconfig.app.json
 bunx tsc --noEmit -p tsconfig.node.json
 bun test:edge
 bun test:usage
+bun test:tree
 bun run build
 ```
 

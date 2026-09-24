@@ -11,7 +11,7 @@ import { countChars } from '../../utils/text';
 import { useCardWheelChain } from '../../utils/wheelChain';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
-import NodeReadOverlay from './NodeReadOverlay';
+import PathReaderOverlay from './PathReaderOverlay';
 import CopyButton from '../CopyButton';
 
 const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
@@ -635,8 +635,8 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </button>
 
       {isReading && (
-        <NodeReadOverlay
-          node={node}
+        <PathReaderOverlay
+          targetId={node.id}
           streamingReasoning={streamingReasoning}
           onClose={() => setIsReading(false)}
         />

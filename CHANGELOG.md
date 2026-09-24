@@ -7,6 +7,15 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 
 ## [Unreleased]
 
+### Added
+
+- **Double-clicking a node now opens the whole path, not just that node.** A reading view shows
+  the conversation from the root down to the node you clicked, as a scrollable column of cards —
+  so a 20-turn chain can just be read top to bottom instead of poked at one node at a time on the
+  canvas. Where the path forks, the sibling branches (the ones sitting side by side on the canvas)
+  are listed on the right; click one to move over to it. If the branch continues, the bottom of
+  the column offers "continue from here".
+
 ### Changed
 
 - **The canvas now pans on a normal scroll wheel, and zooms with Ctrl/⌘ + wheel.** React Flow

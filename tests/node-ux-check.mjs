@@ -10,8 +10,11 @@ async function getPageTarget() {
   for (let i = 0; i < 40; i++) {
     try {
       const list = await (await fetch(`${BASE}/json`)).json();
-      const page = list.find((t) => t.type === 'page' && !t.url.startsWith('devtools'));
-      if (page) return page;
+      // 必须排除 edge:// / chrome:// 这类浏览器内部页（新 profile 会冒出
+      // `edge://sync-confirmation/`，窗口尺寸和我们启动的那个根本不是一回事，
+      // 选中它会让后面所有按坐标点击的用例全错位）。优先已经在跑本应用的那一个。
+      const pages = list.filter((t) => t.type === 'page' && !/^(devtools|edge|chrome):/.test(t.url));
+      if (pages.length) return pages.find((t) => t.url.startsWith(APP)) || pages[0];
     } catch { /* not up */ }
     await sleep(300);
   }
@@ -93,6 +96,13 @@ async function main() {
       // 滚轮测试专用会话：一条单链 + 一个超长回答。
       const wheelSys = { id: 's5a', parentId: null, type: 'system', userMessage: 'SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: true };
       const wheelChat = { id: 's5c', parentId: 's5a', type: 'chat', userMessage: 'long', assistantMessage: ${JSON.stringify(LONG_ANSWER)}, modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      // 连续阅读专用会话：一条主干 + 一个分叉 + 一个后续，用来测
+      // 「整条路径」「右侧兄弟分支切换」「从这条继续」。
+      const rA = { id: 's6a', parentId: null, type: 'system', userMessage: 'SIX-SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: true };
+      const rC = { id: 's6c', parentId: 's6a', type: 'chat', userMessage: 'main question', assistantMessage: 'main answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      const rD = { id: 's6d', parentId: 's6a', type: 'chat', userMessage: 'side question', assistantMessage: 'side answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      const rE = { id: 's6e', parentId: 's6c', type: 'chat', userMessage: 'follow up', assistantMessage: 'follow up answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      tx.objectStore('sessions').put({ id: 's6', title: 'ReaderProbe', createdAt: now, updatedAt: now, nodes: [rA, rC, rD, rE], systemNodeSeeded: true });
       tx.objectStore('sessions').put({ id: 's5', title: 'WheelProbe', createdAt: now, updatedAt: now, nodes: [wheelSys, wheelChat], systemNodeSeeded: true });
       tx.oncomplete = () => resolve('seeded');
       tx.onerror = () => resolve('tx-error:' + tx.error);
@@ -685,6 +695,62 @@ async function main() {
   check('新增节点（真的又聊了一轮）置顶',
     orderCheck.afterAdd[0] === 's3' && orderCheck.before[0] !== 's3',
     JSON.stringify({ before: orderCheck.before, afterAdd: orderCheck.afterAdd }));
+
+  // ── 连续阅读：双击打开的是整条路径 ──────────────────────────
+  // 换到带分叉的 ReaderProbe 会话来测（不动 s3 的布局 —— 上面那批按坐标点击的
+  // 用例全按 s3 的原始布局调的）。
+  await cdp.eval(`Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('ReaderProbe')).click()`);
+  await sleep(1500);
+  await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s6c"]');
+    const target = n.querySelector('.assistant-message') || n;
+    target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  })()`);
+  await sleep(400);
+
+  // 以前只渲染被双击的那一个节点；现在从根一路排到目标节点。
+  // 根节点是 system，旧实现根本不会显示它 —— 以它为“不是单节点”的铁证。
+  const readerPath = await cdp.eval(`(() => {
+    const text = document.querySelector('[role="dialog"]').textContent || '';
+    return { hasRootPrompt: text.includes('SIX-SYS'), hasTarget: text.includes('main answer') };
+  })()`);
+  check('双击打开的是整条路径（含根节点的系统提示词）',
+    readerPath.hasRootPrompt && readerPath.hasTarget, JSON.stringify(readerPath));
+
+  // 分叉处右侧列出兄弟分支（画布上横向那一排），当前所在的分支高亮
+  const branchRail = await cdp.eval(`(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    const rail = dlg.querySelector('div.sticky');
+    if (!rail) return { found: false };
+    return {
+      found: true,
+      label: rail.firstElementChild ? rail.firstElementChild.textContent.trim() : null,
+      items: Array.from(rail.querySelectorAll('button')).map(b => b.textContent.trim()),
+      active: Array.from(rail.querySelectorAll('button')).findIndex(b => b.className.includes('bg-neutral-900')),
+    };
+  })()`);
+  check('分叉处右侧列出兄弟分支，当前分支高亮',
+    branchRail.found && branchRail.label === '分支 1/2' && branchRail.items.length === 2 && branchRail.active === 0,
+    JSON.stringify(branchRail));
+
+  check('路径末尾给出「从这条继续」入口',
+    (await cdp.eval(`document.querySelector('[role="dialog"]').textContent.includes('从这条继续')`)) === true);
+
+  // 点兄弟分支 → 卡片流切过去（旧分支的卡片必须消失）
+  await cdp.eval(`(() => {
+    const rail = document.querySelector('[role="dialog"] div.sticky');
+    Array.from(rail.querySelectorAll('button')).find(b => b.textContent.includes('side question')).click();
+  })()`);
+  await sleep(600);
+  const switched = await cdp.eval(`(() => {
+    const text = document.querySelector('[role="dialog"]').textContent || '';
+    return { hasBranchTwo: text.includes('side answer'), hasOldBranch: text.includes('main answer') };
+  })()`);
+  check('点击兄弟分支：路径切过去，旧分支卡片消失',
+    switched.hasBranchTwo && !switched.hasOldBranch, JSON.stringify(switched));
+
+  await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+  await sleep(300);
 
   // ==== 滚轮滚动链（DEV §3.14）====
   // 画布开了 panOnScroll：普通滚轮 = 平移画布，Ctrl/⌘+滚轮 = 缩放。
