@@ -76,6 +76,8 @@ async function main() {
   const ANSWER_MD = 'hello answer\n\nsecond paragraph\n\n- a\n- b\n\n```js\nconst a = 1;\n```';
   // 长回答：给「滚轮滚动链」用。40 段足以撑爆 .assistant-message 的 max-height(520)，
   // 这样才测得出「内层先滚、滚到底才平移画布」。
+  // 阅读视图还要测「容器本身需要滚动」的场景：目标节点的回答给长一点。
+  const READER_LONG = 'main answer ' + 'x'.repeat(3000);
   const LONG_ANSWER = Array.from({ length: 40 }, (_, i) => `段落 ${i + 1} ` + 'x'.repeat(80)).join('\n\n');
   const seed = `new Promise((resolve) => {
     const req = indexedDB.open('TreeChatDatabase');
@@ -99,7 +101,7 @@ async function main() {
       // 连续阅读专用会话：一条主干 + 一个分叉 + 一个后续，用来测
       // 「整条路径」「右侧兄弟分支切换」「从这条继续」。
       const rA = { id: 's6a', parentId: null, type: 'system', userMessage: 'SIX-SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: true };
-      const rC = { id: 's6c', parentId: 's6a', type: 'chat', userMessage: 'main question', assistantMessage: 'main answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      const rC = { id: 's6c', parentId: 's6a', type: 'chat', userMessage: 'main question', assistantMessage: ${JSON.stringify(READER_LONG)}, modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
       const rD = { id: 's6d', parentId: 's6a', type: 'chat', userMessage: 'side question', assistantMessage: 'side answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
       const rE = { id: 's6e', parentId: 's6c', type: 'chat', userMessage: 'follow up', assistantMessage: 'follow up answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
       tx.objectStore('sessions').put({ id: 's6', title: 'ReaderProbe', createdAt: now, updatedAt: now, nodes: [rA, rC, rD, rE], systemNodeSeeded: true });
@@ -733,8 +735,18 @@ async function main() {
     branchRail.found && branchRail.label === '分支 1/2' && branchRail.items.length === 2 && branchRail.active === 0,
     JSON.stringify(branchRail));
 
-  check('路径末尾给出「从这条继续」入口',
-    (await cdp.eval(`document.querySelector('[role="dialog"]').textContent.includes('从这条继续')`)) === true);
+  // 打开时应该定位到**目标卡片的顶部**（双击 = 从这里开始读），而不是卡片中间
+  const land = await cdp.eval(`(() => {
+    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+    const card = sc.querySelector('[data-reader-node="s6c"]');
+    const sct = sc.getBoundingClientRect().top, ct = card.getBoundingClientRect().top;
+    return { scrollTop: Math.round(sc.scrollTop), cardTop: Math.round(ct - sct) };
+  })()`);
+  check('打开时定位到目标卡片顶部（不是卡片中间）',
+    land.scrollTop > 0 && land.cardTop >= -40 && land.cardTop <= 80, JSON.stringify(land));
+
+  check('只有一个后续时，末尾提示「继续往下滚」',
+    (await cdp.eval(`document.querySelector('[role="dialog"]').textContent.includes('继续往下滚')`)) === true);
 
   // 点兄弟分支 → 卡片流切过去（旧分支的卡片必须消失）
   await cdp.eval(`(() => {
@@ -748,6 +760,32 @@ async function main() {
   })()`);
   check('点击兄弟分支：路径切过去，旧分支卡片消失',
     switched.hasBranchTwo && !switched.hasOldBranch, JSON.stringify(switched));
+
+  // ── 读到底再继续滚 = 翻到下一轮（复用画布那套「滚到头」的手感）──────
+  // 先切回 s6c（它有一个子节点 s6e），把容器拉到底，再滚一下。
+  await cdp.eval(`(() => {
+    const rail = document.querySelector('[role="dialog"] div.sticky');
+    Array.from(rail.querySelectorAll('button')).find(b => b.textContent.includes('main question')).click();
+  })()`);
+  await sleep(500);
+  const beforeScrollAdvance = await cdp.eval(`(() => {
+    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+    sc.style.scrollBehavior = 'auto';
+    sc.scrollTop = sc.scrollHeight;
+    return { hasFollow: (document.querySelector('[role="dialog"]').textContent || '').includes('follow up answer') };
+  })()`);
+  await cdp.eval(`(() => {
+    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+    sc.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, deltaX: 0, bubbles: true, cancelable: true, clientX: 400, clientY: 400 }));
+  })()`);
+  await sleep(500);
+  const afterScrollAdvance = await cdp.eval(`(() => {
+    const text = document.querySelector('[role="dialog"]').textContent || '';
+    return { hasFollow: text.includes('follow up answer'), hasHint: text.includes('继续往下滚') };
+  })()`);
+  check('读到底继续滚：自动翻到下一轮',
+    beforeScrollAdvance.hasFollow === false && afterScrollAdvance.hasFollow === true,
+    JSON.stringify({ before: beforeScrollAdvance, after: afterScrollAdvance }));
 
   await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   await sleep(300);

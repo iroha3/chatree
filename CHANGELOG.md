@@ -14,7 +14,11 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   so a 20-turn chain can just be read top to bottom instead of poked at one node at a time on the
   canvas. Where the path forks, the sibling branches (the ones sitting side by side on the canvas)
   are listed on the right; click one to move over to it. If the branch continues, the bottom of
-  the column offers "continue from here".
+  the column offers "continue from here". Opening the reader lands on the **top of the target
+  card** (you start at that turn, not in the middle of it). And when the path ends with exactly
+  one follow-up, **keep scrolling at the bottom to move on to it** — the same gesture as scrolling
+  a card to its end on the canvas. With a fork there is no auto-advance: you pick the branch.
+  (Writer-side: `tmp/` is now ignored by ESLint too.)
 
 ### Changed
 

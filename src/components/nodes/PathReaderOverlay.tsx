@@ -10,6 +10,7 @@ import { useSessionStore } from '../../stores/sessionStore';
 import { useT } from '../../i18n';
 import CopyButton from '../CopyButton';
 import { countChars } from '../../utils/text';
+import { cardConsumesWheel } from '../../utils/wheelChain';
 import { buildPath, branchGroup, childrenOf } from '../../utils/tree';
 
 /**
@@ -35,6 +36,9 @@ interface PathReaderOverlayProps {
   onClose: () => void;
 }
 
+/** 读到底后还要再往下滚多少像素才翻到下一轮（防手滑，一个滚轮格大约 100）。 */
+const ADVANCE_AFTER = 140;
+
 const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streamingReasoning, onClose }) => {
   const t = useT();
   const { theme } = useThemeStore();
@@ -42,6 +46,11 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const [currentId, setCurrentId] = useState(targetId);
   const [openReasoning, setOpenReasoning] = useState<Record<string, boolean>>({});
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  /** 读到底之后又继续往下滚的累计量（防手滑，见 handleReaderWheel）。 */
+  const overscrollRef = useRef(0);
+  /** 下一次定位卡片用哪种滚法：首屏 / 滚轮翻页要立刻到位，点分支才用平滑。 */
+  const behaviorRef = useRef<ScrollBehavior>('auto');
 
   // 节点组件只知道自己，拿不到整棵树，所以从 store 里把所在会话找出来。
   const session = useSessionStore((s) => s.sessions.find((x) => x.nodes.some((n) => n.id === targetId)));
@@ -52,10 +61,14 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const nextBranches = useMemo(() => (last ? childrenOf(nodes, last.id) : []), [nodes, last]);
   const turns = path.filter((n) => n.type === 'chat').length;
 
-  // 切分支时把目标卡片滚到视野中间 —— 这就是「丝滑切过去」。
+  // 定位到目标卡片的**顶部** —— 双击的意图是「从这里开始读」，不是看卡片中间。
+  // 首屏和滚轮翻页瞬间到位，点分支才平滑（滚轮翻页时再叠一段平滑滚动会打架）。
   useEffect(() => {
+    const behavior = behaviorRef.current;
+    behaviorRef.current = 'smooth';
+    overscrollRef.current = 0;
     const id = window.setTimeout(() => {
-      cardRefs.current[currentId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      cardRefs.current[currentId]?.scrollIntoView({ behavior, block: 'start' });
     }, 60);
     return () => window.clearTimeout(id);
   }, [currentId]);
@@ -80,6 +93,29 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const preview = (m: ChatNode) => {
     const text = m.userMessage || (m.type === 'system' ? t('系统提示词') : t('（空）'));
     return text.length > 40 ? text.slice(0, 40) + '…' : text;
+  };
+
+  // 读到头再继续滚 = 翻到下一轮。和画布里「卡片滚到底、画布接着走」是同一套手感。
+  // 只在**恰好一个**后续时才自动翻：有分叉就得让用户自己选（D-013）。多滑一截
+  // （阈值）才翻，否则刚看到最后一行还没读完就被顶走了。
+  const handleReaderWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (nextBranches.length !== 1 || e.deltaY <= 0) {
+      overscrollRef.current = 0;
+      return;
+    }
+    const el = scrollerRef.current;
+    if (!el) return;
+    // 还有任何一层能滚（比如思考过程的长文本没到底）就不算「读到头」。
+    if (cardConsumesWheel(el, e.nativeEvent)) {
+      overscrollRef.current = 0;
+      return;
+    }
+    overscrollRef.current += e.deltaY;
+    if (overscrollRef.current >= ADVANCE_AFTER) {
+      overscrollRef.current = 0;
+      behaviorRef.current = 'auto';
+      setCurrentId(nextBranches[0].id);
+    }
   };
 
   return createPortal(
@@ -112,7 +148,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div ref={scrollerRef} onWheel={handleReaderWheel} className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {path.length === 0 ? (
             <p className="py-10 text-center text-sm italic text-neutral-400">{t('这条路径没有内容')}</p>
           ) : (
@@ -131,6 +167,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                       cardRefs.current[node.id] = el;
                     }}
                     className="min-w-0 flex-1"
+                    data-reader-node={node.id}
                   >
                     <div
                       className={`rounded-xl border border-neutral-200 px-5 py-4 shadow-sm ${
@@ -236,7 +273,10 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                           {group.map((m, i) => (
                             <button
                               key={m.id}
-                              onClick={() => setCurrentId(m.id)}
+                              onClick={() => {
+                              behaviorRef.current = 'smooth';
+                              setCurrentId(m.id);
+                            }}
                               className={`w-full rounded-md px-2 py-1.5 text-left text-[12px] leading-snug transition-colors ${
                                 m.id === node.id
                                   ? 'bg-neutral-900 text-white'
@@ -256,8 +296,25 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
             })
           )}
 
-          {/* 路径到这里就断了；如果终点还有后续，给个入口继续往下读 */}
-          {nextBranches.length > 0 ? (
+          {/* 路径终点。只有一个后续 → 「继续滚就下一轮」（也留着点击）；
+              多个后续 → 只能显式选，不能替用户猜（D-013）。 */}
+          {nextBranches.length === 1 ? (
+            <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-[11px] text-neutral-400">
+                <CornerDownRight size={12} />
+                {t('继续往下滚，读下一轮')}
+              </div>
+              <button
+                onClick={() => {
+                  behaviorRef.current = 'smooth';
+                  setCurrentId(nextBranches[0].id);
+                }}
+                className="mt-2 max-w-[320px] truncate rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-[12px] text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50"
+              >
+                {preview(nextBranches[0])}
+              </button>
+            </div>
+          ) : nextBranches.length > 1 ? (
             <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
               <div className="mb-2 flex items-center gap-1 text-[11px] text-neutral-400">
                 <CornerDownRight size={12} />
@@ -267,7 +324,10 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                 {nextBranches.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => setCurrentId(m.id)}
+                    onClick={() => {
+                      behaviorRef.current = 'smooth';
+                      setCurrentId(m.id);
+                    }}
                     className="max-w-[260px] truncate rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-left text-[12px] text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50"
                   >
                     {preview(m)}

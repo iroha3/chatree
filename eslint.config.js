@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // tmp/ 是本地跑测试 / 探针的目录（也在 .gitignore 里）。里面可能有浏览器 profile
+  // 或临时 .mjs，不该被应用代码的 lint 规则扫到。
+  { ignores: ['dist', 'tmp/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

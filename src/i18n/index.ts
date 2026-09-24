@@ -112,6 +112,7 @@ const en: Record<string, string> = {
   '（空）': '(empty)',
   '分支 {i}/{n}': 'Branch {i}/{n}',
   '从这条继续': 'Continue from here',
+  '继续往下滚，读下一轮': 'Keep scrolling to read the next turn',
   '删除这个节点？': 'Delete this node?',
   '删除这个节点？会连带删掉 {n} 个子节点。': 'Delete this node? Its {n} descendant(s) will be deleted too.',
   已删除节点: 'Node deleted',
