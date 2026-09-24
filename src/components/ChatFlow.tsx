@@ -1262,6 +1262,15 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         proOptions={{ hideAttribution: true }}
         nodesDraggable={true}
         elementsSelectable={true}
+        // 滚轮 = 平移画布，Ctrl/⌘ + 滚轮 = 缩放。
+        //
+        // React Flow 默认是「滚轮 = 缩放」，于是长对话（尤其是一整条不分叉的单链）
+        // 根本没浌顺着往下读 —— 只能按住拖动，或者先缩小再放大。
+        // 改成平移后，触摸板双指、鼠标滚轮都是顺着走，像滚一份文档。
+        // 缩放交给 zoomActivationKeyCode（Windows = Ctrl，mac = ⌘）。
+        // 节点内层能滚就滚内层、滚到底才交给画布 —— 见 utils/wheelChain.ts。
+        panOnScroll
+        panOnScrollSpeed={0.6}
         // 关掉 React Flow 自带的 Backspace/Delete 删除。
         //
         // 它只把节点从 React Flow 的局部 nodes 里删掉，**完全没经过 store**，

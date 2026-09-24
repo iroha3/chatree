@@ -247,6 +247,32 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
   还是把按钮做得更好找就行？** 尤其「快速切换会话」——侧栏已经有点击 / 全文搜索 /
   按最近排序 / 文件夹，属于「已经够快」。
 
+### 3.14 滚轮：平移 / 缩放 / 滚动链
+
+**普通滚轮 = 平移画布，`Ctrl` / `⌘` + 滚轮 = 缩放**（`ChatFlow` 的 `panOnScroll`）。
+
+- React Flow 默认是 **滚轮 = 缩放**（`zoomOnScroll: true` / `panOnScroll: false`）。对一条长长的
+  单链对话来说这是灾难：想往下读只能**按住拖动**，或者先缩小再放大 —— 聊天记录本来是
+  「滚着读」的，到这里变成「拖着读」。
+- 缩放键不用自己配：`zoomActivationKeyCode` 的默认值就是平台感知的
+  （mac = `Meta`，其它 = `Control`）。触摸板双指滚动也一并变成了平移。
+- **但卡片内部本来就有好几层能滚**：长回答的 `.assistant-message`（`max-height: 520px`）、
+  思考过程的 `pre`（`max-h-[240px]`）、用户消息只读态（`max-h-[200px]`）、编辑态的 `textarea`。
+- 所以必须按**浏览器嵌套滚动的语义**分流，实现在 `src/utils/wheelChain.ts` 的
+  `useCardWheelChain()`：
+  - 内层**还有余量** → `stopPropagation()`，滚内层；
+  - 内层**滚到底 / 根本没溢出** → 放行，React Flow 平移画布。
+
+两种错法都踩过，别倒回去：
+
+- **不拦**：React Flow 会 `preventDefault()` 去平移画布，卡片里的长回答永远滚不动；
+- **无脑拦**（旧实现）：鼠标停在卡片上时画布一动不动。卡片宽 **516px**，画布上大部分面积
+  都是卡片，表现就是「长对话根本没法往下读，感觉卡死」。
+
+滚轮监听挂在卡片根节点的 **capture 阶段**（`passive: false`）：React Flow 的平移监听在画布
+元素的冒泡阶段，必须在它之前决定拦不拦。回归断言在 `tests/node-ux-check.mjs`：用合成 wheel
+事件在画布 pane 上挂一个**冒泡**探针，量「内层有余量时收不到、到底后收得到」。
+
 ---
 
 ## 4. React Flow 的坑（血泪）
@@ -283,7 +309,7 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 | `bun test:edge` | 无 | 复制 React Flow 的 `createNodeInternals/applyNodeChanges` 语义，断言"掉边"的两种取法 |
 | `bun test:usage` | 无 | `utils/usage.ts` 的字段映射（DeepSeek/OpenAI/Anthropic 缓存字段、思考 token、不估算）+ `utils/text.ts` 的码点字数 |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
-| `bun test:ux` | Edge:9222 + dev:5175 | 37 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、设置面板无 max tokens、标签页标题跟随语言… |
+| `bun test:ux` | Edge:9222 + dev:5175 | 43 项节点交互：去重、思考折叠、阅读浮层、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
 
 跑端到端前需要：
 

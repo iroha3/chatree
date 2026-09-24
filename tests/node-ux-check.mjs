@@ -71,6 +71,9 @@ async function main() {
   // 回答里带段落和列表，用来量段落 / 列表的纵向间距（用 JSON.stringify 注入，
   // 避免在模板字符串里手写 \n 被当成真换行）。
   const ANSWER_MD = 'hello answer\n\nsecond paragraph\n\n- a\n- b\n\n```js\nconst a = 1;\n```';
+  // 长回答：给「滚轮滚动链」用。40 段足以撑爆 .assistant-message 的 max-height(520)，
+  // 这样才测得出「内层先滚、滚到底才平移画布」。
+  const LONG_ANSWER = Array.from({ length: 40 }, (_, i) => `段落 ${i + 1} ` + 'x'.repeat(80)).join('\n\n');
   const seed = `new Promise((resolve) => {
     const req = indexedDB.open('TreeChatDatabase');
     req.onsuccess = () => {
@@ -87,6 +90,10 @@ async function main() {
       tx.objectStore('sessions').put({ id: 's3', title: 'Gamma', createdAt: now, updatedAt: new Date(Date.now()+1000).toISOString(), nodes: [sysA, sysB, chat], systemNodeSeeded: true });
       // 旧版本落库的默认标题是写死的英文。中文界面下应显示为「新会话」。
       tx.objectStore('sessions').put({ id: 's4', title: 'New Conversation', createdAt: now, updatedAt: now, nodes: [], systemNodeSeeded: true });
+      // 滚轮测试专用会话：一条单链 + 一个超长回答。
+      const wheelSys = { id: 's5a', parentId: null, type: 'system', userMessage: 'SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now, systemPromptTouched: true };
+      const wheelChat = { id: 's5c', parentId: 's5a', type: 'chat', userMessage: 'long', assistantMessage: ${JSON.stringify(LONG_ANSWER)}, modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
+      tx.objectStore('sessions').put({ id: 's5', title: 'WheelProbe', createdAt: now, updatedAt: now, nodes: [wheelSys, wheelChat], systemNodeSeeded: true });
       tx.oncomplete = () => resolve('seeded');
       tx.onerror = () => resolve('tx-error:' + tx.error);
     };
@@ -678,6 +685,50 @@ async function main() {
   check('新增节点（真的又聊了一轮）置顶',
     orderCheck.afterAdd[0] === 's3' && orderCheck.before[0] !== 's3',
     JSON.stringify({ before: orderCheck.before, afterAdd: orderCheck.afterAdd }));
+
+  // ==== 滚轮滚动链（DEV §3.14）====
+  // 画布开了 panOnScroll：普通滚轮 = 平移画布，Ctrl/⌘+滚轮 = 缩放。
+  // 卡片内部本身就能滚（长回答的 .assistant-message），所以必须按浏览器
+  // 嵌套滚动的语义分流：内层还有余量 → 拦下滚内层；内层到底 / 没溢出 →
+  // 放行给画布。
+  //
+  // 这里测的是**分流决策**，不是浏览器原生滚动：合成的 wheel 不会真的滚动页面，
+  // 但它会真实地走一遍 capture/bubble 传播 —— 而我们的实现恰恰就是在
+  // 卡片根节点的 capture 阶段决定 stopPropagation 与否。在画布 pane 上挂一个
+  // **冒泡**阶段的探针，就能看出事件到底有没有被卡片拦下。
+  // （不用坐标 + Input.dispatchMouseEvent：headless 视口只有 ~600px 高，
+  //   长卡片大半在视口外，而且这个 target 不支持 Emulation 改视口尺寸。）
+  await cdp.eval(`Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('WheelProbe')).click()`);
+  await sleep(1600);
+
+  const wheelSetup = await cdp.eval(`(() => {
+    const am = document.querySelector('.react-flow__node[data-id="s5c"] .assistant-message');
+    const pane = document.querySelector('.react-flow__pane');
+    if (!am || !pane) return { ok: false };
+    window.__paneWheel = 0;
+    // 冒泡阶段：卡片在 capture 阶段 stopPropagation 后，它就收不到。
+    pane.addEventListener('wheel', () => { window.__paneWheel++; });
+    am.style.scrollBehavior = 'auto';
+    am.scrollTop = 0;
+    return { ok: true, overflow: am.scrollHeight > am.clientHeight + 1 };
+  })()`);
+
+  const fireWheel = (dy) => cdp.eval(`(() => {
+    const am = document.querySelector('.react-flow__node[data-id="s5c"] .assistant-message');
+    const inner = am.querySelector('.md-preview') || am;
+    inner.dispatchEvent(new WheelEvent('wheel', { deltaY: ${dy}, deltaX: 0, bubbles: true, cancelable: true, clientX: 120, clientY: 120 }));
+    return window.__paneWheel;
+  })()`);
+
+  const paneAfterInner = await fireWheel(150);
+  check('内层还有余量：滚轮被卡片拦下，不传给画布',
+    wheelSetup.ok && wheelSetup.overflow && paneAfterInner === 0,
+    JSON.stringify({ ...wheelSetup, paneAfterInner }));
+
+  await cdp.eval(`(() => { const am = document.querySelector('.react-flow__node[data-id="s5c"] .assistant-message'); am.scrollTop = am.scrollHeight; })()`);
+  const paneAfterBottom = await fireWheel(150);
+  check('内层滚到底：滚轮放行，交给画布平移',
+    paneAfterBottom > 0, JSON.stringify({ paneAfterBottom }));
 
   check('无运行时报错', errors.length === 0, errors.slice(0, 3).join(' | '));
 

@@ -9,6 +9,12 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 
 ### Changed
 
+- **The canvas now pans on a normal scroll wheel, and zooms with Ctrl/⌘ + wheel.** React Flow
+  defaults to "wheel = zoom", which made a long single-chain conversation almost unreadable:
+  the only way to go down was to drag the canvas (or zoom out and back in). Trackpad two-finger
+  scrolling pans too, so a long chat now reads like a document. Wheeling over a card first
+  scrolls the card's own content (long answer, reasoning, user message) and only pans the canvas
+  once that inner area hits its end — no more "stuck" feeling when the cursor is on a card.
 - Canvas top-right: the separate "export JSON" and "mind map" icons are merged into one
   **Share** menu (backup / mind map), so future formats (PDF, DOCX, standalone HTML) have a
   place to go without adding more icons to the row. Export as a whole is still on hold

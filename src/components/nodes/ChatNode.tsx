@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
@@ -8,6 +8,7 @@ import { useThemeStore } from '../../stores/themeStore';
 import { gsap } from 'gsap';
 import { showInfo } from '../../utils/notification';
 import { countChars } from '../../utils/text';
+import { useCardWheelChain } from '../../utils/wheelChain';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import NodeReadOverlay from './NodeReadOverlay';
@@ -296,38 +297,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     }
   };
 
-  // 滚轮处理：
-  //  - 普通滚轮：留在节点内部滚动，不带动画布（stopPropagation）
-  //  - Ctrl/⌘ + 滚轮：交给 React Flow 缩放画布。
-  //    React Flow 把 ctrlKey+wheel 当作触控板捏合手势（zoomOnPinch，默认开），
-  //    但它的监听挂在画布元素的冒泡阶段，我们必须放行才能让它收到；
-  //    同时 preventDefault 阻止浏览器把 Ctrl+滚轮当成「整页缩放」。
-  const handleWheel = useCallback((e: WheelEvent) => {
-    if (!nodeRef.current || !nodeRef.current.contains(e.target as Node)) return;
-
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      return;
-    }
-
-    e.stopPropagation();
-  }, []);
-
-  useEffect(() => {
-    // capture 阶段：保证在节点内任何子元素之前处理。
-    // passive: false 是必须的，否则浏览器会忽略 preventDefault。
-    const node = nodeRef.current;
-    const opts = { capture: true, passive: false } as const;
-    if (node) {
-      node.addEventListener('wheel', handleWheel, opts);
-    }
-
-    return () => {
-      if (node) {
-        node.removeEventListener('wheel', handleWheel, opts);
-      }
-    };
-  }, [handleWheel]);
+  // 滚轮：Ctrl/⌘+滚轮 = 缩放画布；普通滚轮先滚内层，滚到底 / 没溢出才平移画布。
+  // 这样长对话能像文档一样顺着往下滚，鼠标停在卡片上也不会「卡死」。
+  // 见 utils/wheelChain.ts 和 DEV.md §3.14。
+  useCardWheelChain(nodeRef);
 
   // 双击节点打开阅读覆盖层。落在输入框 / 按钮 / 滑条上时不触发，
   // 否则双击选词、点两下按钮都会莫名其妙弹出覆盖层。

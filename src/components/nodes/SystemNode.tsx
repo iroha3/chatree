@@ -5,6 +5,7 @@ import { useModelStore } from '../../stores/modelStore';
 import { gsap } from 'gsap';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
+import { useCardWheelChain } from '../../utils/wheelChain';
 import NodeReadOverlay from './NodeReadOverlay';
 
 const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
@@ -18,6 +19,9 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 同 ChatNode：Ctrl/⌘+滚轮缩放，普通滚轮先滚内层、滚到底再平移画布。
+  useCardWheelChain(nodeRef);
   const updateNodeInternals = useUpdateNodeInternals();
   const t = useT();
 
