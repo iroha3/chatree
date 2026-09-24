@@ -18,6 +18,8 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   card** (you start at that turn, not in the middle of it). And when the path ends with exactly
   one follow-up, **keep scrolling at the bottom to move on to it** — the same gesture as scrolling
   a card to its end on the canvas. With a fork there is no auto-advance: you pick the branch.
+  Scrolling to the next turn animates exactly like clicking a branch (no jump cuts), and the card
+  you land on gets a brief highlight so you can tell where you are.
   (Writer-side: `tmp/` is now ignored by ESLint too.)
 
 ### Changed

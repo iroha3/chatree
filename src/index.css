@@ -307,6 +307,21 @@ body {
   margin-bottom: 0 !important;
 }
 
+/* 阅读浮窗刚翻到的卡片：一圈短促的淡出光晕，回答「我现在读到哪了」。
+   滚轮翻页和点分支都会用，动画结束（1.2s 后组件摘掉这个类）就彻底消失。 */
+@keyframes reader-land {
+  0% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+  }
+}
+.reader-land {
+  border-radius: 0.75rem;
+  animation: reader-land 1.2s ease-out;
+}
+
 /* 阅读浮窗的正文比卡片小一号：浮窗更宽（860px），同样 19px 会显得很大。
    用户要求「双击浮窗后正文文字小一点」。md-editor 内层把字号写死在
    `.md-editor-preview` 和 `div.vuepress-theme` 两处，所以都要盖。 */

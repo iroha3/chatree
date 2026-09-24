@@ -768,24 +768,39 @@ async function main() {
     Array.from(rail.querySelectorAll('button')).find(b => b.textContent.includes('main question')).click();
   })()`);
   await sleep(500);
-  const beforeScrollAdvance = await cdp.eval(`(() => {
-    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+  // 顺便数一下 scroll 事件：平滑滚动会抖出很多次，`scrollTop = x` 那种瞬间跳只有一次。
+  const advance = await cdp.eval(`(async () => {
+    const dlg = document.querySelector('[role="dialog"]');
+    const sc = dlg.querySelector('.overflow-y-auto');
     sc.style.scrollBehavior = 'auto';
     sc.scrollTop = sc.scrollHeight;
-    return { hasFollow: (document.querySelector('[role="dialog"]').textContent || '').includes('follow up answer') };
-  })()`);
-  await cdp.eval(`(() => {
-    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+    const before = { hasFollow: (dlg.textContent || '').includes('follow up answer') };
+
+    let scrollEvents = 0;
+    const onScroll = () => { scrollEvents += 1; };
+    // 先等上面那次「瞬到底」的滚动事件落完，再开始计数，免得把它算进来。
+    await new Promise((r) => setTimeout(r, 80));
+    sc.addEventListener('scroll', onScroll);
     sc.dispatchEvent(new WheelEvent('wheel', { deltaY: 200, deltaX: 0, bubbles: true, cancelable: true, clientX: 400, clientY: 400 }));
-  })()`);
-  await sleep(500);
-  const afterScrollAdvance = await cdp.eval(`(() => {
-    const text = document.querySelector('[role="dialog"]').textContent || '';
-    return { hasFollow: text.includes('follow up answer'), hasHint: text.includes('继续往下滚') };
-  })()`);
+    await new Promise((r) => setTimeout(r, 700));
+    sc.removeEventListener('scroll', onScroll);
+
+    const landed = sc.querySelector('.reader-land');
+    return {
+      before,
+      scrollEvents,
+      landed: landed ? landed.getAttribute('data-reader-node') : null,
+      hasFollow: (dlg.textContent || '').includes('follow up answer'),
+    };
+  })()`, true);
   check('读到底继续滚：自动翻到下一轮',
-    beforeScrollAdvance.hasFollow === false && afterScrollAdvance.hasFollow === true,
-    JSON.stringify({ before: beforeScrollAdvance, after: afterScrollAdvance }));
+    advance.before.hasFollow === false && advance.hasFollow === true,
+    JSON.stringify(advance));
+  // 滚轮翻页必须和点分支一样是平滑滚动 —— 用瞬到的话内容直接传送走，读者会丢掉位置感。
+  // 顺带断言翻到的那张卡片有落点高亮（「我现在读的是这张」）。
+  check('滚轮翻页是平滑滚动（不是瞬间跳）且翻到的卡片有落点高亮',
+    advance.scrollEvents >= 2 && advance.landed === 's6e',
+    JSON.stringify({ scrollEvents: advance.scrollEvents, landed: advance.landed }));
 
   await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   await sleep(300);

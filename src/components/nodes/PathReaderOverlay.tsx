@@ -45,12 +45,17 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const { models } = useModelStore();
   const [currentId, setCurrentId] = useState(targetId);
   const [openReasoning, setOpenReasoning] = useState<Record<string, boolean>>({});
+  /** 刚翻到的卡片：给它一个短促的落点高亮，告诉你「现在读的是这张」。 */
+  const [landedId, setLandedId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollerRef = useRef<HTMLDivElement>(null);
   /** 读到底之后又继续往下滚的累计量（防手滑，见 handleReaderWheel）。 */
   const overscrollRef = useRef(0);
-  /** 下一次定位卡片用哪种滚法：首屏 / 滚轮翻页要立刻到位，点分支才用平滑。 */
+  /** 平滑滚动刚起步的那几十毫秒里，容器还停在底部，得挡住重复翻页。 */
+  const advanceLockRef = useRef(0);
+  /** 打开浮层那一下用瞬到（平滑滑一大段反而慢），之后就一律和点分支同一种滚动。 */
   const behaviorRef = useRef<ScrollBehavior>('auto');
+  const mountedRef = useRef(false);
 
   // 节点组件只知道自己，拿不到整棵树，所以从 store 里把所在会话找出来。
   const session = useSessionStore((s) => s.sessions.find((x) => x.nodes.some((n) => n.id === targetId)));
@@ -62,15 +67,25 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const turns = path.filter((n) => n.type === 'chat').length;
 
   // 定位到目标卡片的**顶部** —— 双击的意图是「从这里开始读」，不是看卡片中间。
-  // 首屏和滚轮翻页瞬间到位，点分支才平滑（滚轮翻页时再叠一段平滑滚动会打架）。
+  // 滚轮翻页和点分支用**同一种**平滑滚动 —— 之前滚轮用瞬到，结果就是「内容直接
+  // 传送走了，我也跟着不知道读到哪了」。首屏例外：刚打开浮层就滑一大段很别扭。
   useEffect(() => {
     const behavior = behaviorRef.current;
     behaviorRef.current = 'smooth';
     overscrollRef.current = 0;
+    // 平滑滚动起步前（下面 60ms 那一段）容器还在底部，把重复翻页挡住。
+    advanceLockRef.current = Date.now() + 400;
+    if (mountedRef.current) setLandedId(currentId);
+    mountedRef.current = true;
     const id = window.setTimeout(() => {
       cardRefs.current[currentId]?.scrollIntoView({ behavior, block: 'start' });
     }, 60);
-    return () => window.clearTimeout(id);
+    // 高亮只留一下，别让它在已经读完的卡片上一直亮着。
+    const clear = window.setTimeout(() => setLandedId(null), 1200);
+    return () => {
+      window.clearTimeout(id);
+      window.clearTimeout(clear);
+    };
   }, [currentId]);
 
   // Esc 关闭。挂在 window 上，不依赖内层元素是否聚焦。打开期间锁掉 body 滚动。
@@ -103,6 +118,10 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
       overscrollRef.current = 0;
       return;
     }
+    if (Date.now() < advanceLockRef.current) {
+      overscrollRef.current = 0;
+      return;
+    }
     const el = scrollerRef.current;
     if (!el) return;
     // 还有任何一层能滚（比如思考过程的长文本没到底）就不算「读到头」。
@@ -113,7 +132,6 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
     overscrollRef.current += e.deltaY;
     if (overscrollRef.current >= ADVANCE_AFTER) {
       overscrollRef.current = 0;
-      behaviorRef.current = 'auto';
       setCurrentId(nextBranches[0].id);
     }
   };
@@ -166,7 +184,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                     ref={(el) => {
                       cardRefs.current[node.id] = el;
                     }}
-                    className="min-w-0 flex-1"
+                    className={`min-w-0 flex-1 ${landedId === node.id ? 'reader-land' : ''}`}
                     data-reader-node={node.id}
                   >
                     <div
