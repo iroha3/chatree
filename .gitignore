@@ -37,6 +37,8 @@ build/icon-*.png
 
 # Pake/构建临时文件
 .pake-build.*
+# 本地草稿区（油猴脚本、随手抓的参考文件等），不进仓库
+/tmp/
 # scripts/pake.mjs --json 写出的产物清单，以及 collect-artifacts.mjs 的收集目录
 /pake-artifacts.json
 /release/

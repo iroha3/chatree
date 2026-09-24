@@ -7,6 +7,35 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
 
 ## [Unreleased]
 
+### Changed
+
+- Canvas top-right: the separate "export JSON" and "mind map" icons are merged into one
+  **Share** menu (backup / mind map), so future formats (PDF, DOCX, standalone HTML) have a
+  place to go without adding more icons to the row. Export as a whole is still on hold
+  (see `ROADMAP.md`).
+- Card width adjusted to **516px** (started 548px; the last instruction meant *wider*, not
+  narrower: 468 × 1.05 × 1.05 ≈ 516).
+- More breathing room on both sides of the Data / Appearance / About settings panes.
+
+### Fixed
+
+- **A deleted/cleared system prompt no longer comes back.** Generation used to fall back to
+  `model.defaultSystemPrompt` whenever the system node was missing or empty, so a session where
+  the user had removed the system prompt still sent one (and reported its tokens). The system
+  prompt now comes **only** from the system node.
+- Session stats showed the input/output token arrows backwards (`↓ input` / `↑ output`);
+  they now match the node cards (`↑ input` / `↓ output`, per `DEV.md` §3.10).
+- The floating action cluster (copy / regenerate / expand) sat **1px** to the right of the send
+  button: the cluster is outside `.node-content` while the send button is inside its 1px border.
+  Anchored to `calc(1.5rem + 1px)` now, so both right edges line up exactly.
+- Mind-map export no longer fails when there is no system node (a valid state after removing the
+  system prompt), and it reports failures through the in-app toast instead of `window.alert`.
+- "Characters" is now counted by Unicode code point, so an emoji no longer counts as two.
+- Token usage mapping (DeepSeek / OpenAI / Anthropic cache fields, reasoning tokens) was
+  extracted into a pure `normalizeUsage` with regression tests (`bun test:usage`). The tooltip
+  now spells out that `↑` is the **whole** request input (system prompt + history), not just the
+  last user message — that is why "你好" alone can show a double-digit input count.
+
 ## [0.2.0] - 2026-09-23
 
 ### Added

@@ -411,7 +411,7 @@ async function main() {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
     const cluster = Array.from(n.querySelectorAll('div')).find(d =>
       typeof d.className === 'string' && d.className.includes('opacity-0') &&
-      d.className.includes('right-6') && d.className.includes('gap-0.5'));
+      d.className.includes('gap-0.5') && d.className.includes('bottom-2'));
     if (!cluster) return { error: 'no cluster' };
     const inputRow = Array.from(n.querySelectorAll('div')).find(d =>
       typeof d.className === 'string' && d.className.includes('relative px-4 py-3'));
@@ -447,7 +447,13 @@ async function main() {
       [p.left + 8, p.bottom - 8], [p.right - 8, p.bottom - 8],
     ];
     const away = corners.find(([x, y]) => !inside(x, y)) || [p.right - 8, p.top + 8];
-    return { x: r.x + r.width / 2, y: r.y + r.height / 2, awayX: away[0], awayY: away[1] };
+    // 悬停点必须**同时**落在节点内和可视区（pane）内：headless 窗口只有 600px 高，
+    // 卡片一高，节点中心就掉到视口外，鼠标事件到不了 → :hover 不触发。
+    // 取「可视区 ∩ 节点」的中心，而不是节点几何中心。
+    const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+    const x = clamp(r.x + r.width / 2, p.left + 8, p.right - 8);
+    const y = clamp(r.y + r.height / 2, p.top + 8, p.bottom - 8);
+    return { x, y, awayX: away[0], awayY: away[1] };
   })()`);
 
   await move(geom2.awayX, geom2.awayY);

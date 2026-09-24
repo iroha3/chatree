@@ -31,6 +31,7 @@
     "preview": "vite preview",
     "icons": "bun scripts/make-icons.mjs",
     "test:edge": "bun tests/edge-contract-check.mjs",
+    "test:usage": "bun tests/usage-check.mjs",
     "test:smoke": "bun tests/smoke-check.mjs",
     "test:ux": "bun tests/node-ux-check.mjs",
     "desktop:build": "bun run build && bun scripts/pake.mjs",

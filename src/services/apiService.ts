@@ -1,5 +1,6 @@
 import { Model, UsageStats } from '../types';
 import { resolveReasoningEffort } from '../utils/reasoningEffort';
+import { normalizeUsage, type RawUsage } from '../utils/usage';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -125,36 +126,11 @@ export async function sendChatRequest(options: ChatRequestOptions): Promise<void
             const json = JSON.parse(data);
             const choice = json.choices?.[0];
             
-            // token 用量。字段名各家不一样，能认的都认一下。
+            // token 用量。字段名各家不一样，归一化逻辑放在 utils/usage.ts，
+            // 那边是纯函数、有回归测试（tests/usage-check.mjs），
+            // 别在这里再散一份映射出来。
             if (json.usage && onUsage) {
-              const u = json.usage;
-              const promptTokens = u.prompt_tokens ?? 0;
-
-              // 缓存命中：
-              //   DeepSeek  prompt_cache_hit_tokens
-              //   OpenAI    prompt_tokens_details.cached_tokens
-              //   Anthropic cache_read_input_tokens（部分兼容层会透传）
-              const cacheHitTokens = u.prompt_cache_hit_tokens
-                ?? u.prompt_tokens_details?.cached_tokens
-                ?? u.cache_read_input_tokens
-                ?? 0;
-
-              // 未命中：DeepSeek 直接给；其他家只能自己减。
-              // 注意判空方式 —— OpenAI 报 cached_tokens: 0 是有意义的（表示缓存在用但这次没命中），
-              // 这时候要算成 100% 未命中并把「缓存 0%」显示出来，而不是当作「这家不支持缓存」。
-              const reportsCache = cacheHitTokens > 0 || u.prompt_tokens_details != null
-                || u.prompt_cache_miss_tokens != null || u.cache_read_input_tokens != null;
-              const cacheMissTokens = u.prompt_cache_miss_tokens
-                ?? (reportsCache ? Math.max(promptTokens - cacheHitTokens, 0) : 0);
-
-              onUsage({
-                promptTokens,
-                completionTokens: u.completion_tokens ?? 0,
-                totalTokens: u.total_tokens ?? 0,
-                cacheHitTokens,
-                cacheMissTokens,
-                reasoningTokens: u.completion_tokens_details?.reasoning_tokens
-              });
+              onUsage(normalizeUsage(json.usage as RawUsage));
             }
             
             // 思考型模型的思维链，单独走一条通道，绝不混进正文

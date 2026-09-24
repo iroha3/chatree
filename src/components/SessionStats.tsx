@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { Session, UsageStats } from '../types';
 import { useLangStore, useT } from '../i18n';
+import { countChars } from '../utils/text';
 
 /** token 动辄上万，加千分位好读。 */
 const fmt = (n: number) => n.toLocaleString('en-US');
@@ -55,7 +56,7 @@ const SessionStats: React.FC<{ session: Session; onClose: () => void }> = ({ ses
   const cacheHit = sum((u) => u.cacheHitTokens);
   const cacheMiss = sum((u) => u.cacheMissTokens);
   const cacheRate = cacheHit + cacheMiss > 0 ? Math.round((cacheHit / (cacheHit + cacheMiss)) * 100) : null;
-  const answerChars = chatNodes.reduce((t, n) => t + (n.assistantMessage?.length || 0), 0);
+  const answerChars = chatNodes.reduce((t, n) => t + countChars(n.assistantMessage), 0);
 
   const when = (iso: string) =>
     new Date(iso).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', {
@@ -90,8 +91,8 @@ const SessionStats: React.FC<{ session: Session; onClose: () => void }> = ({ ses
         </div>
 
         <div className="py-1.5">
-          <Row label={t('↓ 输入 token')} value={fmt(promptTokens)} title={t('发给模型的 token（提示词）')} />
-          <Row label={t('↑ 输出 token')} value={fmt(completionTokens)} title={t('模型生成的 token')} />
+          <Row label={t('↑ 输入 token')} value={fmt(promptTokens)} title={t('本次请求的全部输入 token（含系统提示词与历史）')} />
+          <Row label={t('↓ 输出 token')} value={fmt(completionTokens)} title={t('模型生成的 token')} />
           {reasoningTokens > 0 && <Row label={t('思考 token')} value={fmt(reasoningTokens)} />}
           {cacheRate !== null && (
             <Row

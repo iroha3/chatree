@@ -7,6 +7,7 @@ import { useModelStore } from '../../stores/modelStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { gsap } from 'gsap';
 import { showInfo } from '../../utils/notification';
+import { countChars } from '../../utils/text';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import NodeReadOverlay from './NodeReadOverlay';
@@ -40,7 +41,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   
   // ---- 统计信息 ----
   const usage = node.usage;
-  const answerChars = node.assistantMessage?.length ?? 0;
+  const answerChars = countChars(node.assistantMessage);
   const cacheTotal = usage ? usage.cacheHitTokens + usage.cacheMissTokens : 0;
   const cacheRate = usage && cacheTotal > 0
     ? Math.round((usage.cacheHitTokens / cacheTotal) * 100)
@@ -582,7 +583,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               </span>
             )}
             {usage && (
-              <span title={t('↑ 输入 token · ↓ 输出 token')}>
+              <span title={t('↑ 本次请求的全部输入 token（含系统提示词与历史）· ↓ 本次生成的输出 token')}>
                 ↑ {usage.promptTokens} tok · ↓ {usage.completionTokens} tok
               </span>
             )}
@@ -601,12 +602,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       {/* 节点右下角的**次要动作簇**：停止 / 重生成 / 复制 / 放大，悬停才出现。
-          全部右对齐到 `right-6` —— 和输入框里那颗发送按钮同一条右边界
-          （`px-4` 的 16px + 输入框内 8px = 24px）。
+          右对齐到输入框里那颗发送按钮的同一条右边界。
+          注意是 `1.5rem + 1px`，不是单纯的 `right-6`：发送键在 `.node-content`
+          内部，额外多了一条 1px 边框的距离（发送键 = 边框 1 + px-4 16 + right-2 8 = 25px，
+          而这一层在 `.node-content` 之外，没有边框）。用 right-6 会差 1px。
           绝对定位（在 .node-content 之外），不占布局高度。
           别写 `bg-white/90` —— 它绕过了 `html.dark .bg-white` 覆盖，
           夜里会变成一块亮白药丸。 */}
-      <div className="absolute bottom-2 right-6 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 nodrag nopan">
+      <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 nodrag nopan">
         {node.isStreaming ? (
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"

@@ -89,7 +89,7 @@ const DataPanel: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto h-full">
+    <div className="px-12 py-6 space-y-6 overflow-y-auto h-full">
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('当前数据')}</h3>
         <p className="text-xs text-neutral-500 mb-3">
@@ -153,7 +153,7 @@ const DataPanel: React.FC = () => {
         <div className="flex items-start space-x-2 text-xs text-neutral-400">
           <FileJson size={14} className="mt-0.5 shrink-0" />
           <p>
-            {t('只想导出某一个会话？在画布右上角点「导出当前会话」即可。它和这里导出的是同一种文件，\n可以直接互相导入。')}
+            {t('只想导出某一个会话？在画布右上角点「分享」→「备份」即可。它和这里导出的是同一种文件，\n可以直接互相导入。')}
           </p>
         </div>
       </section>

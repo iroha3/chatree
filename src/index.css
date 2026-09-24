@@ -157,10 +157,14 @@ body {
   /* 固定宽度：ChatFlow.tsx 的树形布局是按固定宽度算子树宽度的，
      节点宽度不固定会让兄弟节点重叠。改这里必须同步改 ChatFlow.tsx
      里的 NODE_WIDTH 常量（两边必须一致）。
-     644px → 548px：用户反馈卡片太宽，缩了约 15%。 */
-  width: 548px;
-  min-width: 548px;
-  max-width: 548px;
+     644px → 548px：用户反馈卡片太宽，缩了约 15%。
+     548px → 493px：用户又反馈还是宽，再缩 10%。
+     493px → 468px：再缩 5%。
+     468px → 516px：上一句方向说反了，实际是要**变宽** —— 在 468 上 +5% 两次
+     （468 × 1.05 × 1.05 ≈ 516，注意不是整 10%）。 */
+  width: 516px;
+  min-width: 516px;
+  max-width: 516px;
   max-height: 760px;
   scroll-behavior: smooth;
   overflow-wrap: break-word;

@@ -20,7 +20,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { ChatNode as ChatNodeType, NodeData, UsageStats } from '../types';
 import { useT } from '../i18n';
 import { sendChatRequest } from '../services/apiService';
-import { Share2, LayoutGrid, FileJson, BarChart3, Settings } from 'lucide-react';
+import { Share2, LayoutGrid, FileJson, BarChart3, Settings, Network } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
 import { exportSessionToFile } from '../utils/sessionTransfer';
 import { showSuccess, showError, showInfo, showUndo } from '../utils/notification';
@@ -32,7 +32,7 @@ import { generateId } from '../utils/id';
 /*
  * 画布布局常量。
  *
- * 宽度必须和 index.css 里 .node-content 的 width（644px）保持一致，
+ * 宽度必须和 index.css 里 .node-content 的 width（516px）保持一致，
  * 否则子树宽度会算得比实际窄，兄弟节点互相重叠。
  * 高度没法预先知道（回答长短不一），420 只是估值 —— 真实尺寸由
  * collectNodeDimensions 从 React Flow 量到后覆盖。
@@ -40,7 +40,7 @@ import { generateId } from '../utils/id';
  * 这几个值必须放模块级：建图有两条路径（calculateNodeLayout 和下面那个
  * 渲染 useEffect），放函数里就没法共用了。
  */
-const NODE_WIDTH = 548;
+const NODE_WIDTH = 516;
 const NODE_HEIGHT = 420;
 const H_GAP = 220;
 /*
@@ -268,6 +268,30 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   // 刚新建的节点 id。渲染完成后把它平移到视野中间，否则可能落在屏幕外面。
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
+  // 右上角的「分享 / 导出」菜单。JSON 备份 + 思维导图先合进来；
+  // 以后加 PDF / DOCX / 独立 HTML 也往这里塞（见 ROADMAP「导出（讨论中）」）。
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // 点外面 / Esc 关闭菜单。capture 阶段监听 mousedown ——
+  // 保证能先于菜单内按钮的 onClick 判断「这次点击是不是在外面」。
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as globalThis.Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowExportMenu(false);
+    };
+    document.addEventListener('mousedown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showExportMenu]);
 
   /*
    * 上一次交给 React Flow 的节点对象。两个用途：
@@ -654,8 +678,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     const startedAt = Date.now();
 
     try {
+      // 系统提示词**只**来自系统节点本身。
+      // 以前这里是 `systemNode?.userMessage || model.defaultSystemPrompt`，
+      // 于是用户删掉系统节点（或把它清空）之后，模型默认提示词又会偷偷回来 ——
+      // 用户明确删掉的东西不该复活，请求里也不该再多出一段他没写的提示词
+      // （这正是「只输入你好却带着 system prompt」的根因）。
+      // 新会话的系统节点在创建时已经填好了模型默认值，所以这里不需要兜底。
       const systemNode = contextNodes.find(n => n.type === 'system');
-      const systemPrompt = systemNode?.userMessage || model.defaultSystemPrompt;
+      const systemPrompt = systemNode ? systemNode.userMessage : '';
 
       const messages = [];
 
@@ -1182,21 +1212,41 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           <BarChart3 size={18} />
         </button>
 
-        <button 
-          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
-          onClick={handleExportSession}
-          title={t('导出当前会话（JSON）')}
-        >
-          <FileJson size={18} />
-        </button>
+        {/* 分享 / 导出。原来这里是两个平级按钮（JSON 备份 + 思维导图），
+            合成一个菜单：以后加 PDF / DOCX / 独立 HTML 直接往下塞即可，
+            不用再往这一排里堆图标。（导出整体待定，见 ROADMAP。） */}
+        <div className="relative" ref={exportMenuRef}>
+          <button
+            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${
+              showExportMenu
+                ? 'bg-neutral-100 border-neutral-300 text-neutral-900'
+                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+            }`}
+            onClick={() => setShowExportMenu(v => !v)}
+            title={t('分享与导出')}
+          >
+            <Share2 size={18} />
+          </button>
 
-        <button 
-          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
-          onClick={handleExport}
-          title={t('导出思维导图')}
-        >
-          <Share2 size={18} />
-        </button>
+          {showExportMenu && (
+            <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle">
+              <button
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+                onClick={() => { setShowExportMenu(false); handleExportSession(); }}
+              >
+                <FileJson size={14} className="shrink-0 text-neutral-500" />
+                <span>{t('备份（JSON，可再导入）')}</span>
+              </button>
+              <button
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+                onClick={() => { setShowExportMenu(false); handleExport(); }}
+              >
+                <Network size={14} className="shrink-0 text-neutral-500" />
+                <span>{t('思维导图（.mm）')}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {showStats && <SessionStats session={session} onClose={() => setShowStats(false)} />}
