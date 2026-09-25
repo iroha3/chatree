@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.png" alt="Chatree — a visual workspace for branching LLM conversations" width="100%">
+  <img src="assets/hero.png" alt="Chatree — A visual workspace for branching LLM conversations" width="100%">
 </p>
 
 <div align="center">
@@ -8,49 +8,59 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/iroha3/chatree/ci.yml?branch=master&style=flat-square&label=CI)](https://github.com/iroha3/chatree/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/iroha3/chatree?style=flat-square&color=2F7A5A)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/iroha3/chatree?style=flat-square&color=3178C6)](https://github.com/iroha3/chatree/releases)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=0B172A)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](src/)
 
 **Branch the conversation. Keep every line of thought.**
 
-A local-first visual workspace for exploring, comparing, and exporting LLM conversation trees across OpenAI-compatible models. Also ships as a desktop app.
+A local-first visual workspace for non-linear exploration, parallel reasoning, and model comparison across OpenAI-compatible providers. Ships as a web app and lightweight native desktop client.
 
 🌐 [**中文**](README_CN.md) | **English**
 
 </div>
 
-Linear chat forces every follow-up into one timeline: explore a different assumption and the original path is pushed out of view. Chatree turns the conversation into a canvas. Continue from any node, create parallel branches, switch model settings per branch, and preserve every route for later comparison.
+Linear chat forces every train of thought into a single timeline: explore an alternative hypothesis, and earlier insights are either overwritten or buried in awkward carousels. Multi-turn chats frequently suffer from context contamination and uncontrollable token bloat.
 
-All sessions and model configurations stay in the browser's IndexedDB. Requests go directly from the browser to the API endpoint you configure; Chatree has no application backend.
+Chatree transforms conversations into an exploratory canvas and branching tree. Branch from any node, attach different models or sampling parameters to parallel paths, compare response quality side-by-side, and read long dialogue chains smoothly using an integrated path reader.
+
+All sessions and model configurations stay in your browser's local IndexedDB. Network requests go directly to configured provider endpoints without any application-tier relay.
 
 <p align="center">
-  <img src="assets/treeai-workspace.png" alt="Chatree canvas showing one system prompt branching into two independent replies, with a third follow-up continuing from the left branch" width="100%">
+  <img src="assets/treeai-workspace.png" alt="Chatree canvas showing one system prompt branching into independent paths with follow-ups" width="100%">
 </p>
 
-<p align="center"><sub>One prompt, multiple independent paths. Continue any branch without overwriting the others.</sub></p>
+<p align="center"><sub>One prompt, multiple independent exploration paths. Branch and compare at any point.</sub></p>
 
-## Why Chatree
+## Core Capabilities
 
-| Capability | What it gives you |
-|---|---|
-| **Branch from any node** | Explore an alternative question, assumption, or answer while preserving the original conversation path. |
-| **Tune each branch independently** | Select the model, temperature, and token budget at the node level instead of locking one configuration to the whole session. |
-| **Reasoning-model friendly** | Live chain-of-thought while it thinks, auto-collapsed when it's done, plus configurable reasoning effort. |
-| **Per-answer usage stats** | Token counts, cache hit rate, and speed for every answer. |
-| **Organize** | Folders, favorites, and full-text search across conversations. |
-| **Local-first & offline** | Data lives only in your browser; zero third-party CDN requests, so it also works on an intranet. |
-| **Backup & restore** | JSON export/import for everything, or a single session. API keys never enter backups. |
-| **Desktop app** | Optional native build (Windows / macOS / Linux) that bundles the whole app. |
+### 1. Branching as Reasoning
+- **Fork from any point**: Test new angles, alter assumptions, or refine prompts without disrupting existing conversation trees.
+- **Strict ancestor context assembly**: Only messages along the direct ancestor path are assembled when generating. Sibling branches are completely isolated, preventing context contamination and hallucinations.
+
+### 2. Dual-Mode Experience: Topology Canvas + Continuous Path Reader
+- **Global canvas overview**: Visualize thought evolution, pan, zoom, and rearrange branches with fluid gestures.
+- **Continuous path reader**: Double-click any node to open an unbroken, scrollable reading flow from root to that turn. Seamlessly switch branches at any fork from the side panel, and continue scrolling at the bottom to advance smoothly to the next turn.
+
+### 3. Per-Node Control & Cross-Model Comparison
+- **Granular parameters**: Assign distinct models (DeepSeek, OpenAI, Claude, Ollama, etc.), temperatures, and reasoning efforts on a per-node basis.
+- **Side-by-side evaluation**: Directly compare reasoning depth and code output across different models under the exact same prior context.
+
+### 4. Local-First Architecture & Engineering Transparency
+- **Offline & self-contained**: Zero third-party CDN dependencies; all data resides strictly inside your browser's IndexedDB, ready for offline or intranet deployment.
+- **Granular metrics**: Real-time breakdown of token usage (prompt, completion, reasoning tokens), context cache hit rate, and generation throughput (tok/s).
+- **Reasoning-model friendly**: Dedicated live stream for chain-of-thought, quietly auto-collapsing upon completion.
+
+---
 
 ## Quick Start
 
 ### Prerequisites
+- [Bun](https://bun.sh) (Chatree exclusively uses the Bun toolchain)
+- An OpenAI-compatible API endpoint supporting streaming `POST /chat/completions`
+- CORS enabled for your Chatree origin on the provider endpoint
 
-- [Bun](https://bun.sh) (the project uses bun exclusively — no npm/node scripts)
-- An OpenAI-compatible API that supports streaming `POST /chat/completions`
-- A provider that allows browser CORS requests from your Chatree origin
-
-### Run locally
+### Local Development
 
 ```bash
 git clone https://github.com/iroha3/chatree.git
@@ -59,112 +69,59 @@ bun install
 bun run dev
 ```
 
-Open the URL printed by Vite (this project defaults to `http://127.0.0.1:5175`).
+Open the local server URL printed by Vite (defaults to `http://127.0.0.1:5175`).
 
-### First conversation
+### Getting Started
 
-1. Open **Model settings** from the gear button in the lower-left corner.
-2. Add a model name, an API base URL such as `https://api.openai.com/v1`, an API key, and the provider's model identifier.
-3. Create a conversation and edit the system-prompt node.
-4. Add a child node, enter a message, and send it.
-5. Use the **+** button on any node to continue that branch or start a parallel one.
+1. Open **Settings → Models** from the gear icon in the lower-left corner.
+2. Enter your model name, API base URL (e.g. `https://api.deepseek.com/v1`), API key, and provider Model ID.
+3. Create a new conversation and configure the system prompt node.
+4. Click `+` on the node to create a message card, type your question, and send.
+5. Click `+` on any node to fork a new branch; double-click a card to enter continuous reading mode.
 
 > [!IMPORTANT]
-> API keys are stored unencrypted in this browser's IndexedDB because Chatree is a client-only application. Use restricted keys or a trusted local proxy, and do not configure secrets on a shared or untrusted device.
+> Chatree is a client-side application. API keys are stored unencrypted in this browser's local IndexedDB. Use restricted keys and avoid configuring credentials on shared untrusted machines. Backup export files omit API keys by default.
 
-## Desktop App
+---
 
-Optional native wrapper built with [Pake](https://github.com/tw93/Pake) (Tauri). No Rust lives in this repository.
+## Desktop Client
+
+A lightweight native desktop wrapper (Windows / macOS / Linux) built using [Pake](https://github.com/tw93/Pake):
 
 ```bash
-bun run desktop:build        # full bundle for the current platform
-bun run desktop:build:fast   # quick local build (executable only)
+bun run desktop:build        # Full installation package for the current OS
+bun run desktop:build:fast   # Quick local executable build
 ```
 
-See [`docs/DEV.md`](docs/DEV.md) for build requirements and known pitfalls.
+See [`docs/DEV.md`](docs/DEV.md) for build requirements and platform-specific details.
 
-## How It Works
+---
 
-- **Conversation graph:** each chat node stores a `parentId`, allowing the UI to reconstruct and render independent branches.
-- **Context assembly:** when a node is sent, Chatree walks its ancestors and sends only that branch's message chain.
-- **Streaming:** responses are consumed from Server-Sent Events and rendered incrementally in the active node, with reasoning output on a separate channel.
-- **Persistence:** sessions, node positions, and model profiles are stored locally through Dexie.
-
-## Compatibility and Data Boundaries
-
-Chatree targets OpenAI-style streaming Chat Completions APIs. A compatible provider must:
-
-- expose `POST {baseUrl}/chat/completions`;
-- accept `Authorization: Bearer ...`;
-- return `data:` Server-Sent Events with OpenAI-like `choices[0].delta.content`, or one of the small fallback text shapes handled in `apiService.ts`;
-- allow direct browser requests through CORS.
-
-Chatree sends the configured API key directly to that provider. The repository does not include a relay server, analytics service, or cloud account system.
-
-## Project Status
-
-Chatree is an early-stage project (`0.1.0`). The core branching workflow builds and runs. Remaining work and known limitations are tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md).
-
-## Development
+## Development & Testing
 
 | Command | Purpose |
 |---|---|
-| `bun run dev` | Start the Vite development server. |
-| `bun run lint` | Run ESLint across the project. |
-| `bun run build` | Create a production bundle. |
-| `bun run preview` | Serve the production build locally. |
-| `bun test:edge` | Logic regression (no browser needed). |
-| `bun test:smoke` / `bun test:ux` | End-to-end regression (needs Edge + dev server). |
+| `bun run dev` | Start local Vite development server |
+| `bun run lint` | Run ESLint |
+| `bun run build` | Produce production bundle in `dist/` |
+| `bun test:edge` | Validate edge contract and React Flow state logic |
+| `bun test:usage` | Test token normalization and usage parsing |
+| `bun test:tree` | Verify tree traversal and ancestor path assembly |
+| `bun test:ux` | End-to-end node interaction and layout assertions |
 
-Read [`docs/DEV.md`](docs/DEV.md) before making changes — it documents the data contracts that must not change, the interaction rules, and the React Flow / Vite / Pake pitfalls.
+Please consult [`docs/DEV.md`](docs/DEV.md) before contributing to review invariant data contracts and UI conventions.
+
+---
 
 ## Deployment
 
-### Web build (Cloudflare Pages, or any static host)
+- **Static Hosting (Cloudflare Pages, etc.)**: The build output is a pure static `dist/` directory. Configure build command as `bun install --frozen-lockfile && bun run build`, output directory as `dist`, and set an SPA fallback rule: `/* → /index.html 200`.
+- **Docker**: Includes a multi-stage `Dockerfile` (`oven/bun` + `nginx:alpine`) for self-hosted containerized deployment.
 
-The build output is `dist/` — pure static, no server side.
+---
 
-On Cloudflare Pages, configure it like this (**don't let the platform install `vite` for you**):
+## License & Acknowledgements
 
-| Field | Value |
-|---|---|
-| Build command | `bun install --frozen-lockfile && bun run build` |
-| Build output directory | `dist` |
-| Environment variable | `BUN_VERSION=1.4.2` (optional, pins the build runtime) |
-
-Why install inside the build command: `vite` is a **devDependency**, and the platform's install step
-may not actually install your dependencies (Cloudflare provisions the Bun runtime, then jumps straight
-to the build command). With no `node_modules`, `bun run build` fails with a single
-`vite: command not found` (exit 127). Wiring the install into the build command removes any dependency
-on how the platform is configured.
-
-If a hard refresh on a deep link 404s, add an SPA fallback: `/* → /index.html 200`.
-
-### Docker
-
-The repo ships a `Dockerfile` (`oven/bun` build → `nginx:alpine` serving static files) plus
-`docker/nginx.conf`. CI pushes the image to GHCR on release.
-
-## Community
-
-- Bugs and feature requests: [Issue forms](https://github.com/iroha3/chatree/issues/new/choose)
-- Development setup, data contracts, and conventions: [`docs/DEV.md`](docs/DEV.md)
-- Roadmap and known limitations: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-- User-visible changes: [Changelog](CHANGELOG.md)
-
-## Credits
-
-**Chatree is a derivative work built on [Anionex/treeAI](https://github.com/Anionex/treeAI).** Credit for the foundations belongs upstream:
-
-- the tree-structured conversation model (per-node `parentId`, per-branch context assembly),
-- the local-first IndexedDB architecture with Dexie,
-- the original React Flow canvas, and
-- the OpenAI-compatible streaming client.
-
-Chatree adds the desktop build, the reasoning/usage-statistics layer, the settings center, folders and search, bilingual UI, and a long list of interaction fixes.
-
-We keep upstream's MIT copyright notice verbatim in [`LICENSE`](LICENSE) (our own notice is appended below it), and we keep the **entire upstream commit history** — `git log` and `git blame` still show exactly who wrote what.
-
-If it helps you explore LLM conversations more clearly, a star on [both repositories](https://github.com/Anionex/treeAI) is appreciated.
+Chatree is derived from [Anionex/treeAI](https://github.com/Anionex/treeAI) (MIT License). Grateful to the original authors for establishing the foundation.
 
 Released under the [MIT License](LICENSE).
