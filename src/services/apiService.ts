@@ -158,6 +158,13 @@ export async function sendChatRequest(options: ChatRequestOptions): Promise<void
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('Request was cancelled');
     }
+    if (error instanceof Error && /failed to fetch|networkerror/i.test(error.message)) {
+      const isLocal = /localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\./i.test(model.baseUrl);
+      const corsHint = isLocal
+        ? '（连接失败：若使用 LM Studio / Ollama 等本地模型，请确认服务已启动并开启 CORS 跨域）'
+        : '（网络连接失败，请检查网络连接或 API 地址是否支持跨域访问）';
+      throw new Error(`${error.message} ${corsHint}`);
+    }
     throw error;
   }
 }

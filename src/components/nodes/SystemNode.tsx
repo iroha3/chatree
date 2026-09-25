@@ -132,7 +132,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             : 'border-neutral-200'
         }`}
       >
-      <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
+      <div className="node-drag-handle flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0 cursor-grab active:cursor-grabbing">
         <div className="flex items-center">
           <Settings size={14} className="mr-1.5 text-neutral-500" />
           <span className="text-sm font-medium">{t('系统提示词')}</span>
@@ -195,7 +195,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       )}
 
       <div
-        className="px-4 py-3 flex-1 min-h-0 overflow-y-auto nowheel nodrag"
+        className="px-4 py-3 flex-1 min-h-0 overflow-y-auto nowheel"
         style={{ touchAction: 'pan-y' }}
         onWheel={(e) => {
           e.stopPropagation();

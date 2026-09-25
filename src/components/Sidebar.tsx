@@ -85,6 +85,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const folderBarRef = useRef<HTMLDivElement>(null);
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
 
   // 搜索来自 store，收藏过滤只是本地视图层的事，不需要进 store
   const visibleSessions = starredOnly
@@ -134,6 +136,33 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  /*
+   * 新建 / 切换到某个文件夹后，把它滚进横滑栏的可见范围。
+   * store 的 createFolder 已经会 `currentFolderView = 新文件夹`，但标签栏是横向
+   * 滚动的 —— 新 chip 长在末尾，视野不跟过去的话用户根本看不到「新建成功了」。
+   * 用 `scrollIntoView({ nearest })`：已在视野内就什么都不做，比手算 scrollLeft
+   * 少一维（StrictMode 下 effect 双跑也不会把它推过头）。
+   */
+  useEffect(() => {
+    const bar = folderBarRef.current;
+    if (!bar) return;
+    if (currentFolderView === 'all' || currentFolderView === 'uncategorized') return;
+    const el = bar.querySelector<HTMLElement>(`[data-folder-id="${currentFolderView}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [currentFolderView, folders.length]);
+
+  /*
+   * 点「新建」：把横滑栏挪到末尾的输入槽并聚焦，让用户直接在空位里敲名字。
+   * 输入槽就在「新文件夹会落到的位置」（列表末尾），回车后 chip 原地长出来，
+   * 视野不用再跨半个横条去找它。
+   */
+  useEffect(() => {
+    if (!isCreatingFolder) return;
+    const input = newFolderInputRef.current;
+    input?.focus({ preventScroll: true });
+    input?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [isCreatingFolder]);
 
   const handleCreateSession = () => {
     // 一个模型都没有就先别建会话：建出来只会是个空画板（画布上一个节点都没有），
@@ -242,10 +271,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   };
 
   const chipClass = (active: boolean) =>
-    `flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+    `flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors select-none ${
       active
-        ? 'bg-neutral-900 text-white border-neutral-900'
-        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+        ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-100'
+        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800'
     }`;
 
   if (collapsed) return null;
@@ -329,107 +358,144 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         </div>
       </div>
 
-      {/* 文件夹 chip：放不下就换行，不做横向滚动条 —— 横滑对鼠标用户很反直觉。 */}
-      <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+      {/* 文件夹栏：左边「新建」钉死在原位，右边是可横滑的分类标签。
+          新建是**动作**不是筛选，所以只留一颗图标、不随标签横滑 —— 滑到多远都够得着，
+          也不占文字宽度（把更多宽度让给标签）。
+          顺序：全部 → 未分类（系统视图） → 用户文件夹 → [新建时的空输入槽]；
+          新文件夹追加在最后，输入槽就在它将要出现的位置。 */}
+      <div className="px-4 pb-2 flex items-center gap-1.5 shrink-0">
         <button
-          className={chipClass(currentFolderView === 'all')}
-          onClick={() => setFolderView('all')}
+          className="flex-shrink-0 inline-flex h-[26px] w-[26px] items-center justify-center rounded-full text-neutral-400 border border-dashed border-neutral-300 hover:text-neutral-700 hover:border-neutral-400 dark:border-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+          onClick={() => setIsCreatingFolder(true)}
+          title={t('新建文件夹')}
         >
-          {t('全部')}
+          <FolderPlus size={13} />
         </button>
 
-        {folders.map(folder => {
-          const active = currentFolderView === folder.id;
-          if (editingFolderId === folder.id) {
-            return (
-              <input
-                key={folder.id}
-                autoFocus
-                className="flex-shrink-0 w-24 px-2 py-1 text-xs border border-neutral-300 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                value={folderNameDraft}
-                onChange={(e) => setFolderNameDraft(e.target.value)}
-                onBlur={() => handleRenameFolder(folder.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleRenameFolder(folder.id);
-                  if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
-                }}
-              />
-            );
-          }
-          return (
+        {/* 可横滑的标签区：滚轮纵转横（触控板的 deltaX 交给浏览器）。 */}
+        <div
+          ref={folderBarRef}
+          className="flex min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide flex-nowrap"
+          onWheel={(e) => {
+            if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY;
+          }}
+        >
+          <button
+            className={chipClass(currentFolderView === 'all')}
+            onClick={() => setFolderView('all')}
+          >
+            {t('全部')}
+          </button>
+
+          {(hasFolders || isCreatingFolder) && (
             <div
-              key={folder.id}
-              onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folder.id); }}
-              onDragLeave={() => setDragOverFolder(prev => (prev === folder.id ? null : prev))}
-              onDrop={(e) => handleDropOnFolder(e, folder.id)}
-              className={`group/chip ${chipClass(active)} ${
-                dragOverFolder === folder.id ? 'ring-2 ring-amber-300 border-amber-300' : ''
+              onDragOver={(e) => { e.preventDefault(); setDragOverFolder('__uncategorized__'); }}
+              onDragLeave={() => setDragOverFolder(prev => (prev === '__uncategorized__' ? null : prev))}
+              onDrop={(e) => handleDropOnFolder(e, null)}
+              className={`${chipClass(currentFolderView === 'uncategorized')} ${
+                dragOverFolder === '__uncategorized__' ? 'ring-2 ring-inset ring-amber-300 border-amber-300' : ''
               }`}
             >
-              <button
-                className="inline-flex items-center gap-1"
-                onClick={() => setFolderView(folder.id)}
+              <button onClick={() => setFolderView('uncategorized')}>{t('未分类')}</button>
+            </div>
+          )}
+
+          {folders.map(folder => {
+            const active = currentFolderView === folder.id;
+            if (editingFolderId === folder.id) {
+              return (
+                <input
+                  key={folder.id}
+                  autoFocus
+                  className="flex-shrink-0 w-[72px] px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  value={folderNameDraft}
+                  onChange={(e) => setFolderNameDraft(e.target.value)}
+                  onBlur={() => handleRenameFolder(folder.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameFolder(folder.id);
+                    if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
+                  }}
+                />
+              );
+            }
+            return (
+              <div
+                key={folder.id}
+                data-folder-id={folder.id}
+                onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folder.id); }}
+                onDragLeave={() => setDragOverFolder(prev => (prev === folder.id ? null : prev))}
+                onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                onDoubleClick={() => {
+                  setEditingFolderId(folder.id);
+                  setFolderNameDraft(folder.name);
+                }}
+                className={`group/chip ${chipClass(active)} ${
+                  dragOverFolder === folder.id ? 'ring-2 ring-inset ring-amber-300 border-amber-300' : ''
+                }`}
               >
-                <Folder size={12} />
-                {folder.name}
-              </button>
-              {active && (
-                <span className="inline-flex items-center gap-0.5 ml-0.5">
+                <button
+                  className="inline-flex min-w-0 items-center gap-1.5 text-left"
+                  onClick={() => setFolderView(folder.id)}
+                  onDoubleClick={() => {
+                    setEditingFolderId(folder.id);
+                    setFolderNameDraft(folder.name);
+                  }}
+                  title={folder.name}
+                >
+                  <Folder size={12} className="shrink-0" />
+                  <span className="truncate max-w-[140px]">{folder.name}</span>
+                </button>
+                {/* 重命名 / 删除平时收成 0 宽（气泡紧贴文字），hover 才展开。
+                    不在「选中」时展开：新建的文件夹会自动变成当前视图，
+                    若它一出生就顶着两颗图标，短名字（比如「1」）会凭空胖一圈。 */}
+                <span
+                  className="inline-flex max-w-0 shrink-0 items-center gap-0.5 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-200 group-hover/chip:max-w-[34px] group-hover/chip:opacity-100"
+                >
                   <button
-                    className="hover:opacity-70"
+                    className="shrink-0 p-0.5 hover:text-amber-500 rounded"
                     title={t('重命名')}
-                    onClick={() => { setEditingFolderId(folder.id); setFolderNameDraft(folder.name); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingFolderId(folder.id);
+                      setFolderNameDraft(folder.name);
+                    }}
                   >
-                    <Edit size={11} />
+                    <Edit size={10} />
                   </button>
                   <button
-                    className="hover:opacity-70"
+                    className="shrink-0 p-0.5 hover:text-red-400 rounded"
                     title={t('删除文件夹')}
-                    onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFolder(folder.id, folder.name);
+                    }}
                   >
-                    <X size={11} />
+                    <X size={10} />
                   </button>
                 </span>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
 
-        {isCreatingFolder ? (
-          <input
-            autoFocus
-            className="flex-shrink-0 w-24 px-2 py-1 text-xs border border-neutral-300 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
-            placeholder={t('文件夹名')}
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onBlur={handleCreateFolder}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateFolder();
-              if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
-            }}
-          />
-        ) : (
-          <button
-            className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-neutral-400 border border-dashed border-neutral-300 hover:text-neutral-600 hover:border-neutral-400"
-            onClick={() => setIsCreatingFolder(true)}
-            title={t('新建文件夹')}
-          >
-            <FolderPlus size={12} />
-          </button>
-        )}
-
-        {hasFolders && (
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOverFolder('__uncategorized__'); }}
-            onDragLeave={() => setDragOverFolder(prev => (prev === '__uncategorized__' ? null : prev))}
-            onDrop={(e) => handleDropOnFolder(e, null)}
-            className={`${chipClass(currentFolderView === 'uncategorized')} ${
-              dragOverFolder === '__uncategorized__' ? 'ring-2 ring-amber-300 border-amber-300' : ''
-            }`}
-          >
-            <button onClick={() => setFolderView('uncategorized')}>{t('未分类')}</button>
-          </div>
-        )}
+          {/* 输入槽就在「新文件夹会落到的位置」（列表末尾）：
+              敲完回车，chip 原地长出来，视野不用再跨半个横条去找它。
+              固定宽度；名字敲长了让 input 自己内部横向滚动（浏览器默认行为），
+              胶囊本身不跟着变胖。 */}
+          {isCreatingFolder && (
+            <input
+              ref={newFolderInputRef}
+              className="flex-shrink-0 w-[72px] px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              placeholder={t('文件夹名')}
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onBlur={handleCreateFolder}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateFolder();
+                if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1 scrollbar-hide">

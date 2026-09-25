@@ -5,6 +5,30 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.4.0] - 2026-09-25
+
+### Added
+
+- **The node card can be dragged by its whole body with a mouse.** On desktop, press anywhere
+  on a card (except inputs, sliders, and buttons) to move it. On touch screens, the drag handle is
+  the card header only, so a finger swipe on the card scrolls the content instead of dragging —
+  and the card content scrolls natively on touch again (React Flow's inline `touch-action: none`
+  had been suppressing it).
+- **API base URL now shows the actual request endpoint** it resolves to underneath the field,
+  with a note when the URL points at a local model (LM Studio / Ollama: enable CORS).
+- **Network failures now carry a CORS hint.** `fetch` errors that look like connection failures
+  mention that local providers need CORS enabled, instead of a bare `Failed to fetch`.
+
+### Changed
+
+- **The sidebar folder bar is a single horizontal row** (it used to wrap to a second line as soon
+  as you created a folder). The mouse wheel scrolls it sideways; an icon-only “new folder” button is
+  pinned at the left so it never scrolls out of reach; the order is “All” → “Uncategorized” → your
+  folders. Clicking the button drops an inline name field in place (right after “Uncategorized”,
+  which appears as soon as you start creating) and focuses it; Enter appends the folder at the end
+  and the bar scrolls the new chip into view. A folder chip hugs its name — rename/delete slide out
+  on hover instead of widening every chip (and making a freshly created one look bloated).
+
 ## [0.3.1] - 2026-09-25
 
 ### Changed

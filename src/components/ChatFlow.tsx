@@ -41,14 +41,14 @@ import { generateId } from '../utils/id';
  * 这几个值必须放模块级：建图有两条路径（calculateNodeLayout 和下面那个
  * 渲染 useEffect），放函数里就没法共用了。
  */
+const NODE_WIDTH = 516;
+
 export function getNodeWidth(): number {
   if (typeof window !== 'undefined' && window.innerWidth < 640) {
-    return Math.min(516, Math.max(280, window.innerWidth - 32));
+    return Math.min(NODE_WIDTH, Math.max(280, window.innerWidth - 32));
   }
-  return 516;
+  return NODE_WIDTH;
 }
-
-const NODE_WIDTH = 516;
 const NODE_HEIGHT = 420;
 /*
  * 兄弟节点之间的水平间距。
@@ -198,7 +198,8 @@ function buildFlowNode(
   node: ChatNodeType,
   position: { x: number; y: number },
   data: NodeData,
-  previous?: Node
+  previous?: Node,
+  dragHandle?: string
 ): Node {
   return {
     ...previous,
@@ -206,6 +207,10 @@ function buildFlowNode(
     type: node.type,
     position,
     data,
+    // 拖拽把手是**节点级**属性（React Flow v11 去掉了顶层 dragHandle props）。
+    // 触屏下只认标题栏的 `.node-drag-handle`，手指落在正文上留给滚动；
+    // 桌面端为 undefined = 整张卡片都能按着拖。
+    dragHandle,
   };
 }
 
@@ -288,6 +293,25 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   }, [initialViewport, session?.nodes]);
   const abortControllerRef = useRef<Record<string, AbortController>>({});
   const [nodeDimensions, setNodeDimensions] = useState<Record<string, { width: number, height: number }>>({});
+  /*
+   * 拖拽整卡 vs 触屏滚动的分流。
+   *
+   * 触屏（主指针 coarse）：只允许从标题栏的 `.node-drag-handle` 拖卡片，
+   * 手指落在正文上就是滚内容，不再把卡片拖走；
+   * PC 鼠标（主指针 fine）：不设把手，按住卡片任意非控件处都能拖。
+   *
+   * 判定只能看 `(pointer: coarse)`：`maxTouchPoints > 0` / `ontouchstart` 在
+   * 触屏笔记本上也为真（鼠标才是主指针），会把桌面端一起锁进「只能拖标题栏」。
+   */
+  const [isCoarsePointer, setIsCoarsePointer] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const onChange = (e: MediaQueryListEvent) => setIsCoarsePointer(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   // 刚新建的节点 id。渲染完成后把它平移到视野中间，否则可能落在屏幕外面。
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
@@ -493,7 +517,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         isRoot: node.type === 'system',
         autoFocus: pendingFocusId === node.id,
         isSearchMatch,
-      }, flowNodesRef.current.get(node.id));
+      }, flowNodesRef.current.get(node.id), isCoarsePointer ? '.node-drag-handle' : undefined);
     });
 
     // 一次写回全部新坐标（而不是循环 N 次），否则会丢更新。
@@ -1197,7 +1221,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         previous.data.autoFocus === autoFocus &&
         previous.data.isSearchMatch === isSearchMatch &&
         previous.position.x === position.x &&
-        previous.position.y === position.y
+        previous.position.y === position.y &&
+        previous.dragHandle === (isCoarsePointer ? '.node-drag-handle' : undefined)
       ) {
         return previous;
       }
@@ -1210,7 +1235,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         isRoot: node.type === 'system',
         autoFocus,
         isSearchMatch,
-      }, previous);
+      }, previous, isCoarsePointer ? '.node-drag-handle' : undefined);
     });
 
     setNodes(reactFlowNodes);
@@ -1220,7 +1245,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   // pendingFocusId 也要进依赖：清掉它时得把 autoFocus 重新算成 false，
   // 否则节点上会一直挂着 autoFocus: true。
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.nodes, sessionId, streamingResponses, streamingReasoning, pendingFocusId, searchQuery]);
+  }, [session?.nodes, sessionId, streamingResponses, streamingReasoning, pendingFocusId, searchQuery, isCoarsePointer]);
 
   // 新建的节点可能落在视口外面（分支一多就往右排），所以渲染完成后把它平移到视野中间。
   //

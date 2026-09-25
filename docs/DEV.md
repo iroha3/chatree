@@ -287,6 +287,26 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
   所以排版微调一处生效两处（见 §3.9）。打开期间锁 body 滚动，`Esc` 关闭。
 - 卡片带 `data-reader-node={id}`，端到端脚本靠它定位（节点在 portal 里，没有别的好选择器）。
 
+### 3.16 拖整张卡片 vs 触屏滚内容
+
+**同一张卡片，鼠标和手指要的是两件事：**
+
+- **PC 鼠标**：按住卡片任意非控件处 = 拖卡片（滚轮归滚内容，滚轮链见 §3.14）。
+- **触屏**：手指落在正文上 = 滚内容，绝不能把卡片拖走；想移动卡片就按住**标题栏**。
+
+实现分三块，缺一不可：
+
+1. **React Flow 的 `dragHandle` 是节点级属性**（v11 把顶层的 `dragHandle` prop 删了，
+   写在 `<ReactFlow>` 上会被当成普通 DOM 属性丢掉）。在 `ChatFlow.tsx` 的 `buildFlowNode`
+   里按 `dragHandle` 参数落到每个 node 对象上。
+2. 只有**触屏**才设 `.node-drag-handle`（标题栏）；桌面设 `undefined` = 整卡可拖。
+   判定只看 `matchMedia('(pointer: coarse)')` —— **不要**用 `maxTouchPoints` / `ontouchstart`，
+   触屏笔记本上它们也为真，会把鼠标用户一起锁进「只能拖标题栏」。
+3. `index.css` 把 `.react-flow__node` 的 `touch-action` 用 `!important` 从 React Flow
+   内联的 `none` 改回 `pan-y`（原因见 §4.6），`.node-drag-handle` 上再收回 `none`。
+
+代价：桌面端正文区的「按住拖动选择文字」被让给了「拖卡片」。取舍记录在 D-018。
+
 ---
 
 ## 4. React Flow 的坑（血泪）
@@ -298,9 +318,17 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
    从它取 `previous`；否则 `getNodeData().isValid` 为 false，边会消失/截断。
    回归见 `tests/edge-contract-check.mjs`。
 3. **交互控件要加 `nodrag nopan`**（range / select / textarea / 按钮 / 浮层），
-   否则触摸或拖动会带动画布。
+   否则触摸或拖动会带动画布。**正文容器（`.assistant-message` / `.preview-container` /
+   用户消息只读态）刻意不加 `nodrag`** —— 它们是「桌面端整卡拖拽」的落点；触屏那侧靠
+   `dragHandle` 分流（§3.16），不需要在正文上写死 `nodrag`。
 4. 尺寸变化后调 `updateNodeInternals(id)` 重新测量。
 5. `Ctrl+滚轮` 留给画布缩放；节点内部滚动要 `stopPropagation`。
+6. **d3-drag 会给每个 `.react-flow__node` 内联写 `touch-action: none`，这会连带掐死卡片
+   内部的触屏滚动。** 内层滚动容器上的 `touch-action: pan-y` 救不了：有效的 touch-action
+   是沿祖先链求交，碰到 `none` 就归 `none`。所以必须在 `.react-flow__node` 上用
+   `!important` 覆盖成 `pan-y`（鼠标拖拽走 mouse 事件，不受影响）。回归 / 排查见 §3.16。
+7. `dragHandle` 是**节点级**属性，不是 `<ReactFlow>` 的 prop（见 §3.16 第 1 条）；
+   改完记得让「复用 previous 节点」的早退条件也带上它，否则切换指针类型时把手不会更新。
 
 ---
 

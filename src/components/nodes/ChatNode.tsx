@@ -337,7 +337,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         className="!bg-neutral-400 !border-white"
       />
 
-      <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
+      <div className="node-drag-handle flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0 cursor-grab active:cursor-grabbing">
         <div className="flex min-w-0 items-center">
           <MessageSquare size={14} className="mr-1.5 shrink-0 text-neutral-500" />
           <span className="truncate text-sm font-medium" title={modelName || t('对话节点')}>
@@ -415,7 +415,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       )}
 
       <div
-        className="relative px-4 py-3 border-b border-neutral-100 shrink-0 nodrag"
+        className="relative px-4 py-3 border-b border-neutral-100 shrink-0"
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -458,7 +458,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         ) : (
           <>
             <div 
-              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap nodrag select-text"
+              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap select-text"
               style={{ touchAction: 'pan-y' }}
               onClick={() => setIsEditingUser(true)}
             >
@@ -495,7 +495,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       <div 
-        className="assistant-message px-4 py-3 relative nodrag"
+        className="assistant-message px-4 py-3 relative"
         style={{ touchAction: 'pan-y' }}
         onWheel={(e) => {
           e.stopPropagation();
@@ -548,7 +548,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <div>
             <div 
               ref={previewRef}
-              className="preview-container nodrag"
+              className="preview-container"
               style={{ touchAction: 'pan-y' }}
               onWheel={(e: React.WheelEvent) => {
                 e.stopPropagation();

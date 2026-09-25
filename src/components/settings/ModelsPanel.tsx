@@ -234,6 +234,19 @@ const ModelsPanel: React.FC = () => {
                 placeholder="https://api.deepseek.com"
                 required
               />
+              <p className="mt-1 text-[11px] text-neutral-400 break-all leading-normal">
+                {t('实际端点')}：
+                <span className="font-mono text-neutral-600 dark:text-neutral-300 ml-0.5">
+                  {editingModel.baseUrl.trim()
+                    ? `${editingModel.baseUrl.trim().replace(/\/+$/, '')}/chat/completions`
+                    : 'https://.../chat/completions'}
+                </span>
+                {/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(editingModel.baseUrl) && (
+                  <span className="ml-1.5 text-amber-600 dark:text-amber-400">
+                    ({t('本地模型如 LM Studio 请开启 CORS')})
+                  </span>
+                )}
+              </p>
             </div>
 
             <div>

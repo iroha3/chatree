@@ -185,6 +185,7 @@ const en: Record<string, string> = {
   暂无配置模型: 'No models configured',
   模型名称: 'Name',
   'API 地址': 'API base URL',
+  实际端点: 'Actual endpoint',
   'API 密钥': 'API key',
   '模型标识（Model ID）': 'Model ID',
   '思考强度（Reasoning Effort）': 'Reasoning effort',

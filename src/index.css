@@ -157,6 +157,26 @@ body {
   border: 2px solid white;
 }
 
+/*
+ * 触屏：把节点包装层的 touch-action 从 React Flow 内联的 `none` 放开成 `pan-y`。
+ *
+ * React Flow 的 d3-drag 会给每个 `.react-flow__node` 写内联 `touch-action: none`，
+ * 结果是**整张卡片内部的原生触屏滚动全被掐掉**（内层滚动容器的 `pan-y` 也救不了：
+ * 有效的 touch-action 是沿祖先求交，遇到 none 就归 none）。
+ * 鼠标拖拽走的是 mouse 事件，完全不受 touch-action 影响，所以放开它不会影响
+ * 桌面端「按住整卡拖动」。
+ *
+ * 滚动留给手指，拖拽留给标题栏：`.node-drag-handle` 上再收回 `none`，
+ * 那里仍然只能拖（配合 ChatFlow 的 `dragHandle`）。
+ */
+.react-flow__node {
+  touch-action: pan-y !important;
+}
+
+.react-flow__node .node-drag-handle {
+  touch-action: none !important;
+}
+
 .node-toolbar {
   @apply opacity-100 md:opacity-0 transition-opacity duration-200;
 }
