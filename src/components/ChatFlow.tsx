@@ -1379,7 +1379,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
             size={1.5}
           />
         )}
-        <Controls className="bg-white border border-neutral-200 rounded-md shadow-minimal mb-[env(safe-area-inset-bottom)]" />
+        <Controls
+          showInteractive={false}
+          className="mb-[env(safe-area-inset-bottom)] ml-[env(safe-area-inset-left)]"
+        />
       </ReactFlow>
 
       {/* 一个模型都没有时，画板是彻底空的 —— 新人第一眼看到白屏完全不知道干嘛。
@@ -1401,13 +1404,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         </div>
       )}
       
-      <div className="absolute bottom-4 right-4 z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
+      <div className="absolute bottom-[10px] right-[10px] z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
         <button 
-          className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 shadow-minimal dark:border-neutral-800 dark:bg-[#171717] dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:active:bg-neutral-700"
           onClick={handleReorganizeLayout}
           title={t('重新排布节点')}
         >
-          <LayoutGrid size={18} />
+          <LayoutGrid size={16} />
         </button>
       </div>
     </div>
