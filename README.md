@@ -17,7 +17,7 @@ Explore parallel branches, compare models side-by-side, and read whole paths con
 </div>
 
 <p align="center">
-  <img src="assets/treeai-workspace.png" alt="Chatree canvas showing one system prompt branching into independent paths with follow-ups" width="100%">
+  <img src="assets/EN.png" alt="Chatree canvas: one tagline request branching into three tone variants, with a follow-up branch off the first" width="100%">
 </p>
 
 <p align="center"><sub>One prompt, multiple independent exploration paths. Branch and compare at any point.</sub></p>

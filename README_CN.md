@@ -17,7 +17,7 @@
 </div>
 
 <p align="center">
-  <img src="assets/treeai-workspace.png" alt="Chatree 画布：从系统提示词分出两条独立分支并继续衍生后续对话" width="100%">
+  <img src="assets/CN.png" alt="Chatree 画布：一句宣传语需求分出三种风格分支，其中一条再继续衍生后续对话" width="100%">
 </p>
 
 <p align="center"><sub>同一个问题，衍生多条互不干扰的探索路径。随时分叉、随时对照。</sub></p>
