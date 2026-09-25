@@ -274,8 +274,7 @@ const en: Record<string, string> = {
     ' (MIT License); grateful to the original author.',
   '本项目采用 GNU AGPLv3 协议开源，完整保留上游版权声明与提交历史。':
     'Chatree is licensed under GNU AGPLv3. Upstream copyright notice and commit history are preserved.',
-  用: 'Built with ',
-  构建: '',
+  '由 {name} 用 ❤️ 构建': 'Built with ❤️ by {name}',
   // 桌面端检查更新（AboutPanel）
   '检查更新中…': 'Checking for updates…',
   发现新版本: 'New version available',

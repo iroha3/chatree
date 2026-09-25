@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Github, Heart, ExternalLink, Sparkles, ShieldCheck, Download, RefreshCw } from 'lucide-react';
+import { Github, ExternalLink, Sparkles, ShieldCheck, Download, RefreshCw } from 'lucide-react';
 import Logo from '../Logo';
 import { useT } from '../../i18n';
 import { checkForUpdate, isDesktopApp, UpdateCheck } from '../../services/updateService';
 
 const UPSTREAM_URL = 'https://github.com/Anionex/treeAI';
 const PROJECT_URL = 'https://github.com/iroha3/chatree';
+const AUTHOR_URL = 'https://github.com/iroha3';
+/** 页脚署名里给作者名留的占位符；渲染时据此把名字切出来做成链接。 */
+const CREDIT_NAME_TOKEN = '\u0000';
 
 interface LinkButtonProps {
   href: string;
@@ -58,6 +61,10 @@ const AboutPanel: React.FC = () => {
   useEffect(() => {
     void runCheck();
   }, [runCheck]);
+
+  // 署名句在两种语言里语序相反（中：由 X 用 ❤️ 构建 / 英：Built with ❤️ by X），
+  // 所以用占位符把名字切出来，两边都能正确地把 X 渲染成链接。
+  const [creditBefore, creditAfter = ''] = t('由 {name} 用 ❤️ 构建', { name: CREDIT_NAME_TOKEN }).split(CREDIT_NAME_TOKEN);
 
   return (
     <div className="px-4 md:px-12 py-4 md:py-6 space-y-6 overflow-y-auto h-full">
@@ -167,8 +174,17 @@ const AboutPanel: React.FC = () => {
         </div>
       </section>
 
-      <p className="flex items-center justify-center text-xs text-neutral-400 pt-2">
-        {t('用')} <Heart size={12} className="mx-1 text-rose-400" fill="currentColor" /> {t('构建')}
+      <p className="text-center text-xs text-neutral-400 pt-2">
+        {creditBefore}
+        <a
+          href={AUTHOR_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-600"
+        >
+          iroha3
+        </a>
+        {creditAfter}
       </p>
     </div>
   );
