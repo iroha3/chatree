@@ -192,6 +192,32 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                         isSystem ? 'bg-neutral-50' : 'bg-white'
                       }`}
                     >
+                      {/* 窄屏端：在卡片顶部提供横向滚动胶囊，单手即可切换分支 */}
+                      {group.length > 1 ? (
+                        <div className="mb-3 flex items-center gap-1.5 overflow-x-auto pb-1 md:hidden scrollbar-hide">
+                          <div className="flex shrink-0 items-center gap-1 text-[11px] text-neutral-400 mr-1">
+                            <GitBranch size={11} />
+                            <span>{t('分支 {i}/{n}', { i: idx, n: group.length })}</span>
+                          </div>
+                          {group.map((m, i) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                behaviorRef.current = 'smooth';
+                                setCurrentId(m.id);
+                              }}
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${
+                                m.id === node.id
+                                  ? 'bg-neutral-900 text-white font-medium'
+                                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                              }`}
+                            >
+                              <span>{i + 1}. {preview(m)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
                       <div className="mb-3 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
                         {isSystem ? (
                           <>

@@ -16,13 +16,26 @@ import { useT } from './i18n';
 
 const App: React.FC = () => {
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
   const { currentSessionId, setCurrentSessionId } = useSessionStore();
   const { loadSessions, loadModels, loadFolders } = useDatabaseContext();
   const { sessions } = useSessionStore();
   const { models } = useModelStore();
   const [isLoading, setIsLoading] = useState(true);
   const t = useT();
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -71,6 +84,13 @@ const App: React.FC = () => {
         >
           <ChevronRight size={14} className="text-neutral-600" />
         </button>
+      )}
+
+      {!sidebarCollapsed && isMobile && (
+        <div 
+          className="fixed inset-0 bg-neutral-900/30 backdrop-blur-[2px] z-20 md:hidden transition-opacity"
+          onClick={toggleSidebar}
+        />
       )}
       
       <Sidebar 

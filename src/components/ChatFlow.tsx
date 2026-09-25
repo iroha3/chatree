@@ -41,6 +41,13 @@ import { generateId } from '../utils/id';
  * 这几个值必须放模块级：建图有两条路径（calculateNodeLayout 和下面那个
  * 渲染 useEffect），放函数里就没法共用了。
  */
+export function getNodeWidth(): number {
+  if (typeof window !== 'undefined' && window.innerWidth < 640) {
+    return Math.min(516, Math.max(280, window.innerWidth - 32));
+  }
+  return 516;
+}
+
 const NODE_WIDTH = 516;
 const NODE_HEIGHT = 420;
 /*
@@ -132,8 +139,9 @@ function homeViewport(paneWidth: number, nodes: ChatNodeType[]): SavedViewport {
   // 空会话也别等到节点到位再算：新建的会话马上会被自动补一个根节点，
   // 而它没有 position（resolveNodePosition 会退回 {0,0}），所以先按「原点上一个
   // 根节点」估。这样首帧和节点到位后是同一个视角，不会跳。
+  const currentWidth = getNodeWidth();
   let minX = 0;
-  let maxX = NODE_WIDTH;
+  let maxX = currentWidth;
   let minY = 0;
 
   if (nodes.length > 0) {
@@ -143,7 +151,7 @@ function homeViewport(paneWidth: number, nodes: ChatNodeType[]): SavedViewport {
     nodes.forEach(node => {
       const p = node.position ?? resolveNodePosition(node, nodes);
       minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x + NODE_WIDTH);
+      maxX = Math.max(maxX, p.x + currentWidth);
       minY = Math.min(minY, p.y);
     });
   }
@@ -360,7 +368,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     if (!session || !session.nodes) return;
   
     const getNodeDimensions = (nodeId: string) => {
-      return nodeDimensions[nodeId] || { width: NODE_WIDTH, height: NODE_HEIGHT };
+      return nodeDimensions[nodeId] || { width: getNodeWidth(), height: NODE_HEIGHT };
     };
     
     const nodeHeights = new Map<string, number>();
@@ -521,11 +529,12 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     const parent = all.find(n => n.id === parentId);
     if (!parent) return { x: 0, y: 0 };
 
-    const sizeOf = (id: string) => nodeDimensions[id] || { width: NODE_WIDTH, height: NODE_HEIGHT };
+    const currentWidth = getNodeWidth();
+    const sizeOf = (id: string) => nodeDimensions[id] || { width: currentWidth, height: NODE_HEIGHT };
     const parentPos = resolveNodePosition(parent, all);
     const parentSize = sizeOf(parentId);
     // 父节点水平中心减去自身一半宽 = 「居中在父节点正下方」
-    const centeredX = parentPos.x + (parentSize.width - NODE_WIDTH) / 2;
+    const centeredX = parentPos.x + (parentSize.width - currentWidth) / 2;
 
     const siblings = all.filter(n => n.parentId === parentId);
 
@@ -545,7 +554,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     let x = centeredX;
     for (const sibling of byX) {
       const siblingPos = resolveNodePosition(sibling, all);
-      if (x + NODE_WIDTH + H_GAP <= siblingPos.x) break; // 这个空位放得下
+      if (x + currentWidth + H_GAP <= siblingPos.x) break; // 这个空位放得下
       x = Math.max(x, siblingPos.x + sizeOf(sibling.id).width + H_GAP);
     }
     return { x, y: rowY };
@@ -1213,7 +1222,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     setPendingFocusId(null);
     reactFlowInstance.setCenter(
-      target.position.x + NODE_WIDTH / 2,
+      target.position.x + getNodeWidth() / 2,
       target.position.y + NODE_HEIGHT / 2,
       { duration: 450, zoom: reactFlowInstance.getZoom() }
     );
@@ -1241,7 +1250,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     lastFocusedSearchRef.current = searchKey;
     reactFlowInstance.setCenter(
-      target.position.x + NODE_WIDTH / 2,
+      target.position.x + getNodeWidth() / 2,
       target.position.y + NODE_HEIGHT / 2,
       { duration: 450, zoom: reactFlowInstance.getZoom() }
     );
@@ -1370,7 +1379,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
             size={1.5}
           />
         )}
-        <Controls className="bg-white border border-neutral-200 rounded-md shadow-minimal" />
+        <Controls className="bg-white border border-neutral-200 rounded-md shadow-minimal mb-[env(safe-area-inset-bottom)]" />
       </ReactFlow>
 
       {/* 一个模型都没有时，画板是彻底空的 —— 新人第一眼看到白屏完全不知道干嘛。
@@ -1392,7 +1401,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         </div>
       )}
       
-      <div className="absolute bottom-4 right-4 z-10">
+      <div className="absolute bottom-4 right-4 z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
         <button 
           className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
           onClick={handleReorganizeLayout}

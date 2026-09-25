@@ -174,6 +174,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         userInputRef.current.value.length,
         userInputRef.current.value.length
       );
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        setTimeout(() => {
+          userInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
     }
   }, [isEditingUser]);
 
@@ -441,6 +446,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             className="w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
             placeholder={t('输入消息...')}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (typeof window !== 'undefined' && window.innerWidth < 640) {
+                setTimeout(() => {
+                  userInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+              }
+            }}
             rows={3}
           />
         ) : (
@@ -452,7 +464,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             >
               {node.userMessage ? highlightMatch(node.userMessage, searchQuery) : <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
             </div>
-            <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-0 right-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <CopyButton
                 text={node.userMessage}
                 className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
@@ -593,7 +605,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       {/* 节点右下角的**次要动作簇** */}
-      <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 nodrag nopan">
+      <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">
         {node.isStreaming ? (
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"

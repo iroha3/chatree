@@ -158,7 +158,7 @@ body {
 }
 
 .node-toolbar {
-  @apply opacity-0 transition-opacity duration-200;
+  @apply opacity-100 md:opacity-0 transition-opacity duration-200;
 }
 
 .react-flow__node:hover .node-toolbar {
@@ -173,13 +173,7 @@ body {
   display: flex;
   flex-direction: column;
   /* 固定宽度：ChatFlow.tsx 的树形布局是按固定宽度算子树宽度的，
-     节点宽度不固定会让兄弟节点重叠。改这里必须同步改 ChatFlow.tsx
-     里的 NODE_WIDTH 常量（两边必须一致）。
-     644px → 548px：用户反馈卡片太宽，缩了约 15%。
-     548px → 493px：用户又反馈还是宽，再缩 10%。
-     493px → 468px：再缩 5%。
-     468px → 516px：上一句方向说反了，实际是要**变宽** —— 在 468 上 +5% 两次
-     （468 × 1.05 × 1.05 ≈ 516，注意不是整 10%）。 */
+     节点宽度不固定会让兄弟节点重叠。桌面端 516px，移动端（< 640px）自适应为全屏留边距。 */
   width: 516px;
   min-width: 516px;
   max-width: 516px;
@@ -190,6 +184,16 @@ body {
   overflow: hidden;
   border-radius: 0.75rem;
 }
+
+@media (max-width: 640px) {
+  .node-content {
+    width: calc(100vw - 32px);
+    min-width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: min(720px, 80dvh);
+  }
+}
+
 
 /* 头部样式 */
 .chat-node-header {

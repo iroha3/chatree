@@ -123,6 +123,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     return () => window.removeEventListener('resize', close);
   }, [moveMenu]);
 
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleCreateSession = () => {
     // 一个模型都没有就先别建会话：建出来只会是个空画板（画布上一个节点都没有），
     // 新人看到白屏完全不知道下一步该干嘛。直接把他送到「设置 → 模型」。
@@ -148,6 +160,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
       folderId,
     };
     createSession(newSession);
+    if (isMobile) {
+      onToggleCollapse();
+    }
   };
 
   const handleStartEdit = (id: string, title: string) => {
@@ -238,7 +253,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   return (
     <div
       ref={sidebarRef}
-      className="sidebar w-64 h-full bg-white border-r border-neutral-200 flex flex-col z-10 relative"
+      className={`sidebar w-64 h-full bg-white border-r border-neutral-200 flex flex-col ${
+        isMobile ? 'fixed inset-y-0 left-0 z-30 shadow-2xl' : 'relative z-10'
+      }`}
     >
       <button
         className="absolute -right-3 top-4 bg-white p-1.5 rounded-full border border-neutral-200 shadow-minimal z-20"
@@ -445,7 +462,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 // 点击切会话：监听器挂在**整行**上。以前只挂在内层标题 div，
                 // 行的 px-3 / py-2 内边距和图标右侧的缝隙都是死区，
                 // 点到那里没反应 —— 表现就是「要点好几次才切得过去」。
-                onClick={() => setCurrentSessionId(session.id)}
+                onClick={() => {
+                  setCurrentSessionId(session.id);
+                  if (isMobile) onToggleCollapse();
+                }}
               >
                 {editingId === session.id ? (
                   <input

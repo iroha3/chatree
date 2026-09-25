@@ -85,6 +85,11 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         textareaRef.current.value.length,
         textareaRef.current.value.length
       );
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        setTimeout(() => {
+          textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
     }
   }, [isEditing]);
 
