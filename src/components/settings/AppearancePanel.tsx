@@ -17,8 +17,8 @@ const OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = [
 ];
 
 const GRID_OPTIONS: { value: GridStyle; label: string }[] = [
-  { value: 'none', label: '无网格' },
   { value: 'dots', label: '点状网格' },
+  { value: 'none', label: '无网格' },
 ];
 
 // 语言名用各自的母语写（中文 / English），不参与翻译 —— 否则英文界面里
