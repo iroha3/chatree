@@ -89,3 +89,5 @@ Open the address printed in the terminal (defaults to `http://127.0.0.1:5175`).
 Chatree is derived from [Anionex/treeAI](https://github.com/Anionex/treeAI) (MIT License). Grateful to the original authors for establishing the foundation.
 
 Released under the [GNU AGPLv3 License](LICENSE).
+
+<p align="center">Built with ❤️ by <a href="https://github.com/iroha3">iroha3</a></p>

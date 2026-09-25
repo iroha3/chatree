@@ -89,3 +89,5 @@ bun run dev
 Chatree 基于开源项目 [Anionex/treeAI](https://github.com/Anionex/treeAI)（MIT 协议）二次开发与演进，感谢原作者奠定的优秀基础。
 
 本项目采用 [GNU AGPLv3 许可证](LICENSE) 开源。
+
+<p align="center">由 <a href="https://github.com/iroha3">iroha3</a> 用 ❤️ 构建</p>
