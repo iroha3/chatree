@@ -5,6 +5,14 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.3.1] - 2026-09-25
+
+### Changed
+
+- **Refined UI copy and typography across all views.** Systematically removed redundant descriptions, conversational filler, and condescending tooltips to restore visual whitespace and restrained interaction design.
+- **Normalized engineering terminology.** Standardized `Token` capitalization, reasoning effort option labels (`Default (server default)`, `Off (none)`), and technical file validation notices in session backup transfer.
+- **Synchronized bilingual dictionaries.** Completely updated Chinese-to-English translation mappings to reflect all tightened phrases with zero translation key leaks.
+
 ## [0.3.0] - 2026-09-25
 
 ### Added
