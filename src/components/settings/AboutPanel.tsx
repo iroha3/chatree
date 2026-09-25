@@ -43,10 +43,15 @@ const AboutPanel: React.FC = () => {
   const [result, setResult] = useState<UpdateCheck | null>(null);
   const [checking, setChecking] = useState(false);
 
-  const runCheck = useCallback(async () => {
+  const runCheck = useCallback(async (force = false) => {
     if (!isDesktopApp()) return;
     setChecking(true);
-    setResult(await checkForUpdate(__APP_VERSION__));
+    // 增加 400ms 最小展示延迟，避免瞬间闪烁让用户无感知
+    const [res] = await Promise.all([
+      checkForUpdate(__APP_VERSION__, force),
+      new Promise(resolve => setTimeout(resolve, 400)),
+    ]);
+    setResult(res);
     setChecking(false);
   }, []);
 
@@ -65,7 +70,10 @@ const AboutPanel: React.FC = () => {
         {desktop && (
           <div className="mt-2 flex items-center justify-center text-xs">
             {checking ? (
-              <span className="text-neutral-400">{t('检查更新中…')}</span>
+              <span className="inline-flex items-center gap-1.5 text-neutral-400">
+                <RefreshCw size={12} className="animate-spin" />
+                {t('检查更新中…')}
+              </span>
             ) : result?.status === 'available' ? (
               <a
                 href={result.info.url}
@@ -77,17 +85,36 @@ const AboutPanel: React.FC = () => {
                 <Download size={12} />
                 {t('发现新版本')} v{result.info.latest} · {t('去下载')}
               </a>
-            ) : result ? (
+            ) : result?.status === 'latest' ? (
               <button
                 type="button"
-                onClick={() => void runCheck()}
+                onClick={() => void runCheck(true)}
                 className="inline-flex items-center gap-1 text-neutral-400 transition-colors hover:text-neutral-600"
                 title={t('重新检查')}
               >
                 <RefreshCw size={12} />
-                {result.status === 'latest' ? t('已是最新版本') : t('检查更新')}
+                {t('已是最新版本')}
               </button>
-            ) : null}
+            ) : result?.status === 'error' ? (
+              <button
+                type="button"
+                onClick={() => void runCheck(true)}
+                className="inline-flex items-center gap-1 text-amber-600/90 transition-colors hover:text-amber-700"
+                title={t('重新检查')}
+              >
+                <RefreshCw size={12} />
+                {t('检查失败，点击重试')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void runCheck(true)}
+                className="inline-flex items-center gap-1 text-neutral-400 transition-colors hover:text-neutral-600"
+              >
+                <RefreshCw size={12} />
+                {t('检查更新')}
+              </button>
+            )}
           </div>
         )}
         <p className="text-sm text-neutral-500 mt-3 leading-relaxed">

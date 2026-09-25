@@ -269,6 +269,7 @@ const en: Record<string, string> = {
   去下载: 'Download',
   已是最新版本: 'Up to date',
   检查更新: 'Check for updates',
+  '检查失败，点击重试': 'Check failed, click to retry',
   重新检查: 'Check again',
   用系统浏览器打开下载页: 'Open the download page in your system browser',
 

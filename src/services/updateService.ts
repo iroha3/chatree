@@ -64,29 +64,82 @@ interface GithubRelease {
   html_url?: unknown;
 }
 
+/** 缓存检查结果 5 分钟，避免频繁打开「关于」选项卡时消耗 GitHub 请求配额 */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let cachedCheck: { time: number; result: UpdateCheck } | null = null;
+
 /**
- * 查最新 release。失败区分开：没连上（error）不能骗用户说「已是最新版本」。
+ * 查最新版本。
+ * 策略：
+ * 1. 优先尝试 GitHub REST API（带 release 说明链接与 tag）；
+ * 2. 若 API 触发 403 限流或网络异常，回退到 raw.githubusercontent 检查 package.json 版本；
+ * 3. 结果在内存中缓存 5 分钟，避免频繁请求。
  */
-export async function checkForUpdate(current: string): Promise<UpdateCheck> {
+export async function checkForUpdate(current: string, force = false): Promise<UpdateCheck> {
+  const now = Date.now();
+  if (!force && cachedCheck && now - cachedCheck.time < CACHE_TTL_MS) {
+    return cachedCheck.result;
+  }
+
+  let result: UpdateCheck | null = null;
+
+  // 1. 优先尝试 GitHub REST API
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json' },
     });
     // 404 = 这个仓库还没发过 release，对用户来说就是「没有新版本」。
-    if (res.status === 404) return { status: 'latest' };
-    if (!res.ok) return { status: 'error' };
-    const data = (await res.json()) as GithubRelease;
-    const tag = typeof data.tag_name === 'string' ? data.tag_name : '';
-    if (!tag || !isNewerVersion(tag, current)) return { status: 'latest' };
-    return {
-      status: 'available',
-      info: {
-        current,
-        latest: tag.replace(/^v/i, ''),
-        url: typeof data.html_url === 'string' && data.html_url ? data.html_url : RELEASES_URL,
-      },
-    };
+    if (res.status === 404) {
+      result = { status: 'latest' };
+    } else if (res.ok) {
+      const data = (await res.json()) as GithubRelease;
+      const tag = typeof data.tag_name === 'string' ? data.tag_name : '';
+      if (!tag || !isNewerVersion(tag, current)) {
+        result = { status: 'latest' };
+      } else {
+        result = {
+          status: 'available',
+          info: {
+            current,
+            latest: tag.replace(/^v/i, ''),
+            url: typeof data.html_url === 'string' && data.html_url ? data.html_url : RELEASES_URL,
+          },
+        };
+      }
+    }
   } catch {
-    return { status: 'error' };
+    // 忽略并走 fallback
   }
+
+  // 2. 若 REST API 未能拿到结果（如 403 限流或网络阻断），尝试从 raw 读取 package.json
+  if (!result) {
+    try {
+      const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO}/master/package.json`);
+      if (rawRes.ok) {
+        const pkg = (await rawRes.json()) as { version?: string };
+        const remoteVersion = typeof pkg.version === 'string' ? pkg.version : '';
+        if (!remoteVersion || !isNewerVersion(remoteVersion, current)) {
+          result = { status: 'latest' };
+        } else {
+          result = {
+            status: 'available',
+            info: {
+              current,
+              latest: remoteVersion.replace(/^v/i, ''),
+              url: RELEASES_URL,
+            },
+          };
+        }
+      }
+    } catch {
+      // 仍然失败
+    }
+  }
+
+  if (!result) {
+    result = { status: 'error' };
+  }
+
+  cachedCheck = { time: now, result };
+  return result;
 }

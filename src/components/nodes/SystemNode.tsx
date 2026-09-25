@@ -186,7 +186,12 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         </div>
       )}
 
-      <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto">
+      <div
+        className="px-4 py-3 flex-1 min-h-0 overflow-y-auto nowheel"
+        onWheel={(e) => {
+          e.stopPropagation();
+        }}
+      >
         {isEditing ? (
           <textarea
             ref={textareaRef}
@@ -194,8 +199,11 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             onChange={(e) => setSystemPrompt(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full h-32 p-3 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
+            className="w-full h-32 p-3 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan nowheel resize-none overflow-y-auto"
             placeholder={t('输入系统提示词...')}
+            onWheel={(e) => {
+              e.stopPropagation();
+            }}
           />
         ) : (
           <div 

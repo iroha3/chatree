@@ -1361,9 +1361,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         {grid === 'dots' && (
           <Background
             variant={BackgroundVariant.Dots}
-            color={theme === 'dark' ? '#333333' : '#d4d4d4'}
-            gap={20}
-            size={1}
+            color={theme === 'dark' ? '#525252' : '#a3a3a3'}
+            gap={22}
+            size={1.5}
           />
         )}
         <Controls className="bg-white border border-neutral-200 rounded-md shadow-minimal" />
