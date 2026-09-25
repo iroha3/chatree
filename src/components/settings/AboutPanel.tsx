@@ -61,7 +61,7 @@ const AboutPanel: React.FC = () => {
           <Logo size={48} />
         </div>
         <h3 className="text-lg font-medium text-neutral-800">Chatree</h3>
-        <p className="text-xs text-neutral-400 mt-0.5">v{__APP_VERSION__} · MIT License</p>
+        <p className="text-xs text-neutral-400 mt-0.5">v{__APP_VERSION__}</p>
         {desktop && (
           <div className="mt-2 flex items-center justify-center text-xs">
             {checking ? (
@@ -126,19 +126,16 @@ const AboutPanel: React.FC = () => {
           <LinkButton href={PROJECT_URL} icon={<Github size={15} />}>
             {t('项目源码')}
           </LinkButton>
-          <LinkButton href={UPSTREAM_URL} icon={<Github size={15} />}>
-            {t('上游项目')}
-          </LinkButton>
         </div>
-        {/* 归属声明 */}
+        {/* 归属与许可声明 */}
         <div className="mt-3 rounded-md bg-neutral-50 p-3">
           <p className="text-xs text-neutral-500 leading-relaxed">
             {t('Chatree 基于开源项目')}
             <a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="mx-0.5 underline hover:text-neutral-700">Anionex/treeAI</a>
-            {t('（MIT 协议）二次开发与演进。')}
+            {t('（MIT 协议）二次开发与演进，感谢原作者奠定的优秀基础。')}
           </p>
           <p className="mt-1.5 text-xs text-neutral-400 leading-relaxed">
-            {t('保留了上游完整的版权许可与 Git 提交历史。')}
+            {t('本项目采用 GNU AGPLv3 协议开源，完整保留上游版权声明与提交历史。')}
           </p>
         </div>
       </section>

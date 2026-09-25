@@ -252,9 +252,10 @@ const en: Record<string, string> = {
   '所有会话与配置均保存在本地浏览器内，清除浏览数据将导致记录丢失。建议定期备份；API Key 不会包含在备份中。':
     'All sessions and configs are stored locally. Clearing browser data will erase them. Back up regularly; API keys are excluded.',
   'Chatree 基于开源项目': 'Chatree is derived from the open-source project ',
-  '（MIT 协议）二次开发与演进。': ' (MIT License).',
-  '保留了上游完整的版权许可与 Git 提交历史。':
-    'Upstream copyright notice and complete Git commit history are preserved.',
+  '（MIT 协议）二次开发与演进，感谢原作者奠定的优秀基础。':
+    ' (MIT License); grateful to the original author.',
+  '本项目采用 GNU AGPLv3 协议开源，完整保留上游版权声明与提交历史。':
+    'Chatree is licensed under GNU AGPLv3. Upstream copyright notice and commit history are preserved.',
   用: 'Built with ',
   构建: '',
   // 桌面端检查更新（AboutPanel）

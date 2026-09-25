@@ -6,7 +6,7 @@
     "bun": ">=1.1.0"
   },
   "description": "Chatree — a local-first visual workspace for branching, comparing, and exporting LLM conversation trees.",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iroha3/chatree.git"
