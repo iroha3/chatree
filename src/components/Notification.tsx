@@ -17,43 +17,43 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
     switch (type) {
       case 'info':
         return {
-          icon: <Info size={20} />,
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-400',
-          textColor: 'text-blue-700',
-          iconColor: 'text-blue-400'
+          icon: <Info size={15} />,
+          bgColor: 'bg-white',
+          borderColor: 'border-blue-200',
+          textColor: 'text-neutral-800',
+          iconColor: 'text-blue-500'
         };
       case 'success':
         return {
-          icon: <CheckCircle size={20} />,
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-400',
-          textColor: 'text-green-700',
-          iconColor: 'text-green-400'
+          icon: <CheckCircle size={15} />,
+          bgColor: 'bg-white',
+          borderColor: 'border-emerald-200',
+          textColor: 'text-neutral-800',
+          iconColor: 'text-emerald-500'
         };
       case 'warning':
         return {
-          icon: <AlertTriangle size={20} />,
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-400',
-          textColor: 'text-yellow-700',
-          iconColor: 'text-yellow-400'
+          icon: <AlertTriangle size={15} />,
+          bgColor: 'bg-white',
+          borderColor: 'border-amber-200',
+          textColor: 'text-neutral-800',
+          iconColor: 'text-amber-500'
         };
       case 'error':
         return {
-          icon: <AlertCircle size={20} />,
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-400',
-          textColor: 'text-red-700',
-          iconColor: 'text-red-400'
+          icon: <AlertCircle size={15} />,
+          bgColor: 'bg-white',
+          borderColor: 'border-red-200',
+          textColor: 'text-neutral-800',
+          iconColor: 'text-red-500'
         };
       default:
         return {
-          icon: <Info size={20} />,
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-400',
-          textColor: 'text-gray-700',
-          iconColor: 'text-gray-400'
+          icon: <Info size={15} />,
+          bgColor: 'bg-white',
+          borderColor: 'border-neutral-200',
+          textColor: 'text-neutral-800',
+          iconColor: 'text-neutral-500'
         };
     }
   };
@@ -66,15 +66,15 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
       gsap.fromTo(
         notificationRef.current,
         { 
-          x: 100, 
+          y: -16, 
           opacity: 0,
           scale: 0.95
         },
         { 
-          x: 0, 
+          y: 0, 
           opacity: 1, 
           scale: 1,
-          duration: 0.4,
+          duration: 0.25,
           ease: "power2.out"
         }
       );
@@ -85,53 +85,48 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
   useEffect(() => {
     if (isMarkedForRemoval && notificationRef.current) {
       gsap.to(notificationRef.current, {
-        x: 100,
+        y: -16,
         opacity: 0,
         scale: 0.95,
-        duration: 0.3,
+        duration: 0.2,
         ease: "power2.in",
         onComplete: onClose
       });
     }
   }, [isMarkedForRemoval, onClose]);
 
-  // 点击关闭按钮的动画
   const handleClose = () => {
-    // 标记为将要移除，触发动画
     useNotificationStore.getState().markNotificationForRemoval(notification.id);
   };
 
   return (
     <div
       ref={notificationRef}
-      className={`flex items-center justify-between p-4 mb-3 rounded-lg shadow-md border-l-4 ${styles.bgColor} ${styles.borderColor}`}
-      style={{ width: '400px' }}
+      className={`inline-flex items-center gap-2 px-3.5 py-2 mb-2 rounded-full md:rounded-lg shadow-lg border ${styles.bgColor} ${styles.borderColor} w-auto max-w-[calc(100vw-32px)] md:max-w-md pointer-events-auto transition-colors`}
     >
-      <div className="flex items-center">
-        <div className={`mr-3 ${styles.iconColor}`}>
-          {styles.icon}
-        </div>
-        <div className={`${styles.textColor} min-w-0 break-words`}>
-          {notification.message}
-        </div>
+      <div className={`shrink-0 ${styles.iconColor}`}>
+        {styles.icon}
       </div>
-      <div className="ml-4 flex shrink-0 items-center gap-1">
+      <div className={`${styles.textColor} text-xs md:text-sm font-medium truncate min-w-0`}>
+        {notification.message}
+      </div>
+      <div className="flex shrink-0 items-center gap-1 ml-1">
         {notification.actionLabel && notification.onAction && (
           <button
             onClick={() => {
               notification.onAction?.();
               handleClose();
             }}
-            className="rounded-md border border-black/10 px-2 py-0.5 text-xs font-medium hover:bg-black/5"
+            className="rounded border border-neutral-200 px-2 py-0.5 text-xs font-medium hover:bg-neutral-50 text-neutral-700"
           >
             {notification.actionLabel}
           </button>
         )}
         <button
           onClick={handleClose}
-          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+          className="text-neutral-400 hover:text-neutral-600 focus:outline-none p-0.5"
         >
-          <X size={18} />
+          <X size={14} />
         </button>
       </div>
     </div>
@@ -142,7 +137,7 @@ const NotificationContainer: React.FC = () => {
   const { notifications, removeNotification, notificationsToRemove } = useNotificationStore();
 
   return (
-    <div className="fixed top-4 right-4 z-[300] flex flex-col items-end">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 md:left-auto md:right-4 md:translate-x-0 z-[300] flex flex-col items-center md:items-end pointer-events-none">
       {notifications.map((notification) => (
         <NotificationItem
           key={notification.id}
@@ -155,4 +150,4 @@ const NotificationContainer: React.FC = () => {
   );
 };
 
-export default NotificationContainer; 
+export default NotificationContainer;
