@@ -3,17 +3,15 @@ import { Sun, Moon, Check } from 'lucide-react';
 import { useThemeStore, Theme } from '../../stores/themeStore';
 import { useLangStore, useT, Lang } from '../../i18n';
 
-const OPTIONS: { value: Theme; label: string; description: string; icon: React.ReactNode }[] = [
+const OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = [
   {
     value: 'light',
     label: '浅色',
-    description: '明亮的白色界面',
     icon: <Sun size={20} />,
   },
   {
     value: 'dark',
     label: '深色',
-    description: '夜间护眼的暗色界面',
     icon: <Moon size={20} />,
   },
 ];
@@ -33,10 +31,7 @@ const AppearancePanel: React.FC = () => {
   return (
     <div className="px-12 py-6 space-y-6 overflow-y-auto h-full">
       <section>
-        <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('主题')}</h3>
-        <p className="text-xs text-neutral-500 mb-4">
-          {t('选择界面配色。这个偏好保存在本地，下次打开仍然生效。')}
-        </p>
+        <h3 className="text-sm font-medium text-neutral-800 mb-3">{t('主题')}</h3>
         <div className="grid grid-cols-2 gap-4">
           {OPTIONS.map(option => {
             const active = theme === option.value;
@@ -58,7 +53,6 @@ const AppearancePanel: React.FC = () => {
                 )}
                 <span className="mb-2 text-neutral-700">{option.icon}</span>
                 <span className="text-sm font-medium text-neutral-800">{t(option.label)}</span>
-                <span className="mt-0.5 text-xs text-neutral-500">{t(option.description)}</span>
               </button>
             );
           })}
@@ -66,10 +60,7 @@ const AppearancePanel: React.FC = () => {
       </section>
 
       <section>
-        <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('语言')}</h3>
-        <p className="text-xs text-neutral-500 mb-4">
-          {t('选择界面语言。这个偏好保存在本地，下次打开仍然生效。')}
-        </p>
+        <h3 className="text-sm font-medium text-neutral-800 mb-3">{t('语言')}</h3>
         <div className="grid grid-cols-2 gap-4">
           {LANG_OPTIONS.map(option => {
             const active = lang === option.value;

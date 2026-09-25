@@ -62,7 +62,7 @@ const CopyButton: React.FC<CopyButtonProps> = ({ text, size = 14, label, classNa
   const handleCopy = () => {
     // 先给反馈，再复制：反馈不等剪贴板，任何权限/策略问题都不影响手感。
     setCopied(true);
-    showSuccess(t('内容已复制到剪贴板'));
+    showSuccess(t('已复制'));
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), 1500);
     writeClipboard(text);
@@ -73,7 +73,7 @@ const CopyButton: React.FC<CopyButtonProps> = ({ text, size = 14, label, classNa
       type="button"
       onClick={handleCopy}
       className={`nodrag nopan ${className}`}
-      title={title ?? t('复制到剪贴板')}
+      title={title ?? t('复制')}
     >
       {copied ? (
         <Check size={size} className="text-emerald-500" />

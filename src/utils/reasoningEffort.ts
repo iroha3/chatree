@@ -6,8 +6,8 @@ import { Model, ReasoningEffort } from '../types';
  * 不认识这个参数会直接返回 400，所以默认保持"不发送"最安全。
  */
 export const REASONING_EFFORT_OPTIONS: { value: ReasoningEffort; label: string }[] = [
-  { value: 'default', label: '默认（不发送该参数）' },
-  { value: 'none', label: '关闭思考 (none)' },
+  { value: 'default', label: '默认（服务端缺省）' },
+  { value: 'none', label: '关闭 (none)' },
   { value: 'low', label: '低 (low)' },
   { value: 'high', label: '高 (high)' },
   { value: 'max', label: '最高 (max)' },

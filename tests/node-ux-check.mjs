@@ -295,7 +295,7 @@ async function main() {
   await sleep(400);
   await move(4, 4); await sleep(200);
   const unstarred = await readStar();
-  check('再点变回气泡（取消收藏）', unstarred.title === '点击气泡收藏这个会话' && unstarred.bubbleShown && !unstarred.starShown, JSON.stringify(unstarred));
+  check('再点变回气泡（取消收藏）', unstarred.title === '收藏' && unstarred.bubbleShown && !unstarred.starShown, JSON.stringify(unstarred));
 
   // 回归：React Flow 自带的 Backspace 删除只改局部 nodes、不碰 store，
   // 也跳过确认 + 撤销；删完后再有任何 store 变化（比如点 +）节点会被渲染回来。

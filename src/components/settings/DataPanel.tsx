@@ -25,7 +25,7 @@ const DataPanel: React.FC = () => {
 
   const handleExportAll = () => {
     if (sessions.length === 0) {
-      showWarning(t('还没有会话可以导出'));
+      showWarning(t('暂无可导出的会话'));
       return;
     }
     // 带上模型配置（apiKey 会在 buildExportFile 里被清空）和文件夹，
@@ -73,17 +73,17 @@ const DataPanel: React.FC = () => {
     if (sessionResult.added === 0 && folderResult.added === 0 && modelResult.added === 0) {
       showWarning(
         sessionResult.skipped > 0
-          ? t('没有新增内容：这 {n} 个会话都已经存在了', { n: sessionResult.skipped })
-          : t('文件里没有可导入的内容')
+          ? t('没有新增内容：{n} 个会话均已存在', { n: sessionResult.skipped })
+          : t('文件中无有效内容')
       );
       return;
     }
 
     const parts: string[] = [];
     if (sessionResult.added > 0) parts.push(t('新增 {n} 个会话', { n: sessionResult.added }));
-    if (sessionResult.skipped > 0) parts.push(t('跳过 {n} 个已存在的', { n: sessionResult.skipped }));
+    if (sessionResult.skipped > 0) parts.push(t('跳过 {n} 个已存在会话', { n: sessionResult.skipped }));
     if (folderResult.added > 0) parts.push(t('新建 {n} 个文件夹', { n: folderResult.added }));
-    if (modelResult.added > 0) parts.push(t('导入 {n} 个模型配置（需重填 API Key）', { n: modelResult.added }));
+    if (modelResult.added > 0) parts.push(t('导入 {n} 个模型配置（需补充 API Key）', { n: modelResult.added }));
 
     showSuccess(t('导入完成：{parts}', { parts: parts.join(lang === 'zh' ? '，' : ', ') }));
   };
@@ -93,28 +93,28 @@ const DataPanel: React.FC = () => {
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('当前数据')}</h3>
         <p className="text-xs text-neutral-500 mb-3">
-          {t('所有数据都只存在这台浏览器的 IndexedDB 里，不会上传到任何服务器。')}
+          {t('数据仅保存在当前浏览器的 IndexedDB 中，不会上传至任何服务器。')}
         </p>
         <div className="grid grid-cols-3 gap-3">
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-neutral-100 bg-neutral-50">
             <Database size={18} className="text-neutral-400" />
             <div>
               <div className="text-lg font-medium text-neutral-800">{sessions.length}</div>
-              <div className="text-xs text-neutral-500">{t('个会话')}</div>
+              <div className="text-xs text-neutral-500">{t('会话')}</div>
             </div>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-neutral-100 bg-neutral-50">
             <Folder size={18} className="text-neutral-400" />
             <div>
               <div className="text-lg font-medium text-neutral-800">{folders.length}</div>
-              <div className="text-xs text-neutral-500">{t('个文件夹')}</div>
+              <div className="text-xs text-neutral-500">{t('文件夹')}</div>
             </div>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-neutral-100 bg-neutral-50">
             <KeyRound size={18} className="text-neutral-400" />
             <div>
               <div className="text-lg font-medium text-neutral-800">{models.length}</div>
-              <div className="text-xs text-neutral-500">{t('个模型配置')}</div>
+              <div className="text-xs text-neutral-500">{t('模型配置')}</div>
             </div>
           </div>
         </div>
@@ -123,22 +123,24 @@ const DataPanel: React.FC = () => {
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('备份')}</h3>
         <p className="text-xs text-neutral-500 mb-3">
-         {t('导出全部会话、文件夹与模型配置为一个 JSON 文件。换电脑、换浏览器时，拿它搬数据就行。')}
+          {t('将全部会话、文件夹及模型配置导出为一个 JSON 文件。')}
         </p>
         <button
           className="flex items-center space-x-2 px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 text-sm transition-colors"
           onClick={handleExportAll}
         >
           <Download size={15} />
-          <span>{t('导出全部会话')}</span>
+          <span>{t('导出完整备份')}</span>
         </button>
       </section>
 
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('恢复')}</h3>
         <p className="text-xs text-neutral-500 mb-3">
-          {t('选一个备份文件就能恢复。')}<strong className="font-medium">{t('新的全部会导入，已经有的自动跳过')}</strong>{t(' ——\n同一份文件重复导入、或者在几台设备之间来回互导，都不会重复、不会覆盖、不会越导越乱，放心导就行。')}
-          {t('出于安全考虑，备份文件里')}<strong className="font-medium">{t('不包含 API Key')}</strong>{t('，导入后需要重新填一次。')}
+          {t('导入备份文件以恢复数据。新数据将自动导入，已存在的项目自动跳过。')}
+          <span className="block mt-1 text-neutral-400">
+            {t('注：出于安全考虑，备份文件不包含 API Key，导入后需重新填写。')}
+          </span>
         </p>
         <button
           className="flex items-center space-x-2 px-4 py-2 border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 text-sm transition-colors"
@@ -153,7 +155,7 @@ const DataPanel: React.FC = () => {
         <div className="flex items-start space-x-2 text-xs text-neutral-400">
           <FileJson size={14} className="mt-0.5 shrink-0" />
           <p>
-            {t('只想导出某一个会话？在画布右上角点「分享」→「备份」即可。它和这里导出的是同一种文件，\n可以直接互相导入。')}
+            {t('如需导出单个会话，可在画布右上角选择「分享与导出 → JSON 备份」。格式与此处通用。')}
           </p>
         </div>
       </section>

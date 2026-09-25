@@ -420,7 +420,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               }
             }}
             className="w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
-            placeholder={t('在此输入您的消息...')}
+            placeholder={t('输入消息...')}
             onKeyDown={handleKeyDown}
             rows={3}
           />
@@ -430,7 +430,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap"
               onClick={() => setIsEditingUser(true)}
             >
-              {node.userMessage || <span className="text-neutral-400 italic">{t('点击添加消息...')}</span>}
+              {node.userMessage || <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
             </div>
             <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
               <CopyButton
@@ -470,7 +470,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       >
         {node.isStreaming ? (
           <div className="flex items-center space-x-2 text-neutral-500 mb-2">
-            <div className="animate-pulse">{t('AI 正在思考...')}</div>
+            <div className="animate-pulse">{t('思考中...')}</div>
             <div className="animate-bounce delay-100">.</div>
             <div className="animate-bounce delay-200">.</div>
             <div className="animate-bounce delay-300">.</div>
@@ -523,9 +523,6 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 editorId={`preview-${node.id}`}
                 modelValue={answerText}
                 theme={theme}
-                // mermaid 从 CDN 加载的体积高达 743KB（gzip），而且是不管内容里
-                // 有没有图都会加载。关掉后 mermaid 代码块会降级成普通代码块。
-                // 想要的话：本地打包 mermaid，删掉这行，再仿照 katex 加一套 shim。
                 noMermaid
                 className="md-preview overflow-auto break-words"
                 style={{ backgroundColor: 'transparent', maxWidth: '100%' }}
@@ -534,10 +531,8 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             </div>
           </div>
         ) : !node.isStreaming ? (
-          // 空态只留一行字：重试按钮在右下角的悬浮簇里，不在这儿再放一颗
-          // （用户要求重试和复制右对齐、同一列）。
           <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 text-sm italic text-neutral-400">
-            <span>{node.error ? t('请求失败，可重试') : t('AI回复将显示在这里')}</span>
+            <span>{node.error ? t('请求失败，可重试') : t('回答将显示在这里')}</span>
           </div>
         ) : null}
 
@@ -545,7 +540,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-neutral-100 text-[11px] text-neutral-400">
             <span>{t('{n} 字', { n: answerChars })}</span>
             {tokensPerSecond !== null && (
-              <span title={t('输出速度（含首字延迟）')}>~{tokensPerSecond} tok/s</span>
+              <span title={t('输出速度')}>~{tokensPerSecond} tok/s</span>
             )}
             {cacheRate !== null && (
               <span
@@ -556,12 +551,12 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
               </span>
             )}
             {usage && (
-              <span title={t('↑ 本次请求的全部输入 token（含系统提示词与历史）· ↓ 本次生成的输出 token')}>
+              <span title={t('↑ 输入 Token（含上下文）· ↓ 输出 Token')}>
                 ↑ {usage.promptTokens} tok · ↓ {usage.completionTokens} tok
               </span>
             )}
             {usage?.reasoningTokens ? (
-              <span title={t('思考消耗的 token')}>{t('思考 {n} tok', { n: usage.reasoningTokens })}</span>
+              <span title={t('思考 Token')}>{t('思考 {n} tok', { n: usage.reasoningTokens })}</span>
             ) : null}
           </div>
         ) : null}
@@ -574,20 +569,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       />
       </div>
 
-      {/* 节点右下角的**次要动作簇**：停止 / 重生成 / 复制 / 放大，悬停才出现。
-          右对齐到输入框里那颗发送按钮的同一条右边界。
-          注意是 `1.5rem + 1px`，不是单纯的 `right-6`：发送键在 `.node-content`
-          内部，额外多了一条 1px 边框的距离（发送键 = 边框 1 + px-4 16 + right-2 8 = 25px，
-          而这一层在 `.node-content` 之外，没有边框）。用 right-6 会差 1px。
-          绝对定位（在 .node-content 之外），不占布局高度。
-          别写 `bg-white/90` —— 它绕过了 `html.dark .bg-white` 覆盖，
-          夜里会变成一块亮白药丸。 */}
+      {/* 节点右下角的**次要动作簇** */}
       <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 nodrag nopan">
         {node.isStreaming ? (
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
             onClick={() => onStop(node.id)}
-            title={t('停止生成并保存已生成的内容')}
+            title={t('停止生成')}
           >
             <Square size={14} />
           </button>
@@ -595,7 +583,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
             onClick={() => onRetry(node.id)}
-            title={t('重新生成回复（另起一个新分支，保留当前回答）')}
+            title={t('重新生成分支')}
           >
             <RefreshCcw size={14} />
           </button>
@@ -610,16 +598,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <button
             className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
             onClick={() => setIsReading(true)}
-            title={t('放大阅读')}
+            title={t('展开阅读')}
           >
             <Maximize2 size={14} />
           </button>
         )}
       </div>
 
-      {/* 底部「+」悬浮在节点外沿上：绝对定位在 .node-content 之外（外层 wrapper
-          不能有 overflow:hidden，否则会被裁掉），因此不占任何布局高度。
-          压在底部连线上，视觉上像「从这条线继续长出去」。 */}
       <button
         type="button"
         className={`absolute -bottom-3.5 left-1/2 -translate-x-1/2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-colors ${
@@ -629,7 +614,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         }`}
         onClick={() => { if (hasAnswer) onAddChild(node.id); }}
         disabled={!hasAnswer}
-        title={hasAnswer ? t('添加子节点') : t('先让这个节点得到回答，再从这里追问')}
+        title={hasAnswer ? t('添加子节点') : t('需先生成回答')}
       >
         <Plus size={14} />
       </button>

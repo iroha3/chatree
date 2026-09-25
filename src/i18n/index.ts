@@ -45,18 +45,21 @@ const en: Record<string, string> = {
   模型设置: 'Model settings',
   删除节点: 'Delete node',
   添加子节点: 'Add child node',
-  '先让这个节点得到回答，再从这里追问': 'Get an answer first, then branch from here',
-  '重新生成回复（另起一个新分支，保留当前回答）':
-    'Regenerate (new sibling branch, keeps this answer)',
+  需先生成回答: 'Wait for reply before branching',
+  重新生成分支: 'Regenerate branch',
+  停止生成: 'Stop',
+  展开阅读: 'Expand reader',
+  复制: 'Copy',
+  已复制: 'Copied',
 
   // ── App ───────────────────────────────────────────────
   'Chatree - 让每个念头都能分叉': 'Chatree - Branch every line of thought',
   '加载中...': 'Loading...',
   '欢迎使用 Chatree': 'Welcome to Chatree',
-  '创建一个新会话，开始与 AI 进行树状结构的对话。':
-    'Create a session and start a tree-structured conversation with AI.',
-  设置模型: 'Set up a model',
-  创建新会话: 'New session',
+  '创建新会话，开始探索树状分支对话。':
+    'Create a session to explore branching conversations.',
+  配置模型: 'Configure model',
+  新建会话: 'New session',
   新会话: 'New Conversation',
 
   // ── Sidebar ───────────────────────────────────────────
@@ -65,9 +68,9 @@ const en: Record<string, string> = {
   会话已删除: 'Session deleted',
   '已创建文件夹「{name}」': 'Folder "{name}" created',
   文件夹已重命名: 'Folder renamed',
-  '删除文件夹「{name}」？\n里面的会话会移到「未分类」，不会被删除。':
-    'Delete folder "{name}"?\nIts sessions will move to "Uncategorized" — they will not be deleted.',
-  '文件夹已删除，会话已移到「未分类」': 'Folder deleted — its sessions moved to "Uncategorized"',
+  '删除文件夹「{name}」？\n其中的会话将移至「未分类」，不会被删除。':
+    'Delete folder "{name}"?\nIts sessions will move to "Uncategorized" and will not be deleted.',
+  '文件夹已删除，会话已移至「未分类」': 'Folder deleted — sessions moved to "Uncategorized"',
   '搜索标题或内容...': 'Search titles or content...',
   清除搜索: 'Clear search',
   显示全部会话: 'Show all sessions',
@@ -81,73 +84,67 @@ const en: Record<string, string> = {
   这个文件夹还是空的: 'This folder is empty',
   暂无会话: 'No sessions yet',
   取消收藏: 'Unstar',
+  收藏: 'Star',
   收藏会话: 'Star session',
-  '点击气泡收藏这个会话': 'Click the bubble to star this session',
   确定: 'Confirm',
   移动到文件夹: 'Move to folder',
   移动到: 'Move to',
-  '拖动会话到文件夹即可归类': 'Drag a session onto a folder to file it',
+  拖拽会话可归类至文件夹: 'Drag sessions to folders to categorize',
   切换到日间模式: 'Switch to light mode',
   切换到夜间模式: 'Switch to dark mode',
-  新建会话: 'New session',
 
   // ── ChatNode ──────────────────────────────────────────
-  内容已复制到剪贴板: 'Copied to clipboard',
   对话节点: 'Chat node',
   节点已删除: 'Node deleted',
   消息已保存: 'Message saved',
-  '在此输入您的消息...': 'Type your message...',
-  '点击添加消息...': 'Click to add message...',
-  'AI 正在思考...': 'AI is thinking...',
+  '输入消息...': 'Type a message...',
+  '点击输入消息...': 'Click to enter message...',
+  '思考中...': 'Thinking...',
   '思考过程': 'Reasoning',
   '思考过程 · {n} 字': 'Reasoning · {n} chars',
   '思考中…': 'Thinking…',
   停止: 'Stop',
-  '停止生成并保存已生成的内容': 'Stop and save what has been generated',
-  复制: 'Copy',
-  放大阅读: 'Expand to read',
   阅读: 'Read',
   '{n} 轮': '{n} turn(s)',
   '这条路径没有内容': 'This path is empty',
   '（空）': '(empty)',
   '分支 {i}/{n}': 'Branch {i}/{n}',
-  '从这条继续': 'Continue from here',
-  '继续往下滚，读下一轮': 'Keep scrolling to read the next turn',
-  '删除这个节点？': 'Delete this node?',
-  '删除这个节点？会连带删掉 {n} 个子节点。': 'Delete this node? Its {n} descendant(s) will be deleted too.',
+  选择分支继续: 'Continue from branch',
+  向下滚动阅读下一轮: 'Scroll down for next turn',
+  '确定删除该节点？': 'Delete this node?',
+  '确定删除该节点？将连带删除其 {n} 个子节点。': 'Delete this node? Its {n} descendant(s) will be deleted.',
   已删除节点: 'Node deleted',
-  '已删除节点及其 {n} 个子节点': 'Node and its {n} descendant(s) deleted',
+  '已删除节点及 {n} 个子节点': 'Node and {n} descendant(s) deleted',
   撤销: 'Undo',
   '请求失败，可重试': 'Request failed — you can retry',
-  AI回复将显示在这里: 'The AI reply will appear here',
+  回答将显示在这里: 'Response will appear here',
   '{n} 字': '{n} chars',
-  '输出速度（含首字延迟）': 'Output speed (incl. first-token latency)',
+  输出速度: 'Speed',
   '命中缓存 {hit} tok，未命中 {miss} tok': 'cache hit {hit} tok, miss {miss} tok',
   '缓存 {n}%': 'Cache {n}%',
-  '↑ 本次请求的全部输入 token（含系统提示词与历史）· ↓ 本次生成的输出 token':
-    '↑ all input tokens for this request (system prompt + history) · ↓ output tokens generated',
-  '思考消耗的 token': 'Reasoning tokens',
+  '↑ 输入 Token（含上下文）· ↓ 输出 Token':
+    '↑ Input tokens (with context) · ↓ Output tokens',
+  '思考 Token': 'Reasoning tokens',
   '思考 {n} tok': 'Thinking {n} tok',
   发送: 'Send',
 
   // ── SystemNode ────────────────────────────────────────
   系统提示词: 'System prompt',
-  '在此输入系统提示词...': 'Type the system prompt here...',
-  '点击添加系统提示词...': 'Click to add a system prompt...',
+  '输入系统提示词...': 'Enter system prompt...',
+  '点击输入系统提示词...': 'Click to enter system prompt...',
 
   // ── ChatFlow ──────────────────────────────────────────
-  '该节点引用的模型不存在，请在节点设置里重新选一个模型':
-    "This node's model no longer exists — pick another one in the node settings",
-  '已创建新分支，正在重新生成…': 'New branch created, regenerating…',
-  '已切换到 {name}，系统提示词一并更新': 'Switched to {name}; system prompt updated too',
-  '已切换到模型: {name}': 'Switched to model: {name}',
+  '当前模型不存在，请重新选择': "Current model not found, please select another",
+  '已创建新分支，正在生成…': 'New branch created, generating…',
+  '已切换至 {name}（系统提示词已更新）': 'Switched to {name} (system prompt updated)',
+  '已切换至模型 {name}': 'Switched to model: {name}',
   导出成功: 'Exported',
   '导出失败: {msg}': 'Export failed: {msg}',
   会话已导出: 'Session exported',
   会话统计: 'Session stats',
   分享与导出: 'Share & export',
-  '备份（JSON，可再导入）': 'Backup (JSON, re-importable)',
-  '思维导图（.mm）': 'Mind map (.mm)',
+  'JSON 备份': 'JSON Backup',
+  '思维导图 (.mm)': 'Mind map (.mm)',
   重新排布节点: 'Re-layout nodes',
 
   // ── SessionStats ──────────────────────────────────────
@@ -156,16 +153,15 @@ const en: Record<string, string> = {
   回答: 'Answers',
   分支: 'Branches',
   分支点: 'Branch points',
-  '同一父节点下第 2 个及以后的孩子': '2nd and later children of the same parent',
-  '有 2 个以上孩子的节点数': 'Nodes with 2+ children',
-  '↑ 输入 token': '↑ Input tokens',
-  '本次请求的全部输入 token（含系统提示词与历史）': 'All input tokens for this request (system prompt + history)',
-  '↓ 输出 token': '↓ Output tokens',
-  '模型生成的 token': 'Tokens generated by the model',
-  '思考 token': 'Reasoning tokens',
+  同一父节点下的后续衍生分支: 'Subsequent sibling branches',
+  产生分支的节点数量: 'Nodes with multiple branches',
+  '↑ 输入 Token': '↑ Input tokens',
+  '累计输入 Token（含系统提示词与上下文）': 'Total input tokens (system prompt + history)',
+  '↓ 输出 Token': '↓ Output tokens',
+  '累计输出 Token': 'Total output tokens generated',
   缓存命中: 'Cache hit',
   计费次数: 'Billed calls',
-  '有 token 用量的回答数': 'Answers with token usage',
+  '产生 Token 消耗的回答数': 'Answers with token usage',
   回答字数: 'Answer characters',
 
   // ── Settings ──────────────────────────────────────────
@@ -175,13 +171,7 @@ const en: Record<string, string> = {
   语言: 'Language',
   主题: 'Theme',
   浅色: 'Light',
-  明亮的白色界面: 'Bright, light interface',
   深色: 'Dark',
-  夜间护眼的暗色界面: 'Dark, easy-on-the-eyes interface',
-  '选择界面配色。这个偏好保存在本地，下次打开仍然生效。':
-    'Choose the interface colors. This preference is saved locally and kept next time.',
-  '选择界面语言。这个偏好保存在本地，下次打开仍然生效。':
-    'Choose the interface language. This preference is saved locally and kept next time.',
 
   // ── ModelsPanel ───────────────────────────────────────
   '确定要删除这个模型吗？': 'Delete this model?',
@@ -191,91 +181,80 @@ const en: Record<string, string> = {
   模型名称: 'Name',
   'API 地址': 'API base URL',
   'API 密钥': 'API key',
-  '模型标识 (例如: gpt-4)': 'Model ID (e.g. gpt-4)',
-  '思考强度 (reasoning_effort)': 'Reasoning effort (reasoning_effort)',
-  'DeepSeek V4 起 thinking 默认开启且 effort=high。聊天场景建议 low：思考量小、响应快、输出 token 便宜。':
-    'Since DeepSeek V4, thinking is on by default with effort=high. For chat, low is recommended: less thinking, faster replies, cheaper output tokens.',
+  '模型标识（Model ID）': 'Model ID',
+  '思考强度（Reasoning Effort）': 'Reasoning effort',
+  '拖拽可调整排序，首位模型为新建会话的默认项。':
+    'Drag to reorder; the first model is used by default for new conversations.',
   默认系统提示词: 'Default system prompt',
   '（可留空）': '(optional)',
   '留空则不发送 system 消息': 'If empty, no system message is sent',
   默认温度: 'Default temperature',
   默认最大令牌数: 'Default max tokens',
+  '单次最大生成 Token（256–{max}）': 'Max tokens per reply (256–{max})',
   保存模型: 'Save model',
   模型配置: 'Model settings',
-  '从左侧列表选择一个模型进行编辑，或创建一个新模型。':
-    'Select a model on the left to edit, or create a new one.',
-  添加新模型: 'Add model',
-  '拖动调整顺序，': 'Drag to reorder. ',
-  '第一项就是默认模型': 'the first item is the default model',
-  '，新建对话会自动使用它。': ', used automatically for new conversations.',
+  '从左侧选择模型编辑，或添加新模型。':
+    'Select a model on the left to edit, or add a new one.',
+  添加模型: 'Add model',
 
   // ── DataPanel ─────────────────────────────────────────
-  还没有会话可以导出: 'No sessions to export yet',
+  暂无可导出的会话: 'No sessions to export yet',
   '已导出 {n} 个会话': 'Exported {n} sessions',
   读取文件失败: 'Failed to read the file',
   '导入失败：{msg}': 'Import failed: {msg}',
-  '没有新增内容：这 {n} 个会话都已经存在了': 'Nothing new: these {n} sessions already exist',
-  文件里没有可导入的内容: 'Nothing to import in this file',
+  '没有新增内容：{n} 个会话均已存在': 'Nothing new: all {n} sessions already exist',
+  文件中无有效内容: 'No importable content in this file',
   '新增 {n} 个会话': '{n} sessions added',
-  '跳过 {n} 个已存在的': '{n} existing skipped',
+  '跳过 {n} 个已存在会话': '{n} existing skipped',
   '新建 {n} 个文件夹': '{n} folders created',
-  '导入 {n} 个模型配置（需重填 API Key）': '{n} model configs imported (re-enter API keys)',
+  '导入 {n} 个模型配置（需补充 API Key）': '{n} model configs imported (API keys required)',
   '导入完成：{parts}': 'Import complete: {parts}',
   当前数据: 'Current data',
-  '所有数据都只存在这台浏览器的 IndexedDB 里，不会上传到任何服务器。':
-    "All data lives only in this browser's IndexedDB — nothing is uploaded to any server.",
-  个会话: 'sessions',
-  个文件夹: 'folders',
-  个模型配置: 'model configs',
+  '数据仅保存在当前浏览器的 IndexedDB 中，不会上传至任何服务器。':
+    'Data is stored locally in IndexedDB and never uploaded.',
+  会话: 'Sessions',
+  文件夹: 'Folders',
   备份: 'Backup',
-  '导出全部会话、文件夹与模型配置为一个 JSON 文件。换电脑、换浏览器时，拿它搬数据就行。':
-    'Export all sessions, folders, and model configs into one JSON file. Use it to move your data across computers or browsers.',
-  导出全部会话: 'Export all sessions',
+  '将全部会话、文件夹及模型配置导出为一个 JSON 文件。':
+    'Export all sessions, folders, and model configs into a single JSON file.',
+  导出完整备份: 'Export backup',
   恢复: 'Restore',
-  '选一个备份文件就能恢复。': 'Pick a backup file to restore. ',
-  '新的全部会导入，已经有的自动跳过': 'Everything new is imported; existing items are skipped',
-  ' ——\n同一份文件重复导入、或者在几台设备之间来回互导，都不会重复、不会覆盖、不会越导越乱，放心导就行。':
-    ' —\nImporting the same file twice, or bouncing between devices, never duplicates, overwrites, or makes a mess.',
-  '出于安全考虑，备份文件里': 'For security, backup files ',
-  '不包含 API Key': 'do not contain API keys',
-  '，导入后需要重新填一次。': '; re-enter them after import.',
+  '导入备份文件以恢复数据。新数据将自动导入，已存在的项目自动跳过。':
+    'Import a backup file to restore. New items will be imported; existing items are skipped.',
+  '注：出于安全考虑，备份文件不包含 API Key，导入后需重新填写。':
+    'Note: For security, backup files do not contain API keys and must be re-entered.',
   导入备份: 'Import backup',
-  '只想导出某一个会话？在画布右上角点「分享」→「备份」即可。它和这里导出的是同一种文件，\n可以直接互相导入。':
-    'Want just one session? Click "Share" → "Backup" at the top-right of the canvas. It is the same file format and the two can import each other.',
+  '如需导出单个会话，可在画布右上角选择「分享与导出 → JSON 备份」。格式与此处通用。':
+    'To export a single session, select "Share & Export → JSON Backup" on the canvas. Both formats are compatible.',
 
   // ── AboutPanel ────────────────────────────────────────
-  它能做什么: 'What it does',
+  核心特性: 'Key Features',
   数据与隐私: 'Data & privacy',
   项目链接: 'Links',
-  本项目源码: 'This project',
+  项目源码: 'Project source',
   上游项目: 'Upstream project',
-  '一个把线性对话变成画布的本地优先工作台。':
-    'A local-first workbench that turns linear chat into a canvas.',
-  '每个回答都可以继续分叉，把「换一种问法」「换一个模型」变成可以对照的树。':
-    'Every answer can branch further, turning "ask differently" and "try another model" into trees you can compare side by side.',
-  '树状分支对话：同一个问题可以有很多种回答，并排比较':
-    'Tree branching: one question can have many answers, compared side by side',
-  '任意 OpenAI 兼容服务：DeepSeek / OpenAI / Ollama / 各种兼容层':
-    'Any OpenAI-compatible service: DeepSeek / OpenAI / Ollama / compatibility layers',
-  '推理模型友好：思考链实时显示、可回看，推理强度可配':
-    'Reasoning-friendly: live chain-of-thought, replayable, configurable effort',
-  '每条回答的 token 用量与缓存命中率统计':
-    'Per-answer token usage and cache-hit stats',
-  '本地优先：数据只存在浏览器的 IndexedDB，不上传任何服务器':
-    "Local-first: data lives only in the browser's IndexedDB, never uploaded",
-  '完全离线运行：零第三方 CDN 请求，可部署到内网':
-    'Fully offline: zero third-party CDN requests, deployable on an intranet',
-  'JSON 备份与恢复，单个会话也能单独导出':
-    'JSON backup and restore, plus per-session export',
-  '会话与模型配置都保存在这台浏览器里，卸载或清理浏览器数据会一并删除，':
-    'Sessions and model configs are saved in this browser; uninstalling or clearing browser data deletes them too. ',
-  '请定期用「设置 → 数据」导出备份。API Key 绝不会进入备份文件。':
-    'Back up regularly via Settings → Data. API keys never enter backup files.',
-  'Chatree 是基于': 'Chatree is a derivative work based on ',
-  '的衍生作品（MIT）：树状对话模型、本地优先的 IndexedDB 架构、最初的画布都来自上游。':
-    ' (MIT). The conversation-tree model, the local-first IndexedDB architecture, and the original canvas all come from upstream.',
-  '上游的版权声明原样保留在 LICENSE 里，完整提交历史也一并保留 —— git log 里能看到每一行是谁写的。':
-    "Upstream's copyright notice is kept verbatim in LICENSE, and the full commit history is preserved — `git log` shows who wrote what.",
+  '面向分支思考的本地优先对话画布。支持从任意节点分叉探索，并排对比不同思路与模型输出。':
+    'A local-first visual canvas for branching thoughts and comparing LLM responses.',
+  '树状分支探索：支持从任意节点分叉并排对比':
+    'Tree branching: branch from any node and compare side by side',
+  '模型广泛兼容：支持 DeepSeek、OpenAI、Ollama 等兼容接口':
+    'Broad model compatibility: DeepSeek, OpenAI, Ollama, and OpenAI-compatible APIs',
+  '深度推理支持：实时展示思考链并支持调节推理强度':
+    'Reasoning support: live chain-of-thought with configurable effort',
+  '用量与缓存统计：记录 Token 消耗与上下文缓存命中率':
+    'Usage & cache: track token usage and context cache hits',
+  '本地优先架构：数据仅留存于浏览器 IndexedDB，离线安全':
+    'Local-first: data stays inside browser IndexedDB, completely offline and secure',
+  '独立离线运行：无第三方 CDN 依赖，支持内网部署':
+    'Fully offline: zero third-party CDN requests, intranet-ready',
+  '灵活备份导入：支持全局完整备份与单会话独立导入导出':
+    'Flexible backup: workspace backup and single-session import/export',
+  '所有会话与配置均保存在本地浏览器内，清除浏览数据将导致记录丢失。建议定期备份；API Key 不会包含在备份中。':
+    'All sessions and configs are stored locally. Clearing browser data will erase them. Back up regularly; API keys are excluded.',
+  'Chatree 基于开源项目': 'Chatree is derived from the open-source project ',
+  '（MIT 协议）二次开发与演进。': ' (MIT License).',
+  '保留了上游完整的版权许可与 Git 提交历史。':
+    'Upstream copyright notice and complete Git commit history are preserved.',
   用: 'Built with ',
   构建: '',
   // 桌面端检查更新（AboutPanel）
@@ -288,21 +267,21 @@ const en: Record<string, string> = {
   用系统浏览器打开下载页: 'Open the download page in your system browser',
 
   // ── reasoningEffort ───────────────────────────────────
-  '默认（不发送该参数）': 'Default (do not send the parameter)',
-  '关闭思考 (none)': 'Off (none)',
+  '默认（服务端缺省）': 'Default (server default)',
+  '关闭 (none)': 'Off (none)',
   '低 (low)': 'Low (low)',
   '高 (high)': 'High (high)',
   '最高 (max)': 'Max (max)',
 
   // ── sessionTransfer ───────────────────────────────────
-  '不是有效的 JSON 文件': 'Not a valid JSON file',
-  '文件内容不是一个对象': 'The file content is not an object',
-  '这不是 Chatree 导出的备份文件': 'This is not a backup exported by Chatree',
-  '文件缺少版本号': 'The file has no version number',
-  '文件版本 v{v} 比当前程序新（最高支持 v{max}），请先升级':
-    'File version v{v} is newer than this app (max v{max}); please update first',
-  '文件里没有 sessions 数组': 'The file has no sessions array',
-  '文件里没有有效的会话': 'The file has no valid sessions',
+  '无效的 JSON 文件': 'Invalid JSON file',
+  '文件格式错误（根结构无效）': 'Invalid file structure',
+  '非 Chatree 备份文件': 'Not a Chatree backup file',
+  '文件缺少版本信息': 'Missing version information',
+  '文件版本 (v{v}) 高于当前应用版本 (最高支持 v{max})，请更新后导入':
+    'File version (v{v}) is newer than app (max supported v{max}); please update first',
+  '文件中未包含会话数据': 'No sessions found in file',
+  '未包含有效会话': 'No valid sessions in file',
 
   // ── modelStore ────────────────────────────────────────
   模型创建成功: 'Model created',
@@ -314,21 +293,20 @@ const en: Record<string, string> = {
   '调整顺序失败: {msg}': 'Failed to reorder: {msg}',
 
   // ── 思考强度说明（跟着档位变） ────────────────────────
-  '不发送 reasoning_effort，交给服务端默认行为，不确定就选这个。':
-    'Do not send reasoning_effort; let the server decide. Pick this if unsure.',
-  '不思考，最快最省 token，适合闲聊、翻译、改写。':
-    'No thinking. Fastest and cheapest — good for chit-chat, translation and rewriting.',
-  '思考量小，响应快、便宜，日常聊天够用。':
-    'Light thinking: fast, cheap, and plenty for everyday chat.',
-  '先想得更深再回答，效果更好，适合复杂推理、代码和长文。':
-    'Thinks deeper before answering. Better results for hard reasoning, code and long text.',
-  '思考预算拉满，效果上限最高，也最慢最贵，留给真正难的问题。':
-    'Maximum thinking budget: the best results, but the slowest and priciest. Save it for genuinely hard problems.',
+  '不显式传参，使用服务端默认设置。':
+    'Do not send reasoning_effort; use server defaults.',
+  '关闭思考，响应最快且消耗最少 Token。':
+    'Disable reasoning; fastest and lowest token cost.',
+  '较少思考，平衡响应速度与成本。':
+    'Low reasoning effort; fast and cost-effective.',
+  '深度思考，适合复杂推理与编程任务。':
+    'High reasoning effort; best for complex logic and code.',
+  '最大思考深度，适用于高难度复杂任务。':
+    'Maximum reasoning effort; for demanding challenges.',
 
   // ── 没有模型时的空状态 ──────────────────────────────
-  还没有可用的模型: 'No model available yet',
-  '先添加一个模型，再开始对话。': 'Add a model first, then start chatting.',
-  去设置模型: 'Set up a model',
+  暂无可用模型: 'No models configured',
+  '请先配置模型后再开始对话。': 'Please configure a model to start.',
 };
 
 function interpolate(s: string, vars?: Record<string, string | number>): string {

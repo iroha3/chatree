@@ -21,11 +21,11 @@ import { generateId } from '../../utils/id';
  * 这一档到底换来什么。
  */
 const EFFORT_HINTS: Record<ReasoningEffort, string> = {
-  default: '不发送 reasoning_effort，交给服务端默认行为，不确定就选这个。',
-  none: '不思考，最快最省 token，适合闲聊、翻译、改写。',
-  low: '思考量小，响应快、便宜，日常聊天够用。',
-  high: '先想得更深再回答，效果更好，适合复杂推理、代码和长文。',
-  max: '思考预算拉满，效果上限最高，也最慢最贵，留给真正难的问题。',
+  default: '不显式传参，使用服务端默认设置。',
+  none: '关闭思考，响应最快且消耗最少 Token。',
+  low: '较少思考，平衡响应速度与成本。',
+  high: '深度思考，适合复杂推理与编程任务。',
+  max: '最大思考深度，适用于高难度复杂任务。',
 };
 
 /**
@@ -129,7 +129,7 @@ const ModelsPanel: React.FC = () => {
 
         {models.length > 1 && (
           <p className="mb-2 text-xs text-neutral-400 leading-relaxed">
-            {t('拖动调整顺序，')}<span className="text-neutral-600">{t('第一项就是默认模型')}</span>{t('，新建对话会自动使用它。')}
+            {t('拖拽可调整排序，首位模型为新建会话的默认项。')}
           </p>
         )}
 
@@ -151,13 +151,11 @@ const ModelsPanel: React.FC = () => {
                 onDragOver={(e) => { e.preventDefault(); setDragOverId(model.id); }}
                 onDragLeave={() => setDragOverId(prev => (prev === model.id ? null : prev))}
                 onDrop={(e) => { e.preventDefault(); handleDropOnModel(model.id); }}
-                className={`py-2 px-2 rounded-md cursor-pointer flex justify-between items-center border ${
-                  dragOverId === model.id && dragId && dragId !== model.id
+                className={`py-2 px-2 rounded-md cursor-pointer flex justify-between items-center border ${dragOverId === model.id && dragId && dragId !== model.id
                     ? 'border-amber-300 bg-amber-50'
                     : 'border-transparent'
-                } ${
-                  editingModel?.id === model.id ? 'bg-neutral-100 text-neutral-900' : 'hover:bg-neutral-50 text-neutral-600'
-                } ${dragId === model.id ? 'opacity-50' : ''}`}
+                  } ${editingModel?.id === model.id ? 'bg-neutral-100 text-neutral-900' : 'hover:bg-neutral-50 text-neutral-600'
+                  } ${dragId === model.id ? 'opacity-50' : ''}`}
                 onClick={() => handleEditModel(model)}
               >
                 <span className="flex items-center gap-1.5 min-w-0">
@@ -234,20 +232,21 @@ const ModelsPanel: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-neutral-700 mb-1">
-                {t('模型标识 (例如: gpt-4)')}
+                {t('模型标识（Model ID）')}
               </label>
               <input
                 type="text"
                 value={editingModel.modelName}
                 onChange={(e) => setEditingModel({ ...editingModel, modelName: e.target.value })}
                 className="w-full p-2 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                placeholder="gpt-4 / deepseek-flash"
                 required
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-neutral-700 mb-1">
-                {t('思考强度 (reasoning_effort)')}
+                {t('思考强度（Reasoning Effort）')}
               </label>
               <select
                 value={editingModel.reasoningEffort ?? resolveReasoningEffort(editingModel)}
@@ -324,7 +323,7 @@ const ModelsPanel: React.FC = () => {
                   className="w-full p-1.5 text-xs border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 />
                 <p className="mt-1 text-xs text-neutral-400">
-                  {t('单次回复最多允许多少 token（256–{max}）', { max: MAX_TOKENS_LIMIT })}
+                  {t('单次最大生成 Token（256–{max}）', { max: MAX_TOKENS_LIMIT })}
                 </p>
               </div>
             </div>
@@ -351,14 +350,14 @@ const ModelsPanel: React.FC = () => {
             <div className="text-center p-6 bg-neutral-50 rounded-lg border border-neutral-100 max-w-md">
               <h3 className="text-base font-medium text-neutral-700 mb-2">{t('模型配置')}</h3>
               <p className="mb-4 text-sm text-neutral-500">
-                {t('从左侧列表选择一个模型进行编辑，或创建一个新模型。')}
+                {t('从左侧选择模型编辑，或添加新模型。')}
               </p>
               <button
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 text-sm transition-colors"
                 onClick={handleAddModel}
               >
                 <Plus size={14} />
-                <span>{t('添加新模型')}</span>
+                <span>{t('添加模型')}</span>
               </button>
             </div>
           </div>

@@ -182,7 +182,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
             className="w-full h-32 p-3 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
-            placeholder={t('在此输入系统提示词...')}
+            placeholder={t('输入系统提示词...')}
           />
         ) : (
           <div 
@@ -192,7 +192,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           >
             {node.userMessage || (
               <span className="text-neutral-400 italic">
-                {t('点击添加系统提示词...')}
+                {t('点击输入系统提示词...')}
               </span>
             )}
           </div>

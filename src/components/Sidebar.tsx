@@ -188,14 +188,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     // 会话不会被删，只是回到「未分类」，所以这里说清楚，避免用户以为连聊天记录一起没了
     const ok = await requestConfirm({
       title: t('删除文件夹'),
-      message: t('删除文件夹「{name}」？\n里面的会话会移到「未分类」，不会被删除。', { name }),
+      message: t('删除文件夹「{name}」？\n其中的会话将移至「未分类」，不会被删除。', { name }),
       confirmLabel: t('删除'),
       cancelLabel: t('取消'),
       danger: true,
     });
     if (!ok) return;
     await deleteFolder(id);
-    showInfo(t('文件夹已删除，会话已移到「未分类」'));
+    showInfo(t('文件夹已删除，会话已移至「未分类」'));
   };
 
   const handleDropOnFolder = (e: React.DragEvent, target: MoveTarget) => {
@@ -454,7 +454,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       e.stopPropagation();
                       toggleStarred(session.id);
                     }}
-                    title={session.starred ? t('取消收藏') : t('点击气泡收藏这个会话')}
+                    title={session.starred ? t('取消收藏') : t('收藏')}
                   >
                     {session.starred ? (
                       <Star size={16} fill="currentColor" />
@@ -524,7 +524,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
 
       {hasFolders && (
         <div className="px-4 pb-1 text-[11px] text-neutral-300 text-center">
-          {t('拖动会话到文件夹即可归类')}
+          {t('拖拽会话可归类至文件夹')}
         </div>
       )}
 

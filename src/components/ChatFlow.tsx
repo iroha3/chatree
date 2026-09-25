@@ -599,8 +599,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     void requestConfirm({
       title: t('删除节点'),
       message: descendants > 0
-        ? t('删除这个节点？会连带删掉 {n} 个子节点。', { n: descendants })
-        : t('删除这个节点？'),
+        ? t('确定删除该节点？将连带删除其 {n} 个子节点。', { n: descendants })
+        : t('确定删除该节点？'),
       confirmLabel: t('删除'),
       cancelLabel: t('取消'),
       danger: true,
@@ -618,7 +618,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
       showUndo(
         descendants > 0
-          ? t('已删除节点及其 {n} 个子节点', { n: descendants })
+          ? t('已删除节点及 {n} 个子节点', { n: descendants })
           : t('已删除节点'),
         t('撤销'),
         () => {
@@ -648,9 +648,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     const model = models.find(m => m.id === node.modelId);
     if (!model) {
-      // 以前这里是静默 return —— 点了「重新生成」什么都不发生，也没任何提示。
-      // 导入的备份最容易撞上：文件里的模型没一起导入时 modelId 是悬空的。
-      showError(t('该节点引用的模型不存在，请在节点设置里重新选一个模型'));
+      showError(t('当前模型不存在，请重新选择'));
       return;
     }
 
@@ -831,7 +829,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     const model = models.find(m => m.id === node.modelId);
     if (!model) {
-      showError(t('该节点引用的模型不存在，请在节点设置里重新选一个模型'));
+      showError(t('当前模型不存在，请重新选择'));
       return;
     }
 
@@ -850,7 +848,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
       addNodeToSession(sessionId, branch);
       setPendingFocusId(branch.id);
-      showInfo(t('已创建新分支，正在重新生成…'));
+      showInfo(t('已创建新分支，正在生成…'));
       // 拼消息链需要包含新分支自己的 userMessage，所以显式把它带进快照
       void runNodeGeneration(branch.id, [...session.nodes, branch]);
       return;
@@ -882,7 +880,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     const model = models.find(m => m.id === node.modelId);
     if (!model) {
-      showError(t('该节点引用的模型不存在，请在节点设置里重新选一个模型'));
+      showError(t('当前模型不存在，请重新选择'));
       return;
     }
 
@@ -947,8 +945,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     // 提示统一从这里发：只有这里才知道系统提示词有没有被一并替换
     showInfo(
       promptReplaced
-        ? t('已切换到 {name}，系统提示词一并更新', { name: nextModel.name })
-        : t('已切换到模型: {name}', { name: nextModel.name })
+        ? t('已切换至 {name}（系统提示词已更新）', { name: nextModel.name })
+        : t('已切换至模型 {name}', { name: nextModel.name })
     );
   };
 
@@ -1235,14 +1233,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
                 onClick={() => { setShowExportMenu(false); handleExportSession(); }}
               >
                 <FileJson size={14} className="shrink-0 text-neutral-500" />
-                <span>{t('备份（JSON，可再导入）')}</span>
+                <span>{t('JSON 备份')}</span>
               </button>
               <button
                 className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => { setShowExportMenu(false); handleExport(); }}
               >
                 <Network size={14} className="shrink-0 text-neutral-500" />
-                <span>{t('思维导图（.mm）')}</span>
+                <span>{t('思维导图 (.mm)')}</span>
               </button>
             </div>
           )}
@@ -1315,14 +1313,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       {models.length === 0 && (
         <div className="absolute inset-0 z-20 flex items-center justify-center">
           <div className="max-w-sm rounded-lg border border-neutral-100 bg-white p-6 text-center shadow-subtle">
-            <h3 className="mb-2 text-base font-medium text-neutral-800">{t('还没有可用的模型')}</h3>
-            <p className="mb-4 text-sm text-neutral-500">{t('先添加一个模型，再开始对话。')}</p>
+            <h3 className="mb-2 text-base font-medium text-neutral-800">{t('暂无可用模型')}</h3>
+            <p className="mb-4 text-sm text-neutral-500">{t('请先配置模型后再开始对话。')}</p>
             <button
               className="inline-flex items-center space-x-2 rounded-md bg-neutral-900 px-4 py-2 text-sm text-white transition-colors hover:bg-neutral-800"
               onClick={onOpenSettings}
             >
               <Settings size={14} />
-              <span>{t('去设置模型')}</span>
+              <span>{t('配置模型')}</span>
             </button>
           </div>
         </div>

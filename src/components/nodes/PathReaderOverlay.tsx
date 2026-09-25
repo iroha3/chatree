@@ -259,7 +259,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                             </div>
                           ) : (
                             <p className="py-6 text-center text-sm italic text-neutral-400">
-                              {node.isStreaming ? t('AI 正在思考...') : t('AI回复将显示在这里')}
+                              {node.isStreaming ? t('思考中...') : t('回答将显示在这里')}
                             </p>
                           )}
 
@@ -314,13 +314,12 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
             })
           )}
 
-          {/* 路径终点。只有一个后续 → 「继续滚就下一轮」（也留着点击）；
-              多个后续 → 只能显式选，不能替用户猜（D-013）。 */}
+          {/* 路径终点 */}
           {nextBranches.length === 1 ? (
             <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3 text-center">
               <div className="flex items-center justify-center gap-1 text-[11px] text-neutral-400">
                 <CornerDownRight size={12} />
-                {t('继续往下滚，读下一轮')}
+                {t('向下滚动阅读下一轮')}
               </div>
               <button
                 onClick={() => {
@@ -336,7 +335,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
             <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
               <div className="mb-2 flex items-center gap-1 text-[11px] text-neutral-400">
                 <CornerDownRight size={12} />
-                {t('从这条继续')}
+                {t('选择分支继续')}
               </div>
               <div className="flex flex-wrap gap-2">
                 {nextBranches.map((m) => (

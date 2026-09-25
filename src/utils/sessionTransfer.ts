@@ -104,36 +104,36 @@ export function parseExportFile(text: string): { data: ParsedExportFile } | { er
   try {
     raw = JSON.parse(text);
   } catch {
-    return { error: t('不是有效的 JSON 文件') };
+    return { error: t('无效的 JSON 文件') };
   }
 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { error: t('文件内容不是一个对象') };
+    return { error: t('文件格式错误（根结构无效）') };
   }
 
   const file = raw as Partial<SessionExportFile>;
 
   if (file.format !== EXPORT_FORMAT) {
-    return { error: t('这不是 Chatree 导出的备份文件') };
+    return { error: t('非 Chatree 备份文件') };
   }
   if (typeof file.version !== 'number') {
-    return { error: t('文件缺少版本号') };
+    return { error: t('文件缺少版本信息') };
   }
   if (file.version > EXPORT_VERSION) {
     return {
-      error: t('文件版本 v{v} 比当前程序新（最高支持 v{max}），请先升级', {
+      error: t('文件版本 (v{v}) 高于当前应用版本 (最高支持 v{max})，请更新后导入', {
         v: file.version,
         max: EXPORT_VERSION,
       }),
     };
   }
   if (!Array.isArray(file.sessions)) {
-    return { error: t('文件里没有 sessions 数组') };
+    return { error: t('文件中未包含会话数据') };
   }
 
   const sessions = file.sessions.filter(isValidSession);
   if (sessions.length === 0) {
-    return { error: t('文件里没有有效的会话') };
+    return { error: t('未包含有效会话') };
   }
 
   const models = Array.isArray(file.models) ? file.models.filter(isValidModel) : [];

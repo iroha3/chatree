@@ -27,13 +27,13 @@ const LinkButton: React.FC<LinkButtonProps> = ({ href, icon, children }) => (
 );
 
 const FEATURES = [
-  '树状分支对话：同一个问题可以有很多种回答，并排比较',
-  '任意 OpenAI 兼容服务：DeepSeek / OpenAI / Ollama / 各种兼容层',
-  '推理模型友好：思考链实时显示、可回看，推理强度可配',
-  '每条回答的 token 用量与缓存命中率统计',
-  '本地优先：数据只存在浏览器的 IndexedDB，不上传任何服务器',
-  '完全离线运行：零第三方 CDN 请求，可部署到内网',
-  'JSON 备份与恢复，单个会话也能单独导出',
+  '树状分支探索：支持从任意节点分叉并排对比',
+  '模型广泛兼容：支持 DeepSeek、OpenAI、Ollama 等兼容接口',
+  '深度推理支持：实时展示思考链并支持调节推理强度',
+  '用量与缓存统计：记录 Token 消耗与上下文缓存命中率',
+  '本地优先架构：数据仅留存于浏览器 IndexedDB，离线安全',
+  '独立离线运行：无第三方 CDN 依赖，支持内网部署',
+  '灵活备份导入：支持全局完整备份与单会话独立导入导出',
 ];
 
 const AboutPanel: React.FC = () => {
@@ -91,15 +91,14 @@ const AboutPanel: React.FC = () => {
           </div>
         )}
         <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
-          {t('一个把线性对话变成画布的本地优先工作台。')}
-          {t('每个回答都可以继续分叉，把「换一种问法」「换一个模型」变成可以对照的树。')}
+          {t('面向分支思考的本地优先对话画布。支持从任意节点分叉探索，并排对比不同思路与模型输出。')}
         </p>
       </section>
 
       <section>
         <h4 className="flex items-center text-sm font-medium text-neutral-800 mb-2">
           <Sparkles size={15} className="mr-1.5 text-neutral-400" />
-          {t('它能做什么')}
+          {t('核心特性')}
         </h4>
         <ul className="space-y-1.5">
           {FEATURES.map(feature => (
@@ -117,8 +116,7 @@ const AboutPanel: React.FC = () => {
           {t('数据与隐私')}
         </h4>
         <p className="text-sm text-neutral-600 leading-relaxed">
-          {t('会话与模型配置都保存在这台浏览器里，卸载或清理浏览器数据会一并删除，')}
-          {t('请定期用「设置 → 数据」导出备份。API Key 绝不会进入备份文件。')}
+          {t('所有会话与配置均保存在本地浏览器内，清除浏览数据将导致记录丢失。建议定期备份；API Key 不会包含在备份中。')}
         </p>
       </section>
 
@@ -126,21 +124,21 @@ const AboutPanel: React.FC = () => {
         <h4 className="text-sm font-medium text-neutral-800 mb-2">{t('项目链接')}</h4>
         <div className="flex flex-wrap gap-2">
           <LinkButton href={PROJECT_URL} icon={<Github size={15} />}>
-            {t('本项目源码')}
+            {t('项目源码')}
           </LinkButton>
           <LinkButton href={UPSTREAM_URL} icon={<Github size={15} />}>
             {t('上游项目')}
           </LinkButton>
         </div>
-        {/* 归属声明：这不是客套，是 MIT 的要求，也是我们自己希望被对待的方式。 */}
+        {/* 归属声明 */}
         <div className="mt-3 rounded-md bg-neutral-50 p-3">
           <p className="text-xs text-neutral-500 leading-relaxed">
-            {t('Chatree 是基于')}
+            {t('Chatree 基于开源项目')}
             <a href={UPSTREAM_URL} target="_blank" rel="noreferrer noopener" className="mx-0.5 underline hover:text-neutral-700">Anionex/treeAI</a>
-            {t('的衍生作品（MIT）：树状对话模型、本地优先的 IndexedDB 架构、最初的画布都来自上游。')}
+            {t('（MIT 协议）二次开发与演进。')}
           </p>
           <p className="mt-1.5 text-xs text-neutral-400 leading-relaxed">
-            {t('上游的版权声明原样保留在 LICENSE 里，完整提交历史也一并保留 —— git log 里能看到每一行是谁写的。')}
+            {t('保留了上游完整的版权许可与 Git 提交历史。')}
           </p>
         </div>
       </section>

@@ -86,14 +86,14 @@ const SessionStats: React.FC<{ session: Session; onClose: () => void }> = ({ ses
           <Row label={t('节点')} value={nodes.length} />
           <Row label={t('提问')} value={asked} />
           <Row label={t('回答')} value={answered} />
-          <Row label={t('分支')} value={branches} title={t('同一父节点下第 2 个及以后的孩子')} />
-          <Row label={t('分支点')} value={branchPoints} title={t('有 2 个以上孩子的节点数')} />
+          <Row label={t('分支')} value={branches} title={t('同一父节点下的后续衍生分支')} />
+          <Row label={t('分支点')} value={branchPoints} title={t('产生分支的节点数量')} />
         </div>
 
         <div className="py-1.5">
-          <Row label={t('↑ 输入 token')} value={fmt(promptTokens)} title={t('本次请求的全部输入 token（含系统提示词与历史）')} />
-          <Row label={t('↓ 输出 token')} value={fmt(completionTokens)} title={t('模型生成的 token')} />
-          {reasoningTokens > 0 && <Row label={t('思考 token')} value={fmt(reasoningTokens)} />}
+          <Row label={t('↑ 输入 Token')} value={fmt(promptTokens)} title={t('累计输入 Token（含系统提示词与上下文）')} />
+          <Row label={t('↓ 输出 Token')} value={fmt(completionTokens)} title={t('累计输出 Token')} />
+          {reasoningTokens > 0 && <Row label={t('思考 Token')} value={fmt(reasoningTokens)} />}
           {cacheRate !== null && (
             <Row
               label={t('缓存命中')}
@@ -102,7 +102,7 @@ const SessionStats: React.FC<{ session: Session; onClose: () => void }> = ({ ses
             />
           )}
           {usageNodes.length > 0 && (
-            <Row label={t('计费次数')} value={usageNodes.length} title={t('有 token 用量的回答数')} />
+            <Row label={t('计费次数')} value={usageNodes.length} title={t('产生 Token 消耗的回答数')} />
           )}
         </div>
 
