@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 import { Plus, Settings } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
+import { useSessionStore } from '../../stores/sessionStore';
 import { gsap } from 'gsap';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import { useCardWheelChain } from '../../utils/wheelChain';
+import { highlightMatch } from '../../utils/text';
 import PathReaderOverlay from './PathReaderOverlay';
 
 const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
@@ -16,6 +18,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const [isReading, setIsReading] = useState(false);
   
   const { models } = useModelStore();
+  const { searchQuery } = useSessionStore();
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -187,7 +190,8 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       )}
 
       <div
-        className="px-4 py-3 flex-1 min-h-0 overflow-y-auto nowheel"
+        className="px-4 py-3 flex-1 min-h-0 overflow-y-auto nowheel nodrag"
+        style={{ touchAction: 'pan-y' }}
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -207,12 +211,14 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           />
         ) : (
           <div 
-            className="min-h-[40px] max-h-[4.5rem] line-clamp-3 cursor-pointer text-sm text-neutral-600 hover:text-neutral-900 transition-colors" 
+            className="min-h-[40px] max-h-[4.5rem] line-clamp-3 cursor-pointer text-sm text-neutral-600 hover:text-neutral-900 transition-colors select-text" 
             onClick={handleEdit}
             title={node.userMessage ? t('点击编辑系统提示词') : undefined}
             style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}
           >
-            {node.userMessage || (
+            {node.userMessage ? (
+              highlightMatch(node.userMessage, searchQuery)
+            ) : (
               <span className="text-neutral-400 italic">
                 {t('点击输入系统提示词...')}
               </span>

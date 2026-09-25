@@ -72,6 +72,8 @@ body {
   overflow-y: auto;
   max-height: 520px;
   scroll-behavior: smooth;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   /* 节点内容是纵向 flex（见 .node-content），这里作为可收缩的区域：
      内容超高时优先由它自身滚动，而不是把底部工具栏挤出去。 */
   flex: 1 1 auto;
@@ -662,4 +664,17 @@ html.dark {
 
 .md-preview .hljs-strong {
   font-weight: 700;
+}
+
+/* 搜索匹配文本高亮 */
+mark.search-text-mark {
+  background-color: #fde68a;
+  color: #171717;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+html.dark mark.search-text-mark {
+  background-color: #d97706;
+  color: #ffffff;
 }

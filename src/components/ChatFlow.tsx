@@ -43,7 +43,11 @@ import { generateId } from '../utils/id';
  */
 const NODE_WIDTH = 516;
 const NODE_HEIGHT = 420;
-const H_GAP = 220;
+/*
+ * 兄弟节点之间的水平间距。
+ * 原先 220px 过宽导致分支稍微一多就横向延伸极广；收紧到 80px，并排对比更紧凑。
+ */
+const H_GAP = 80;
 /*
  * 父子节点之间的垂直间距（也就是那条竖线的长度）。
  * 原来 140px 太散，一屏装不下几层；用户反馈「现在的 1/3 看起来合适」，

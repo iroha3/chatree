@@ -19,7 +19,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5175,
-    host: '127.0.0.1',
+    host: '0.0.0.0',
     strictPort: false,
     /*
      * 等文件「写完不再变」再通知 HMR。

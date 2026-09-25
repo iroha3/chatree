@@ -5,9 +5,10 @@ import 'md-editor-rt/lib/preview.css';
 import { Plus, Send, RefreshCcw, Settings, Trash2, MessageSquare, Brain, ChevronDown, Square, Maximize2 } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { useThemeStore } from '../../stores/themeStore';
+import { useSessionStore } from '../../stores/sessionStore';
 import { gsap } from 'gsap';
 import { showInfo } from '../../utils/notification';
-import { countChars } from '../../utils/text';
+import { countChars, highlightMatch, highlightDomText } from '../../utils/text';
 import { useCardWheelChain } from '../../utils/wheelChain';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
@@ -34,7 +35,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   
   const { models } = useModelStore();
   const { theme } = useThemeStore();
+  const { searchQuery } = useSessionStore();
+  const previewRef = useRef<HTMLDivElement>(null);
   const t = useT();
+
+  // 搜索关键字时，高亮 Markdown 渲染内容中的匹配文本
+  useEffect(() => {
+    highlightDomText(previewRef.current, searchQuery);
+  }, [searchQuery, node.assistantMessage, streamingResponse]);
 
   // 头部原来写「对话节点」四个字，纯占位。换成这个节点实际用的模型名，
   // 一眼就能看出这条分支是哪个模型答的（换模型对比时特别有用）。
@@ -402,7 +410,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       )}
 
       <div
-        className="relative px-4 py-3 border-b border-neutral-100 shrink-0"
+        className="relative px-4 py-3 border-b border-neutral-100 shrink-0 nodrag"
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -438,10 +446,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         ) : (
           <>
             <div 
-              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap"
+              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap nodrag select-text"
+              style={{ touchAction: 'pan-y' }}
               onClick={() => setIsEditingUser(true)}
             >
-              {node.userMessage || <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
+              {node.userMessage ? highlightMatch(node.userMessage, searchQuery) : <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
             </div>
             <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
               <CopyButton
@@ -474,7 +483,8 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       <div 
-        className="assistant-message px-4 py-3 relative"
+        className="assistant-message px-4 py-3 relative nodrag"
+        style={{ touchAction: 'pan-y' }}
         onWheel={(e) => {
           e.stopPropagation();
         }}
@@ -525,7 +535,9 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         {answerText ? (
           <div>
             <div 
-              className="preview-container"
+              ref={previewRef}
+              className="preview-container nodrag"
+              style={{ touchAction: 'pan-y' }}
               onWheel={(e: React.WheelEvent) => {
                 e.stopPropagation();
               }}

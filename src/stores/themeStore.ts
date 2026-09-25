@@ -19,9 +19,9 @@ function readStoredTheme(): Theme | null {
 function readStoredGrid(): GridStyle {
   try {
     const saved = localStorage.getItem(GRID_STORAGE_KEY);
-    return saved === 'none' || saved === 'dots' ? saved : 'none';
+    return saved === 'none' || saved === 'dots' ? saved : 'dots';
   } catch {
-    return 'none';
+    return 'dots';
   }
 }
 
