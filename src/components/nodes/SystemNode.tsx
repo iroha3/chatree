@@ -85,6 +85,10 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     }
   }, [isEditing]);
 
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, isEditing, showSettings, node.userMessage, updateNodeInternals]);
+
   const handleEdit = () => {
     setIsEditing(true);
   };
@@ -114,12 +118,21 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   return (
     <div ref={nodeRef} className="relative" onDoubleClick={handleDoubleClick}>
       <div
-        className={`node-content bg-white rounded-lg overflow-hidden border border-neutral-200 shadow-minimal ${nodeHeight}`}
+        className={`node-content bg-white rounded-lg overflow-hidden border shadow-minimal ${nodeHeight} transition-all ${
+          data.isSearchMatch
+            ? 'border-amber-400 ring-2 ring-amber-400/40'
+            : 'border-neutral-200'
+        }`}
       >
       <div className="flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0">
         <div className="flex items-center">
           <Settings size={14} className="mr-1.5 text-neutral-500" />
           <span className="text-sm font-medium">{t('系统提示词')}</span>
+          {data.isSearchMatch && (
+            <span className="ml-2 px-1.5 py-0.5 text-[11px] font-medium rounded bg-amber-100 text-amber-800 shrink-0">
+              {t('命中')}
+            </span>
+          )}
         </div>
         
         {/* 图标尺寸跟对话节点对齐：一律 14（见 ChatNode 头部那段注释）。 */}
@@ -186,8 +199,9 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           />
         ) : (
           <div 
-            className="min-h-[60px] cursor-pointer text-sm" 
+            className="min-h-[40px] max-h-[4.5rem] line-clamp-3 cursor-pointer text-sm text-neutral-600 hover:text-neutral-900 transition-colors" 
             onClick={handleEdit}
+            title={node.userMessage ? t('点击编辑系统提示词') : undefined}
             style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}
           >
             {node.userMessage || (

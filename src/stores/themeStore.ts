@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 
 export type Theme = 'light' | 'dark';
+export type GridStyle = 'none' | 'dots';
 
 const STORAGE_KEY = 'treeai-theme';
+const GRID_STORAGE_KEY = 'treeai-grid';
 
 function readStoredTheme(): Theme | null {
   try {
@@ -11,6 +13,15 @@ function readStoredTheme(): Theme | null {
   } catch {
     // 隐私模式下 localStorage 可能不可用
     return null;
+  }
+}
+
+function readStoredGrid(): GridStyle {
+  try {
+    const saved = localStorage.getItem(GRID_STORAGE_KEY);
+    return saved === 'none' || saved === 'dots' ? saved : 'none';
+  } catch {
+    return 'none';
   }
 }
 
@@ -34,15 +45,19 @@ export function applyTheme(theme: Theme): void {
 }
 
 const initialTheme: Theme = readStoredTheme() ?? (systemPrefersDark() ? 'dark' : 'light');
+const initialGrid: GridStyle = readStoredGrid();
 
 interface ThemeState {
   theme: Theme;
+  grid: GridStyle;
   setTheme: (theme: Theme) => void;
+  setGrid: (grid: GridStyle) => void;
   toggleTheme: () => void;
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: initialTheme,
+  grid: initialGrid,
 
   setTheme: (theme) => {
     try {
@@ -52,6 +67,15 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     }
     applyTheme(theme);
     set({ theme });
+  },
+
+  setGrid: (grid) => {
+    try {
+      localStorage.setItem(GRID_STORAGE_KEY, grid);
+    } catch {
+      // 忽略写入失败
+    }
+    set({ grid });
   },
 
   toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),

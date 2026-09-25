@@ -14,11 +14,31 @@ import { defaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitl
 import { generateId } from '../utils/id';
 import type { SettingsTab } from './SettingsModal';
 import { useT } from '../i18n';
+import { Session } from '../types';
 
 interface SidebarProps {
   onOpenSettings: (tab?: SettingsTab) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+}
+
+/** 搜索时提取匹配消息的摘要片段 */
+function getSessionMatchSnippet(session: Session, query: string): string | null {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return null;
+  for (const node of session.nodes) {
+    for (const text of [node.userMessage, node.assistantMessage]) {
+      if (text && text.toLowerCase().includes(needle)) {
+        const idx = text.toLowerCase().indexOf(needle);
+        const start = Math.max(0, idx - 12);
+        const end = Math.min(text.length, idx + needle.length + 20);
+        const prefix = start > 0 ? '…' : '';
+        const suffix = end < text.length ? '…' : '';
+        return `${prefix}${text.slice(start, end).replace(/\s+/g, ' ')}${suffix}`;
+      }
+    }
+  }
+  return null;
 }
 
 /** 会话需要移动到的目标：某个文件夹，或 null 表示「未分类」 */
@@ -407,69 +427,78 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   : t('暂无会话')}
           </div>
         ) : (
-          visibleSessions.map(session => (
-            <div
-              key={session.id}
-              draggable={hasFolders}
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/session-id', session.id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              className={`sidebar-session py-2 px-3 flex justify-between items-center rounded-md group relative ${
-                currentSessionId === session.id
-                  ? 'bg-neutral-100 text-neutral-900'
-                  : 'text-neutral-600 hover:bg-neutral-50'
-              }`}
-              // 点击切会话：监听器挂在**整行**上。以前只挂在内层标题 div，
-              // 行的 px-3 / py-2 内边距和图标右侧的缝隙都是死区，
-              // 点到那里没反应 —— 表现就是「要点好几次才切得过去」。
-              onClick={() => setCurrentSessionId(session.id)}
-            >
-              {editingId === session.id ? (
-                <input
-                  type="text"
-                  className="flex-1 px-2 py-1 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onBlur={() => handleSaveEdit(session.id)}
-                  onKeyDown={(e) => handleKeyPress(e, session.id)}
-                  autoFocus
-                />
-              ) : (
-                <div className="flex min-w-0 flex-1 items-center cursor-pointer">
-                  {/* 左侧气泡就是收藏开关（渐进式状态机）：
-                      平时 = 灰气泡；鼠标移到整行 → 气泡变「灰色星形轮廓」暗示可点；
-                      鼠标移到星上 → 星变金色；点一下 → 金色实心星；再点变回气泡取消。
-                      颜色只表示状态（灰=未收藏 / 金=收藏），形状只表示可点（气泡→星）。
-                      两个坑：① 不要再加边框圆环；② 不要用 group-hover 改色 ——
-                      `.group:hover .x` 的优先级（0,3,0）高于 `.x:hover`（0,2,0），
-                      会把「移到星上变金」盖掉。所以金色只用按钮自己的 hover:。 */}
-                  <button
-                    className={`mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                      session.starred
-                        ? 'text-amber-400 hover:text-amber-500'
-                        : 'text-neutral-300 hover:text-amber-400'
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleStarred(session.id);
-                    }}
-                    title={session.starred ? t('取消收藏') : t('收藏')}
-                  >
-                    {session.starred ? (
-                      <Star size={16} fill="currentColor" />
-                    ) : (
-                      <>
-                        <MessageSquare size={16} className="group-hover:hidden" />
-                        <Star size={16} className="hidden group-hover:block" />
-                      </>
-                    )}
-                  </button>
-                  <span className="truncate text-sm">
-                    {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
-                  </span>
-                </div>
-              )}
+          visibleSessions.map(session => {
+            const matchSnippet = searchQuery ? getSessionMatchSnippet(session, searchQuery) : null;
+            return (
+              <div
+                key={session.id}
+                draggable={hasFolders}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/session-id', session.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                className={`sidebar-session py-2 px-3 flex justify-between items-center rounded-md group relative ${
+                  currentSessionId === session.id
+                    ? 'bg-neutral-100 text-neutral-900'
+                    : 'text-neutral-600 hover:bg-neutral-50'
+                }`}
+                // 点击切会话：监听器挂在**整行**上。以前只挂在内层标题 div，
+                // 行的 px-3 / py-2 内边距和图标右侧的缝隙都是死区，
+                // 点到那里没反应 —— 表现就是「要点好几次才切得过去」。
+                onClick={() => setCurrentSessionId(session.id)}
+              >
+                {editingId === session.id ? (
+                  <input
+                    type="text"
+                    className="flex-1 px-2 py-1 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => handleSaveEdit(session.id)}
+                    onKeyDown={(e) => handleKeyPress(e, session.id)}
+                    autoFocus
+                  />
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center cursor-pointer">
+                    {/* 左侧气泡就是收藏开关（渐进式状态机）：
+                        平时 = 灰气泡；鼠标移到整行 → 气泡变「灰色星形轮廓」暗示可点；
+                        鼠标移到星上 → 星变金色；点一下 → 金色实心星；再点变回气泡取消。
+                        颜色只表示状态（灰=未收藏 / 金=收藏），形状只表示可点（气泡→星）。
+                        两个坑：① 不要再加边框圆环；② 不要用 group-hover 改色 ——
+                        `.group:hover .x` 的优先级（0,3,0）高于 `.x:hover`（0,2,0），
+                        会把「移到星上变金」盖掉。所以金色只用按钮自己的 hover:。 */}
+                    <button
+                      className={`mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
+                        session.starred
+                          ? 'text-amber-400 hover:text-amber-500'
+                          : 'text-neutral-300 hover:text-amber-400'
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStarred(session.id);
+                      }}
+                      title={session.starred ? t('取消收藏') : t('收藏')}
+                    >
+                      {session.starred ? (
+                        <Star size={16} fill="currentColor" />
+                      ) : (
+                        <>
+                          <MessageSquare size={16} className="group-hover:hidden" />
+                          <Star size={16} className="hidden group-hover:block" />
+                        </>
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">
+                        {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
+                      </div>
+                      {matchSnippet && (
+                        <div className="truncate text-xs text-amber-600/90 dark:text-amber-400/90 mt-0.5">
+                          {matchSnippet}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               {/* 操作区改成绝对定位：不 hover 时不占任何宽度，长标题能用满整行
                   （之前星标/编辑/删除虽然透明但仍然占位，把标题截断后右边一片空）。 */}
@@ -518,7 +547,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 </div>
               )}
             </div>
-          ))
+          );
+        })
         )}
       </div>
 

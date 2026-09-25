@@ -122,6 +122,7 @@ export interface NodeData {
    * 只在新建时置 true，所以不会在重渲染时反复抢焦点。
    */
   autoFocus?: boolean;
+  isSearchMatch?: boolean;
 }
 
 export interface ModelResponse {

@@ -305,7 +305,7 @@ const ModelsPanel: React.FC = () => {
                   type="number"
                   min={256}
                   max={MAX_TOKENS_LIMIT}
-                  step={256}
+                  step={1}
                   value={editingModel.maxTokens}
                   // 输入中**不**夹逼：一失焦就夹的话，「4」会被立刻拉成 256，
                   // 后面再敲「096」就永远接不上。只在失焦时收尾。

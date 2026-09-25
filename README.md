@@ -33,7 +33,7 @@ Explore parallel branches, compare models side-by-side, and read whole paths con
 - **Continuous path reader**: Double-click any node to open an unbroken, scrollable reading flow from root to that turn. Seamlessly switch branches at any fork from the side panel, and continue scrolling at the bottom to advance smoothly to the next turn.
 
 ### Cross-Model Comparison
-- **Per-node configuration**: Assign distinct models (DeepSeek, LM Studio, Ollama, OpenAI, etc.), temperatures, and reasoning efforts on a per-node basis.
+- **Per-node configuration**: Assign distinct models (DeepSeek, LM Studio, Ollama, OpenAI, etc.) and sampling temperatures on a per-node basis.
 - **Side-by-side evaluation**: Directly compare reasoning depth and code output across different models under the exact same prior context.
 
 ---

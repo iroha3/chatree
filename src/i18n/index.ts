@@ -132,6 +132,7 @@ const en: Record<string, string> = {
   系统提示词: 'System prompt',
   '输入系统提示词...': 'Enter system prompt...',
   '点击输入系统提示词...': 'Click to enter system prompt...',
+  点击编辑系统提示词: 'Click to edit system prompt',
 
   // ── ChatFlow ──────────────────────────────────────────
   '当前模型不存在，请重新选择': "Current model not found, please select another",
@@ -172,6 +173,10 @@ const en: Record<string, string> = {
   主题: 'Theme',
   浅色: 'Light',
   深色: 'Dark',
+  画布网格: 'Canvas Grid',
+  无网格: 'None',
+  点状网格: 'Dots',
+  命中: 'Match',
 
   // ── ModelsPanel ───────────────────────────────────────
   '确定要删除这个模型吗？': 'Delete this model?',

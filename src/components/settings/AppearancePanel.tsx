@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sun, Moon, Check } from 'lucide-react';
-import { useThemeStore, Theme } from '../../stores/themeStore';
+import { useThemeStore, Theme, GridStyle } from '../../stores/themeStore';
 import { useLangStore, useT, Lang } from '../../i18n';
 
 const OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = [
@@ -16,6 +16,11 @@ const OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+const GRID_OPTIONS: { value: GridStyle; label: string }[] = [
+  { value: 'none', label: '无网格' },
+  { value: 'dots', label: '点状网格' },
+];
+
 // 语言名用各自的母语写（中文 / English），不参与翻译 —— 否则英文界面里
 // 出现 "Chinese" 反而不好找。
 const LANG_OPTIONS: { value: Lang; label: string }[] = [
@@ -24,7 +29,7 @@ const LANG_OPTIONS: { value: Lang; label: string }[] = [
 ];
 
 const AppearancePanel: React.FC = () => {
-  const { theme, setTheme } = useThemeStore();
+  const { theme, setTheme, grid, setGrid } = useThemeStore();
   const { lang, setLang } = useLangStore();
   const t = useT();
 
@@ -76,6 +81,34 @@ const AppearancePanel: React.FC = () => {
                 }`}
               >
                 <span className="text-sm font-medium text-neutral-800">{option.label}</span>
+                {active && (
+                  <span className="text-neutral-800">
+                    <Check size={16} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-sm font-medium text-neutral-800 mb-3">{t('画布网格')}</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {GRID_OPTIONS.map(option => {
+            const active = grid === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setGrid(option.value)}
+                className={`relative flex items-center justify-between p-4 rounded-lg border text-left transition-colors ${
+                  active
+                    ? 'border-neutral-800 bg-neutral-50'
+                    : 'border-neutral-200 hover:bg-neutral-50'
+                }`}
+              >
+                <span className="text-sm font-medium text-neutral-800">{t(option.label)}</span>
                 {active && (
                   <span className="text-neutral-800">
                     <Check size={16} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import ReactFlow, {
   Background,
+  BackgroundVariant,
   Controls,
   ReactFlowProvider,
   Edge,
@@ -220,9 +221,19 @@ interface ChatFlowProps {
 }
 
 const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }) => {
-  const { sessions, addNodeToSession, updateNodeInSession, touchSession, updateSession, replaceSessionNodes, deleteNodeFromSession, autoTitleSession } = useSessionStore();
+  const {
+    sessions,
+    searchQuery,
+    addNodeToSession,
+    updateNodeInSession,
+    touchSession,
+    updateSession,
+    replaceSessionNodes,
+    deleteNodeFromSession,
+    autoTitleSession,
+  } = useSessionStore();
   const { models, defaultModelId } = useModelStore();
-  const { theme } = useThemeStore();
+  const { theme, grid } = useThemeStore();
   const session = sessions.find(s => s.id === sessionId);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -430,6 +441,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     // updateSession，会互相覆盖，只有最后一个节点的新坐标存得下来。
     const recalculatedPositions = new Map<string, { x: number; y: number }>();
 
+    const needle = searchQuery.trim().toLowerCase();
     const reactFlowNodes = session.nodes.map(node => {
       // 强制重新布局 或 节点没有保存位置时，使用计算的位置
       let position: { x: number, y: number };
@@ -444,13 +456,20 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         }
       }
 
+      const isSearchMatch = Boolean(
+        needle &&
+        ((node.userMessage && node.userMessage.toLowerCase().includes(needle)) ||
+         (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
+      );
+
       return buildFlowNode(node, position, {
         ...nodeCallbacks,
         node,
         streamingResponse: streamingResponses[node.id] || null,
         streamingReasoning: streamingReasoning[node.id] || null,
         isRoot: node.type === 'system',
-        autoFocus: pendingFocusId === node.id
+        autoFocus: pendingFocusId === node.id,
+        isSearchMatch,
       }, flowNodesRef.current.get(node.id));
     });
 
@@ -476,7 +495,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   
   // The handlers below intentionally read the latest session state from this render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, nodeDimensions, streamingResponses, streamingReasoning, sessionId, replaceSessionNodes]);  
+  }, [session, nodeDimensions, streamingResponses, streamingReasoning, sessionId, replaceSessionNodes, searchQuery]);  
 
 
   /**
@@ -1129,6 +1148,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   
     // 创建新的节点数组，确保使用节点保存的位置
     const previousNodes = flowNodesRef.current;
+    const needle = searchQuery.trim().toLowerCase();
 
     const reactFlowNodes = session.nodes.map(node => {
       // 保存过位置就用保存的；没有（手工改过的导入文件、根节点）退回「父节点正下方」
@@ -1136,6 +1156,11 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       const liveResponse = streamingResponses[node.id] || null;
       const liveReasoning = streamingReasoning[node.id] || null;
       const autoFocus = pendingFocusId === node.id;
+      const isSearchMatch = Boolean(
+        needle &&
+        ((node.userMessage && node.userMessage.toLowerCase().includes(needle)) ||
+         (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
+      );
       const previous = previousNodes.get(node.id);
 
       // 完全没变就复用同一个对象引用 —— React Flow 会跳过这个节点的重渲染。
@@ -1146,6 +1171,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         previous.data.streamingResponse === liveResponse &&
         previous.data.streamingReasoning === liveReasoning &&
         previous.data.autoFocus === autoFocus &&
+        previous.data.isSearchMatch === isSearchMatch &&
         previous.position.x === position.x &&
         previous.position.y === position.y
       ) {
@@ -1158,7 +1184,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         streamingResponse: liveResponse,
         streamingReasoning: liveReasoning,
         isRoot: node.type === 'system',
-        autoFocus
+        autoFocus,
+        isSearchMatch,
       }, previous);
     });
 
@@ -1169,7 +1196,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   // pendingFocusId 也要进依赖：清掉它时得把 autoFocus 重新算成 false，
   // 否则节点上会一直挂着 autoFocus: true。
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.nodes, sessionId, streamingResponses, streamingReasoning, pendingFocusId]); // 添加 sessionId 到依赖数组
+  }, [session?.nodes, sessionId, streamingResponses, streamingReasoning, pendingFocusId, searchQuery]);
 
   // 新建的节点可能落在视口外面（分支一多就往右排），所以渲染完成后把它平移到视野中间。
   //
@@ -1187,6 +1214,34 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       { duration: 450, zoom: reactFlowInstance.getZoom() }
     );
   }, [pendingFocusId, nodes, reactFlowInstance]);
+
+  // 搜索关键字时，自动平移并居中到当前会话中第一个命中的节点
+  const lastFocusedSearchRef = useRef<string>('');
+  useEffect(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    if (!needle) {
+      lastFocusedSearchRef.current = '';
+      return;
+    }
+    const searchKey = `${sessionId}:${needle}`;
+    if (lastFocusedSearchRef.current === searchKey) return;
+
+    const matchedNode = session?.nodes.find(node =>
+      (node.userMessage && node.userMessage.toLowerCase().includes(needle)) ||
+      (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle))
+    );
+    if (!matchedNode) return;
+
+    const target = nodes.find(n => n.id === matchedNode.id);
+    if (!target) return;
+
+    lastFocusedSearchRef.current = searchKey;
+    reactFlowInstance.setCenter(
+      target.position.x + NODE_WIDTH / 2,
+      target.position.y + NODE_HEIGHT / 2,
+      { duration: 450, zoom: reactFlowInstance.getZoom() }
+    );
+  }, [searchQuery, sessionId, session?.nodes, nodes, reactFlowInstance]);
   
 
   if (!session) {
@@ -1303,7 +1358,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           });
         }}
       >
-        <Background color={theme === 'dark' ? '#2f2f2f' : '#f5f5f5'} gap={18} size={0.5} />
+        {grid === 'dots' && (
+          <Background
+            variant={BackgroundVariant.Dots}
+            color={theme === 'dark' ? '#333333' : '#d4d4d4'}
+            gap={20}
+            size={1}
+          />
+        )}
         <Controls className="bg-white border border-neutral-200 rounded-md shadow-minimal" />
       </ReactFlow>
 

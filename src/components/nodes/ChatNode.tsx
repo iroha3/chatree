@@ -311,7 +311,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   return (
     <div ref={nodeRef} className="relative group" onDoubleClick={handleDoubleClick}>
-      <div className="node-content bg-white rounded-lg overflow-hidden border border-neutral-200 shadow-minimal">
+      <div
+        className={`node-content bg-white rounded-lg overflow-hidden border shadow-minimal transition-all ${
+          data.isSearchMatch
+            ? 'border-amber-400 ring-2 ring-amber-400/40'
+            : 'border-neutral-200'
+        }`}
+      >
       <Handle
         type="target"
         position={Position.Top}
@@ -324,6 +330,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           <span className="truncate text-sm font-medium" title={modelName || t('对话节点')}>
             {modelName || t('对话节点')}
           </span>
+          {data.isSearchMatch && (
+            <span className="ml-2 px-1.5 py-0.5 text-[11px] font-medium rounded bg-amber-100 text-amber-800 shrink-0">
+              {t('命中')}
+            </span>
+          )}
         </div>
         
         {/* 卡片上所有图标按钮统一 size={14} + p-1 —— 之前头部是 12、
