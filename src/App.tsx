@@ -53,7 +53,7 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-neutral-50">
+      <div className="flex h-screen h-[100dvh] w-screen items-center justify-center bg-neutral-50">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin text-neutral-500 mx-auto" />
           <p className="mt-4 text-base text-neutral-600">{t('加载中...')}</p>
@@ -63,7 +63,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50">
+    <div className="flex h-screen h-[100dvh] overflow-hidden bg-neutral-50">
       {sidebarCollapsed && (
         <button 
           className="absolute top-4 left-4 z-20 bg-white p-1.5 rounded-full shadow-minimal border border-neutral-200"

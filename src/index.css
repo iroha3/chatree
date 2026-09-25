@@ -43,6 +43,15 @@
   --spacing-xl: 2rem;
 }
 
+html {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   /* 用系统字体栈，而不是从 Google Fonts 拉 Inter：
      Inter 没有中文字形，中文本来就在走系统回退 —— 拉它只为了英文和数字，
@@ -52,11 +61,18 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   @apply bg-neutral-50 text-neutral-900 overflow-hidden;
-  height: 100vh;
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
-  height: 100vh;
+  height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -678,3 +694,27 @@ html.dark mark.search-text-mark {
   background-color: #d97706;
   color: #ffffff;
 }
+
+/* 平板与高分屏触控及渲染清晰度优化 */
+.react-flow__viewport {
+  transform-style: flat;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.react-flow__node {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.chat-node,
+.system-node {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+

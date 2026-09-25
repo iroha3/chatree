@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Session, ChatNode, Folder } from '../types';
 import db from '../db/db';
-import { isDefaultSessionTitle } from '../utils/sessionTitle';
+import { isDefaultSessionTitle, defaultSessionTitle } from '../utils/sessionTitle';
 import { generateId } from '../utils/id';
 
 export interface ImportResult {
@@ -27,6 +27,7 @@ interface SessionState {
   createSession: (session: Session) => void;
   updateSession: (session: Session) => void;
   deleteSession: (id: string) => void;
+  clearAllData: () => Promise<void>;
   addNodeToSession: (sessionId: string, node: ChatNode) => void;
   updateNodeInSession: (sessionId: string, node: ChatNode) => void;
   /** 记一次「聊天」（把 updatedAt 推到当前）：只有就地重答需要显式调它 */
@@ -205,6 +206,39 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to delete session:', error);
+    }
+  },
+
+  clearAllData: async () => {
+    try {
+      await db.sessions.clear();
+      await db.folders.clear();
+      try {
+        localStorage.removeItem('treeai-viewports');
+      } catch {
+        // 忽略写入失败
+      }
+
+      const freshSession: Session = {
+        id: generateId(),
+        title: defaultSessionTitle(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        nodes: [],
+      };
+      await db.saveSession(freshSession);
+
+      set({
+        sessions: [freshSession],
+        folders: [],
+        filteredSessions: [freshSession],
+        currentSessionId: freshSession.id,
+        currentFolderView: 'all',
+        searchQuery: '',
+      });
+    } catch (error) {
+      console.error('Failed to clear all data:', error);
+      throw error;
     }
   },
 

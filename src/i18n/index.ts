@@ -19,7 +19,7 @@ export type Lang = 'zh' | 'en';
 const STORAGE_KEY = 'treeai-lang';
 
 /** 窗口标题。index.html 里的 <title> 是同一句中文，两边保持一致。 */
-export const APP_TITLE_ZH = 'Chatree - 让每个念头都能分叉';
+export const APP_TITLE_ZH = 'Chatree - 分叉思考，并行对照，自由推演';
 
 /** zh → en。key 是界面上的中文原文。 */
 const en: Record<string, string> = {
@@ -53,7 +53,7 @@ const en: Record<string, string> = {
   已复制: 'Copied',
 
   // ── App ───────────────────────────────────────────────
-  'Chatree - 让每个念头都能分叉': 'Chatree - Branch every line of thought',
+  'Chatree - 分叉思考，并行对照，自由推演': 'Chatree - Branch, Compare, Deduce',
   '加载中...': 'Loading...',
   '欢迎使用 Chatree': 'Welcome to Chatree',
   '创建新会话，开始探索树状分支对话。':
@@ -231,6 +231,16 @@ const en: Record<string, string> = {
   导入备份: 'Import backup',
   '如需导出单个会话，可在画布右上角选择「分享与导出 → JSON 备份」。格式与此处通用。':
     'To export a single session, select "Share & Export → JSON Backup" on the canvas. Both formats are compatible.',
+  危险区域: 'Danger Zone',
+  '彻底清除本地保存的全部会话与文件夹记录。此操作不可逆，已配置的模型保留。':
+    'Permanently delete all local sessions and folders. This cannot be undone; configured models are preserved.',
+  清除全部会话数据: 'Clear all session data',
+  '清除全部会话数据？': 'Clear all session data?',
+  '此操作将永久删除本地全部会话与文件夹，无法撤销。建议在清除前先导出备份。确定要继续吗？':
+    'This will permanently delete all local sessions and folders and cannot be undone. Backing up first is recommended. Continue?',
+  彻底清除: 'Delete all',
+  所有会话数据已清空: 'All session data cleared',
+  清空数据失败: 'Failed to clear data',
 
   // ── AboutPanel ────────────────────────────────────────
   核心特性: 'Key Features',

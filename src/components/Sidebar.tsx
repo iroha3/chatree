@@ -415,7 +415,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1 scrollbar-hide">
         {visibleSessions.length === 0 ? (
           <div className="text-center text-neutral-400 py-8 text-sm">
             {searchQuery
@@ -560,7 +560,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
 
       {/* 底部只留「新建会话」一整条 —— 设置/主题已挤到顶栏，
           这里不再塞两个小图标，重心就正了。 */}
-      <div className="px-3 py-3 border-t border-neutral-100">
+      <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 shrink-0">
         <button
           className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors"
           onClick={handleCreateSession}

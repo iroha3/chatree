@@ -1,8 +1,9 @@
 import React, { useRef } from 'react';
-import { Download, Upload, Database, FileJson, KeyRound, Folder } from 'lucide-react';
+import { Download, Upload, Database, FileJson, KeyRound, Folder, Trash2 } from 'lucide-react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useModelStore } from '../../stores/modelStore';
 import { showSuccess, showWarning, showError } from '../../utils/notification';
+import { requestConfirm } from '../../stores/confirmStore';
 import {
   buildExportFile,
   downloadJson,
@@ -17,7 +18,7 @@ import { useLangStore, useT } from '../../i18n';
  * 单个会话的导出入口在画布右上角（那个是对「当前会话」的操作），这里只放全局的。
  */
 const DataPanel: React.FC = () => {
-  const { sessions, folders, importSessions, importFolders } = useSessionStore();
+  const { sessions, folders, importSessions, importFolders, clearAllData } = useSessionStore();
   const { models, importModels } = useModelStore();
   const importInputRef = useRef<HTMLInputElement>(null);
   const t = useT();
@@ -86,6 +87,23 @@ const DataPanel: React.FC = () => {
     if (modelResult.added > 0) parts.push(t('导入 {n} 个模型配置（需补充 API Key）', { n: modelResult.added }));
 
     showSuccess(t('导入完成：{parts}', { parts: parts.join(lang === 'zh' ? '，' : ', ') }));
+  };
+
+  const handleClearAllData = async () => {
+    const ok = await requestConfirm({
+      title: t('清除全部会话数据？'),
+      message: t('此操作将永久删除本地全部会话与文件夹，无法撤销。建议在清除前先导出备份。确定要继续吗？'),
+      confirmLabel: t('彻底清除'),
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await clearAllData();
+      showSuccess(t('所有会话数据已清空'));
+    } catch {
+      showError(t('清空数据失败'));
+    }
   };
 
   return (
@@ -159,6 +177,21 @@ const DataPanel: React.FC = () => {
           </p>
         </div>
       </section>
+
+      <section className="pt-4 border-t border-red-100">
+        <h3 className="text-sm font-medium text-red-600 mb-1">{t('危险区域')}</h3>
+        <p className="text-xs text-neutral-500 mb-3">
+          {t('彻底清除本地保存的全部会话与文件夹记录。此操作不可逆，已配置的模型保留。')}
+        </p>
+        <button
+          className="flex items-center space-x-2 px-4 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-md text-sm transition-colors"
+          onClick={handleClearAllData}
+        >
+          <Trash2 size={15} />
+          <span>{t('清除全部会话数据')}</span>
+        </button>
+      </section>
+
 
       <input
         ref={importInputRef}
