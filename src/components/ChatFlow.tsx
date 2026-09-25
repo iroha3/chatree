@@ -21,7 +21,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { ChatNode as ChatNodeType, NodeData, UsageStats } from '../types';
 import { useT } from '../i18n';
 import { sendChatRequest } from '../services/apiService';
-import { Share2, LayoutGrid, FileJson, BarChart3, Settings, Network } from 'lucide-react';
+import { Share2, LayoutGrid, FileJson, BarChart3, Settings, Network, ZoomIn, ZoomOut, Maximize2, SlidersHorizontal } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
 import { exportSessionToFile } from '../utils/sessionTransfer';
 import { showSuccess, showError, showInfo, showUndo } from '../utils/notification';
@@ -296,17 +296,28 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
+  // 移动端顶部的「视图 / 排版」菜单
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+
   // 点外面 / Esc 关闭菜单。capture 阶段监听 mousedown ——
   // 保证能先于菜单内按钮的 onClick 判断「这次点击是不是在外面」。
   useEffect(() => {
-    if (!showExportMenu) return;
+    if (!showExportMenu && !showViewMenu) return;
     const onPointerDown = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as globalThis.Node)) {
+      const target = e.target as globalThis.Node;
+      if (showExportMenu && exportMenuRef.current && !exportMenuRef.current.contains(target)) {
         setShowExportMenu(false);
+      }
+      if (showViewMenu && viewMenuRef.current && !viewMenuRef.current.contains(target)) {
+        setShowViewMenu(false);
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowExportMenu(false);
+      if (e.key === 'Escape') {
+        setShowExportMenu(false);
+        setShowViewMenu(false);
+      }
     };
     document.addEventListener('mousedown', onPointerDown, true);
     document.addEventListener('keydown', onKeyDown);
@@ -314,7 +325,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       document.removeEventListener('mousedown', onPointerDown, true);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [showExportMenu]);
+  }, [showExportMenu, showViewMenu]);
 
   /*
    * 上一次交给 React Flow 的节点对象。两个用途：
@@ -1270,8 +1281,63 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
   return (
     <div ref={paneRef} className="h-full w-full relative">
       <div className="absolute top-4 right-4 z-10 flex space-x-3">
+        {/* 移动端视图控制菜单：放上面展开，PC 端使用底部的原生 Controls 与排版按钮 */}
+        <div className="relative md:hidden" ref={viewMenuRef}>
+          <button
+            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${
+              showViewMenu
+                ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
+                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
+            }`}
+            onClick={() => setShowViewMenu(v => !v)}
+            title={t('画布视图')}
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+
+          {showViewMenu && (
+            <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
+              <button
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                onClick={() => reactFlowInstance.zoomIn()}
+              >
+                <ZoomIn size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('放大')}</span>
+              </button>
+              <button
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                onClick={() => reactFlowInstance.zoomOut()}
+              >
+                <ZoomOut size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('缩小')}</span>
+              </button>
+              <button
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                onClick={() => {
+                  reactFlowInstance.fitView({ padding: 0.2, duration: 200 });
+                  setShowViewMenu(false);
+                }}
+              >
+                <Maximize2 size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('适应画布')}</span>
+              </button>
+              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              <button
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                onClick={() => {
+                  handleReorganizeLayout();
+                  setShowViewMenu(false);
+                }}
+              >
+                <LayoutGrid size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('重新排布')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         <button 
-          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
+          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           onClick={() => setShowStats(v => !v)}
           title={t('会话统计')}
         >
@@ -1285,8 +1351,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           <button
             className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${
               showExportMenu
-                ? 'bg-neutral-100 border-neutral-300 text-neutral-900'
-                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
+                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
             }`}
             onClick={() => setShowExportMenu(v => !v)}
             title={t('分享与导出')}
@@ -1295,19 +1361,19 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           </button>
 
           {showExportMenu && (
-            <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle">
+            <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
               <button
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={() => { setShowExportMenu(false); handleExportSession(); }}
               >
-                <FileJson size={14} className="shrink-0 text-neutral-500" />
+                <FileJson size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
                 <span>{t('JSON 备份')}</span>
               </button>
               <button
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={() => { setShowExportMenu(false); handleExport(); }}
               >
-                <Network size={14} className="shrink-0 text-neutral-500" />
+                <Network size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
                 <span>{t('思维导图 (.mm)')}</span>
               </button>
             </div>
@@ -1380,8 +1446,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           />
         )}
         <Controls
-          showInteractive={false}
-          className="mb-[env(safe-area-inset-bottom)] ml-[env(safe-area-inset-left)]"
+          className="hidden md:block bg-white border border-neutral-200 rounded-md shadow-minimal mb-[env(safe-area-inset-bottom)]"
         />
       </ReactFlow>
 
@@ -1404,13 +1469,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         </div>
       )}
       
-      <div className="absolute bottom-[10px] right-[10px] z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
+      <div className="hidden md:block absolute bottom-4 right-4 z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
         <button 
-          className="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 shadow-minimal dark:border-neutral-800 dark:bg-[#171717] dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:active:bg-neutral-700"
+          className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           onClick={handleReorganizeLayout}
           title={t('重新排布节点')}
         >
-          <LayoutGrid size={16} />
+          <LayoutGrid size={18} />
         </button>
       </div>
     </div>
