@@ -201,6 +201,8 @@ const en: Record<string, string> = {
   '从左侧选择模型编辑，或添加新模型。':
     'Select a model on the left to edit, or add a new one.',
   添加模型: 'Add model',
+  返回列表: 'Back to list',
+  新模型: 'New Model',
 
   // ── DataPanel ─────────────────────────────────────────
   暂无可导出的会话: 'No sessions to export yet',

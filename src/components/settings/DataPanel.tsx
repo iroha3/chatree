@@ -107,7 +107,7 @@ const DataPanel: React.FC = () => {
   };
 
   return (
-    <div className="px-12 py-6 space-y-6 overflow-y-auto h-full">
+    <div className="px-4 md:px-12 py-4 md:py-6 space-y-6 overflow-y-auto h-full">
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('当前数据')}</h3>
         <p className="text-xs text-neutral-500 mb-3">

@@ -60,7 +60,7 @@ const AboutPanel: React.FC = () => {
   }, [runCheck]);
 
   return (
-    <div className="px-12 py-6 space-y-6 overflow-y-auto h-full">
+    <div className="px-4 md:px-12 py-4 md:py-6 space-y-6 overflow-y-auto h-full">
       <section className="text-center">
         <div className="flex justify-center mb-3">
           <Logo size={48} />

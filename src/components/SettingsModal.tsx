@@ -54,18 +54,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 md:p-4"
       onClick={onClose}
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-subtle max-w-5xl w-full h-[80vh] max-h-[720px] flex flex-col overflow-hidden"
+        className="bg-white md:rounded-lg shadow-subtle max-w-5xl w-full h-[100dvh] md:h-[80vh] md:max-h-[720px] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center px-5 py-4 border-b border-neutral-100 shrink-0">
-          <h2 className="text-lg font-medium text-neutral-800">{t('设置')}</h2>
+        <div className="flex justify-between items-center px-4 py-3 md:px-5 md:py-4 border-b border-neutral-100 shrink-0">
+          <h2 className="text-base md:text-lg font-medium text-neutral-800">{t('设置')}</h2>
           <button
-            className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-50"
+            className="text-neutral-500 hover:text-neutral-700 p-1.5 rounded-md hover:bg-neutral-50 transition-colors"
             onClick={onClose}
             title={t('关闭')}
           >
@@ -73,8 +73,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
           </button>
         </div>
 
+        {/* 移动端顶栏标签导航 */}
+        <div className="flex md:hidden border-b border-neutral-100 px-3 py-2 space-x-1.5 overflow-x-auto shrink-0 scrollbar-hide bg-neutral-50/50">
+          {TABS.map(item => {
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`flex shrink-0 items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                  active
+                    ? 'bg-neutral-900 text-white font-medium shadow-sm'
+                    : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50'
+                }`}
+              >
+                {item.icon}
+                <span>{t(item.label)}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex flex-1 min-h-0">
-          <nav className="w-44 shrink-0 border-r border-neutral-100 p-3 space-y-1">
+          <nav className="hidden md:block w-44 shrink-0 border-r border-neutral-100 p-3 space-y-1">
             {TABS.map(item => {
               const active = tab === item.id;
               return (
@@ -95,7 +117,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
             })}
           </nav>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 h-full overflow-hidden">
             {tab === 'models' && <ModelsPanel />}
             {tab === 'data' && <DataPanel />}
             {tab === 'appearance' && <AppearancePanel />}

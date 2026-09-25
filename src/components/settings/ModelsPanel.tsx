@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { GripVertical, Plus, Save, Trash2, Star } from 'lucide-react';
+import { GripVertical, Plus, Save, Trash2, Star, ChevronLeft } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { requestConfirm } from '../../stores/confirmStore';
 import { Model, ReasoningEffort } from '../../types';
@@ -113,9 +113,12 @@ const ModelsPanel: React.FC = () => {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* 中栏固定 240px：弹窗整体加宽（max-w-5xl）后，让多出来的宽度全部给右侧表单，
-          左（导航）和中（模型列表）的宽度保持不变。 */}
-      <div className="w-60 shrink-0 border-r border-neutral-100 p-4 overflow-y-auto">
+      {/* 桌面端固定 240px 左侧列表；移动端未处于编辑状态时占满全宽，编辑时隐藏 */}
+      <div
+        className={`${
+          editingModel ? 'hidden md:block' : 'w-full'
+        } md:w-60 md:shrink-0 md:border-r border-neutral-100 p-4 overflow-y-auto`}
+      >
         <div className="mb-3 flex justify-between items-center">
           <h3 className="text-sm font-medium text-neutral-700">{t('模型列表')}</h3>
           <button
@@ -183,9 +186,25 @@ const ModelsPanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 p-4 overflow-y-auto">
+      <div
+        className={`${
+          editingModel ? 'w-full' : 'hidden md:block'
+        } flex-1 min-w-0 p-4 md:p-6 overflow-y-auto`}
+      >
         {editingModel ? (
           <form ref={formRef} onSubmit={handleSaveModel} className="space-y-4">
+            {/* 移动端返回列表顶栏 */}
+            <div className="flex items-center justify-between pb-3 mb-2 border-b border-neutral-100 md:hidden">
+              <button
+                type="button"
+                onClick={() => setEditingModel(null)}
+                className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 font-medium"
+              >
+                <ChevronLeft size={16} />
+                <span>{t('返回列表')}</span>
+              </button>
+              <span className="text-xs text-neutral-400 font-medium">{editingModel.name || t('新模型')}</span>
+            </div>
             <div>
               <label className="block text-xs font-medium text-neutral-700 mb-1">
                 {t('模型名称')}

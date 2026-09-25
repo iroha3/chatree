@@ -34,7 +34,7 @@ const AppearancePanel: React.FC = () => {
   const t = useT();
 
   return (
-    <div className="px-12 py-6 space-y-6 overflow-y-auto h-full">
+    <div className="px-4 md:px-12 py-4 md:py-6 space-y-6 overflow-y-auto h-full">
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-3">{t('主题')}</h3>
         <div className="grid grid-cols-2 gap-4">
