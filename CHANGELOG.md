@@ -17,6 +17,10 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   `GET {baseUrl}/models`; if the provider implements it and allows CORS, the field becomes
   pick-from-a-list (native datalist). If not, nothing happens and manual typing works as before.
 
+### Changed
+
+- **The window title is now two phrases** — “Chatree - Branch, Compare” — instead of three.
+
 ### Fixed
 
 - **Sessions created from the welcome card are centered now.** They used to land off to the left:

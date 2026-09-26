@@ -582,8 +582,8 @@ async function main() {
     return { before, en, back: document.title };
   })()`, true);
   check('标签页标题跟随语言（zh/en 都换）',
-    !!titleSwitch && titleSwitch.before?.includes('让每个念头都能分叉') &&
-      titleSwitch.en?.includes('Branch every line of thought') &&
+    !!titleSwitch && titleSwitch.before?.includes('分叉思考，并行对照') &&
+      titleSwitch.en?.includes('Branch, Compare') &&
       titleSwitch.back === titleSwitch.before,
     JSON.stringify(titleSwitch));
 

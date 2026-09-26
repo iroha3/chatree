@@ -19,7 +19,7 @@ export type Lang = 'zh' | 'en';
 const STORAGE_KEY = 'treeai-lang';
 
 /** 窗口标题。index.html 里的 <title> 是同一句中文，两边保持一致。 */
-export const APP_TITLE_ZH = 'Chatree - 分叉思考，并行对照，自由推演';
+export const APP_TITLE_ZH = 'Chatree - 分叉思考，并行对照';
 
 /** zh → en。key 是界面上的中文原文。 */
 const en: Record<string, string> = {
@@ -53,7 +53,7 @@ const en: Record<string, string> = {
   已复制: 'Copied',
 
   // ── App ───────────────────────────────────────────────
-  'Chatree - 分叉思考，并行对照，自由推演': 'Chatree - Branch, Compare, Deduce',
+  'Chatree - 分叉思考，并行对照': 'Chatree - Branch, Compare',
   '加载中...': 'Loading...',
   '欢迎使用 Chatree': 'Welcome to Chatree',
   '创建新会话，开始探索树状分支对话。':
