@@ -5,6 +5,30 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.5.0] - 2026-09-26
+
+### Added
+
+- **Models can be duplicated.** A copy button next to delete in the model list clones the whole
+  config — base URL, API key, model ID, system prompt, temperature, reasoning effort — under a
+  “<name> copy” name, inserted right below the original. Change only the parts you want to differ;
+  the key and URL never need re-entering.
+- **The model ID field can suggest models from the endpoint.** Focusing it quietly queries
+  `GET {baseUrl}/models`; if the provider implements it and allows CORS, the field becomes
+  pick-from-a-list (native datalist). If not, nothing happens and manual typing works as before.
+
+### Fixed
+
+- **Sessions created from the welcome card are centered now.** They used to land off to the left:
+  the flow mounted before the session existed and sized the initial viewport from half the window
+  instead of the actual canvas. Session creation now goes through a single store path, and the
+  initial viewport never falls back to a wrong width.
+- **The streaming indicators are no longer redundant or incorrect.** Only one indicator is shown at
+  a time: “Generating” while connecting, then a single “Thinking” in the reasoning header while
+  reasoning streams. Once the answer starts, the reasoning header settles back to the static
+  char count and the stray top-row indicator (and its extra dots) is gone. It no longer keeps
+  saying “Thinking” after reasoning has finished.
+
 ## [0.4.0] - 2026-09-25
 
 ### Added

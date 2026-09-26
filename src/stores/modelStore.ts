@@ -3,6 +3,7 @@ import { Model } from '../types';
 import db from '../db/db';
 import { showError, showInfo, showSuccess } from '../utils/notification';
 import { t } from '../i18n';
+import { generateId } from '../utils/id';
 
 export interface ModelImportResult {
   added: number;
@@ -24,6 +25,11 @@ interface ModelState {
   /** 把某个模型设为默认（= 移到列表第一位） */
   setDefaultModelId: (id: string | null) => void;
   createModel: (model: Model) => void;
+  /**
+   * 复制模型：端点、API Key、模型标识、提示词、温度、思考档全部照抄，只换 id 和名字。
+   * 副本插在源模型**正下方**，返回新 id（源不存在时返回 null）。
+   */
+  duplicateModel: (id: string) => Promise<string | null>;
   updateModel: (model: Model) => void;
   deleteModel: (id: string) => void;
   /** 拖拽排序后调用，orderedIds 是完整的、新的先后顺序 */
@@ -92,6 +98,43 @@ export const useModelStore = create<ModelState>((set, get) => ({
     } catch (error: unknown) {
       showError(t('模型创建失败: {msg}', { msg: getErrorMessage(error) }));
       console.error('Failed to create model:', error);
+    }
+  },
+
+  /**
+   * 复制模型。
+   *
+   * 目的就是「同端点、同 Key，只改想改的那几项」——所以除了 id 和名字，其余
+   * （含 apiKey / baseUrl）一律照抄。用户不用再重填一遍密钥。
+   *
+   * 副本插在源模型正下方（而不是追加到列表末尾），复制完马上能接着编辑，
+   * 也不用再手动拖一次。sortOrder 顺带整体重排一遍，保持它是连续的下标。
+   */
+  duplicateModel: async (id) => {
+    const source = get().models.find(m => m.id === id);
+    if (!source) return null;
+
+    const copy: Model = {
+      ...source,
+      id: generateId(),
+      name: t('{name} 副本', { name: source.name }),
+    };
+
+    const list = [...get().models];
+    const index = list.findIndex(m => m.id === id);
+    list.splice(index + 1, 0, copy);
+    const ordered = list.map((m, i) => ({ ...m, sortOrder: i }));
+
+    // 乐观更新：先落到 UI，再后台写完 IndexedDB（同 reorderModels，避免卡一下再跳）。
+    set({ models: ordered, defaultModelId: ordered[0].id });
+
+    try {
+      await Promise.all(ordered.map(m => db.saveModel(m)));
+      showSuccess(t('模型已复制'));
+      return copy.id;
+    } catch (error: unknown) {
+      showError(t('模型复制失败: {msg}', { msg: getErrorMessage(error) }));
+      return null;
     }
   },
 

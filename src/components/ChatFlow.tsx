@@ -288,7 +288,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   useLayoutEffect(() => {
     if (initialViewport) return;
-    const width = paneRef.current?.clientWidth || window.innerWidth / 2;
+    // 量不到容器宽度就**别**退回 window.innerWidth / 2：
+    // 有侧栏时画板比窗口窄一截，用半窗口宽算出来的视口会把根节点往左顶
+    // （约 = 侧栏宽度 / 2）。正确做法是等容器挂上（session 就绪后本组件会先渲染
+    // 一个带 paneRef 的占位容器）再算 —— 那一次 effect 会因为 session.nodes
+    // 变化而重跑。见 DEV §3.3 / 新建会话居中。
+    const width = paneRef.current?.clientWidth;
+    if (!width) return;
     setInitialViewport(homeViewport(width, session?.nodes ?? []));
   }, [initialViewport, session?.nodes]);
   const abortControllerRef = useRef<Record<string, AbortController>>({});

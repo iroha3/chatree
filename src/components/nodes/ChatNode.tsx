@@ -15,6 +15,22 @@ import { useT } from '../../i18n';
 import PathReaderOverlay from './PathReaderOverlay';
 import CopyButton from '../CopyButton';
 
+/**
+ * 三个跳动的点。
+ *
+ * 全卡片同一时刻**只允许出现这一组** —— 以前的写法是「思考中...」自带 3 个字面点
+ * 再叠 3 个 animate-bounce 的 div，再加上思考链标题里的「思考中…」，一屏挤了 9 个点。
+ * 另外 Tailwind 的 `delay-100` 是 **transition-delay**，对 animation 无效 ——
+ * 三个点其实是一起跳的。这里用 animation-delay 任意值把它们真正错开。
+ */
+const BouncingDots: React.FC = () => (
+  <span className="inline-flex items-end gap-0.5 leading-none" aria-hidden>
+    <span className="animate-bounce leading-none">.</span>
+    <span className="animate-bounce leading-none [animation-delay:120ms]">.</span>
+    <span className="animate-bounce leading-none [animation-delay:240ms]">.</span>
+  </span>
+);
+
 const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onStop, onModelChange, onTemperatureChange } = data;
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
@@ -61,7 +77,19 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   // 流式期间优先显示实时思维链；流完之后节点上持久化的值接管。
   const reasoningText = streamingReasoning || node.reasoning || '';
-  const isLiveReasoning = !!streamingReasoning && !!node.isStreaming;
+  const reasoningChars = countChars(reasoningText);
+
+  /*
+   * 流式的三个阶段。同一个时刻只会命中一个：
+   *   连接中：请求已发出，什么都还没回来（慢模型的兜底提示）；
+   *   思考中：在流 reasoning，正文还没开始；
+   *   回答中：正文已经开始。
+   * 指示器只在「连接中（顶部一行）」和「思考中（思考链标题）」各出现一次，
+   * 回答阶段不再加「回答中…」—— 正文在逐字长出来，本身就是指示器。
+   */
+  const isStreaming = !!node.isStreaming;
+  const isThinking = isStreaming && !!streamingReasoning && !streamingResponse;
+  const isConnecting = isStreaming && !streamingReasoning && !streamingResponse;
 
   const hasAnswer = !!(node.assistantMessage || reasoningText);
 
@@ -501,12 +529,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           e.stopPropagation();
         }}
       >
-        {node.isStreaming ? (
-          <div className="flex items-center space-x-2 text-neutral-500 mb-2">
-            <div className="animate-pulse">{t('思考中...')}</div>
-            <div className="animate-bounce delay-100">.</div>
-            <div className="animate-bounce delay-200">.</div>
-            <div className="animate-bounce delay-300">.</div>
+        {isConnecting ? (
+          <div className="flex items-center gap-2 text-neutral-500 mb-2">
+            <span>{t('生成中')}</span>
+            <BouncingDots />
           </div>
         ) : node.error ? (
           <div className="text-red-500 mb-2">
@@ -523,9 +549,15 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             >
               <span className="flex items-center">
                 <Brain size={14} className="mr-1.5" />
-                {t('思考过程')}
-                {isLiveReasoning && (
-                  <span className="ml-1.5 animate-pulse text-neutral-400">{t('思考中…')}</span>
+                {isThinking ? (
+                  <>
+                    {t('思考中')}
+                    <span className="ml-1.5 text-neutral-400"><BouncingDots /></span>
+                  </>
+                ) : (
+                  // 思考结束后不再显示「思考中」（以前 isLiveReasoning 在正文阶段仍为真，
+                  // 已经结束了还亮着），改成静态字数，顺便把这条标题栏变成有效信息。
+                  t('思考过程 · {n} 字', { n: reasoningChars })
                 )}
               </span>
               <ChevronDown

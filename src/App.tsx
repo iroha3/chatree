@@ -124,8 +124,11 @@ const App: React.FC = () => {
                       updatedAt: new Date().toISOString(),
                       nodes: []
                     };
+                    // 只走 store 这一条路。**不要**再在这里同步 setCurrentSessionId：
+                    // 那会赶在 createSession 的 await 落库之前把 ChatFlow 挂起来，
+                    // 此时 session 还不存在，初始视口只能按「半窗口宽」估，
+                    // 节点就偏到左边去了（左下角按钮走的也是 store，所以它是对的）。
                     useSessionStore.getState().createSession(newSession);
-                    setCurrentSessionId(newSession.id);
                   }
                 }}
               >

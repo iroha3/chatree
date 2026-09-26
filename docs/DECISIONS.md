@@ -310,3 +310,38 @@
 - **相关代码**：`ChatFlow.tsx` 的 `isCoarsePointer` / `buildFlowNode`、`index.css` 的
   `.node-drag-handle` 与 `touch-action` 覆盖；契约与坑见 `DEV.md` §3.16 / §4.6-4.7。
 
+
+## D-019 thinking level 不做在根节点上，用「模型复制」解决
+
+- **状态**：🚫（根节点 thinking level 不做）
+- **背景**：曾提案在根 system 节点上加一个「思考强度」下拉，让一条会话能单独调档（子节点不给）。
+  但思考强度本质是**模型**的属性（`model.reasoningEffort`，请求时由 `resolveReasoningEffort`
+  解析），而且根节点现有的「温度」语义是「给**以后新建**的子节点当默认值」——改了不会影响已有
+  子节点。给 thinking level 另起一套「会话级实时覆盖」的语义，会和温度两套并存，还要处理
+  换模型时是否重置、多个 system 节点取哪个、provider 不支持 `reasoning_effort` 等一堆边界。
+- **结论**：不做根节点覆盖。真实需求（「同一端点同一 Key，想要低思考/高思考两个入口」）用
+  **模型复制**满足：复制一个模型，只把 `reasoningEffort` 改成另一档。代价是用户要在模型列表里
+  多一个条目；换来的是零新增语义、零继承歧义。
+- **触发条件**：真出现「不想多一个模型条目、就是要按会话临时调档」的高频诉求，再讨论
+  会话级覆盖（届时也要一并把温度的语义统一掉，而不是只动 thinking）。
+- **相关代码**：`src/stores/modelStore.ts` 的 `duplicateModel`、`src/components/settings/ModelsPanel.tsx`；
+  模型配置里的 `reasoningEffort` 在 `src/utils/reasoningEffort.ts`。
+
+## D-020 `/models` 拉取模型列表 = 惊喜功能，宁可 100% 没有
+
+- **状态**：✅ 已定（已实现）
+- **背景**：OpenAI 兼容端点有 `GET {baseUrl}/models`，能拉到模型 ID，就不用用户手填。
+  但它**不可靠**：很多服务商没实现（404/403），或没给 `/models` 放 CORS 头
+  （`/chat/completions` 能跨域不代表它也放）；桌面版 `tauri.localhost` 的跨域表现又和浏览器不同；
+  返回结构也不统一（`{data}` / `{models}` / 字符串数组）。
+- **选项**：
+  - A. 做成一个「获取列表」按钮 + 失败提示：可见、可控，但把「有的服务商没有」这件事暴露给所有人；
+  - B. 自动探测、只有成功才出现下拉：失败完全无感；
+  - C. 不做。
+- **结论**：**B**。聚焦「模型标识」输入框时静默探一次，成功才把输入框换成带 `<datalist>` 的
+  可选可填，失败**什么都不做**（不弹 toast、不拦住保存、不写错误状态）。手动填写永远是主路径。
+  契约写进 `DEV.md` §3.17，避免以后有人「顺手加个错误提示」把它变成半坏的功能。
+  实测：LM Studio（`http://localhost:1234/v1`，带 CORS）能拿到 4 个模型；缺 CORS / 端点的返回静默失败。
+  另注：`localhost:7890` 是 Clash/mihomo 代理端口，不是 LM Studio。
+- **触发条件**：不适用（设计上接受它可能永远用不上）。
+- **相关代码**：`src/services/modelList.ts`、`ModelsPanel.tsx` 的 `loadModelOptions`。

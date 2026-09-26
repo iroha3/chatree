@@ -285,7 +285,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                             </div>
                           ) : (
                             <p className="py-6 text-center text-sm italic text-neutral-400">
-                              {node.isStreaming ? t('思考中...') : t('回答将显示在这里')}
+                              {node.isStreaming ? t('生成中') : t('回答将显示在这里')}
                             </p>
                           )}
 

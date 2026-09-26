@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { GripVertical, Plus, Save, Trash2, Star, ChevronLeft } from 'lucide-react';
+import { GripVertical, Plus, Save, Trash2, Star, ChevronLeft, Copy } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { requestConfirm } from '../../stores/confirmStore';
 import { Model, ReasoningEffort } from '../../types';
 import { REASONING_EFFORT_OPTIONS, resolveReasoningEffort } from '../../utils/reasoningEffort';
+import { fetchModelIds } from '../../services/modelList';
 import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_SYSTEM_PROMPT,
@@ -35,12 +36,50 @@ const EFFORT_HINTS: Record<ReasoningEffort, string> = {
  * 自身不再管遮罩层、标题栏和关闭按钮，那些由 SettingsModal 负责。
  */
 const ModelsPanel: React.FC = () => {
-  const { models, createModel, updateModel, deleteModel, reorderModels } = useModelStore();
+  const { models, createModel, updateModel, deleteModel, duplicateModel, reorderModels } = useModelStore();
   const [editingModel, setEditingModel] = useState<Model | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
+
+  /*
+   * 模型下拉候选（锦上添花）。
+   *
+   * 不是必需流程，也不是按钮：聚焦「模型标识」输入框时**静默**探一次
+   * {baseUrl}/models，成功才把输入框变成可选可填（<datalist>），失败什么都不做。
+   * 见 services/modelList.ts 的注释 —— 大量服务商没开这个端点或没放 CORS，
+   * 失败是常态，绝不能因为它报错 / 挡住保存。
+   */
+  const [modelOptions, setModelOptions] = useState<{ key: string; ids: string[] } | null>(null);
+  const modelFetchTried = useRef<Set<string>>(new Set());
+
+  const loadModelOptions = () => {
+    if (!editingModel) return;
+    const baseUrl = editingModel.baseUrl.trim();
+    const apiKey = editingModel.apiKey;
+    if (!baseUrl || !apiKey) return;
+    const key = `${baseUrl}|${apiKey}`;
+    if (modelFetchTried.current.has(key)) return;
+    modelFetchTried.current.add(key);
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 8000);
+    fetchModelIds(baseUrl, apiKey, controller.signal)
+      .then((ids) => {
+        if (ids.length > 0) setModelOptions({ key, ids });
+      })
+      .catch(() => {
+        // 惊喜功能：拿不到就当没这回事
+      })
+      .finally(() => window.clearTimeout(timer));
+  };
+
+  // 只有当候选确实对应当前 baseUrl + Key 时才展示，避免换模型后残留旧列表
+  const currentModelKey = editingModel
+    ? `${editingModel.baseUrl.trim()}|${editingModel.apiKey}`
+    : '';
+  const modelSuggestions = modelOptions?.key === currentModelKey ? modelOptions.ids : [];
 
   const handleDropOnModel = async (targetId: string) => {
     const sourceId = dragId;
@@ -80,6 +119,10 @@ const ModelsPanel: React.FC = () => {
 
   const handleEditModel = (model: Model) => {
     setEditingModel({ ...model });
+  };
+
+  const handleDuplicateModel = async (id: string) => {
+    await duplicateModel(id);
   };
 
   const handleSaveModel = (e: React.FormEvent) => {
@@ -171,15 +214,28 @@ const ModelsPanel: React.FC = () => {
                     </span>
                   )}
                 </span>
-                <button
-                  className="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-neutral-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteModel(model.id);
-                  }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    className="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-neutral-100"
+                    title={t('复制模型')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDuplicateModel(model.id);
+                    }}
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button
+                    className="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-neutral-100"
+                    title={t('删除模型')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteModel(model.id);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </span>
               </div>
             ))
           )}
@@ -270,10 +326,24 @@ const ModelsPanel: React.FC = () => {
                 type="text"
                 value={editingModel.modelName}
                 onChange={(e) => setEditingModel({ ...editingModel, modelName: e.target.value })}
+                onFocus={loadModelOptions}
+                list={modelSuggestions.length > 0 ? 'chatree-model-options' : undefined}
                 className="w-full p-2 border border-neutral-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 placeholder="gpt-4 / deepseek-flash"
                 required
               />
+              {modelSuggestions.length > 0 && (
+                <>
+                  <datalist id="chatree-model-options">
+                    {modelSuggestions.map(id => (
+                      <option key={id} value={id} />
+                    ))}
+                  </datalist>
+                  <p className="mt-1 text-[11px] text-neutral-400 leading-normal">
+                    {t('已获取 {n} 个模型，可下拉选择', { n: modelSuggestions.length })}
+                  </p>
+                </>
+              )}
             </div>
 
             <div>

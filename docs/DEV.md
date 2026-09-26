@@ -91,6 +91,26 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - 实现见 `ChatNode.tsx` 的 `reasoningTouchedRef` + effect。判断"思考结束"用的是
   `streamingReasoning 还在 && 正文还没开始`，不能用 `isLiveReasoning`（它在正文阶段仍为真）。
 
+#### 流式指示器：同一时刻全班只出现一处
+
+指示器（文案 + 那组跳动点）分三个阶段，`isConnecting` / `isThinking` 在 `ChatNode.tsx` 顶部算好：
+
+| 阶段 | 判定 | 显示 |
+|---|---|---|
+| 连接中 | `isStreaming && 无思考 && 无正文` | 正文区顶上单独一行 `生成中` + 一组点 |
+| 思考中 | `isStreaming && 有思考 && 无正文` | **顶部那行不渲染**；只在思考链标题 `思考中` + 一组点 |
+| 回答中 | `isStreaming && 有正文` | **不加任何文字指示器**（正文在长出来就是指示器；`停止生成` 在悬浮簇里）。思考链标题静默成 `思考过程 · {n} 字` |
+
+两条硬约束（踩过）：
+
+- **文案里绝不写 `...`**。以前的 `思考中...` 自带 3 个字面点，再叠 3 个 `animate-bounce` 的 div，
+  加上思考链标题的 `思考中…`，一屏 9 个点，“想表达三件事”变成一团噪声。点只由 `BouncingDots` 出，
+  全卡片同一时刻只有这一组。
+- **`animate-bounce` 的错开要用 `[animation-delay:120ms]`，不是 Tailwind 的 `delay-100`** ——
+  后者是 `transition-delay`，对 animation 无效，三个点会一起跳。
+- 判断“思考结束”必须用 `isThinking`（`!streamingResponse`），不能用旧的 `isLiveReasoning`
+  （它在正文阶段仍为真，导致已经结束了还亮着“思考中”）。
+
 ### 3.3 动作按钮的位置、尺寸与对齐
 
 - **输入框右下角只放发送键**（你打字的地方），而且**只在编辑态出现**：
@@ -307,6 +327,19 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 
 代价：桌面端正文区的「按住拖动选择文字」被让给了「拖卡片」。取舍记录在 D-018。
 
+### 3.17 模型的「复制」与 `/models` 探测
+
+**复制模型**（`modelStore.duplicateModel`）：除 `id` 和名字（`{name} 副本`）外**全部照抄**，
+含 `apiKey` / `baseUrl`，副本插在源模型**正下方**。定位就是「同端点同 Key，只改想改的那几项」，
+别把它做成「清空密钥的新模型」。
+
+**模型列表探测**（`services/modelList.ts`）是一个**惊喜功能**，不是必需流程：
+
+- 只在「模型标识」输入框**聚焦**时静默探一次 `GET {baseUrl}/models`，**没有按钮**；
+- 成功才把输入框换成带 `<datalist>` 的可选可填，失败**什么都不做**（不弹 toast、不拦住保存）——
+  大量服务商没实现这个端点，或没放 CORS 头，失败是常态（D-020）；
+- 手动填写永远是主路径，`<datalist>` 只是加法。
+
 ---
 
 ## 4. React Flow 的坑（血泪）
@@ -329,6 +362,13 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
    `!important` 覆盖成 `pan-y`（鼠标拖拽走 mouse 事件，不受影响）。回归 / 排查见 §3.16。
 7. `dragHandle` 是**节点级**属性，不是 `<ReactFlow>` 的 prop（见 §3.16 第 1 条）；
    改完记得让「复用 previous 节点」的早退条件也带上它，否则切换指针类型时把手不会更新。
+8. **新建会话必须走 `sessionStore.createSession` 一条路，调用方不要再同步
+   `setCurrentSessionId`。** 欢迎卡片的按钮曾额外同步设了一次，赶在 `createSession` 的
+   `await db.saveSession` 之前就把 `<ChatFlow>` 挂了：此时 `session` 还不存在，组件先渲染
+   `Session not found`（没有 `paneRef`），`useLayoutEffect` 读到 `clientWidth` 为空就退回
+   `window.innerWidth / 2` —— 桌面端有侧栏，画板比窗口窄一截，根节点因此偏左约半个侧栏宽，
+   且因为 `if (initialViewport) return` 永不重算。两条一起才修好：统一走 store + 初次视口
+   **量不到容器宽度就不设**（等 `session.nodes` 到位、占位容器挂上后那次 effect 再算）。
 
 ---
 
