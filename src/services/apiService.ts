@@ -12,12 +12,43 @@ interface ChatRequestOptions {
   model: Model;
   temperature: number;
   maxTokens: number;
+  sessionId?: string;
+  sessionTitle?: string;
   signal?: AbortSignal;
   onChunk: (chunk: string) => void;
   /** 思维链分片回调。与正文分开，不会混进 messages */
   onReasoning?: (chunk: string) => void;
   /** token 用量回调。多数服务端需要 stream_options.include_usage 才会在流里返回 */
   onUsage?: (usage: UsageStats) => void;
+}
+
+/**
+ * 变量插值：支持 {{sessionId}}、{{sessionTitle}}、{{modelName}} 等占位符
+ */
+export function interpolateVariables(value: string, vars: Record<string, string>): string {
+  return value.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+    return key in vars ? vars[key] : `{{${key}}}`;
+  });
+}
+
+/**
+ * 递归对 JSON 对象/数组中的字符串进行插值
+ */
+export function interpolateDeep<T>(data: T, vars: Record<string, string>): T {
+  if (typeof data === 'string') {
+    return interpolateVariables(data, vars) as unknown as T;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => interpolateDeep(item, vars)) as unknown as T;
+  }
+  if (data && typeof data === 'object') {
+    const res: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+      res[k] = interpolateDeep(v, vars);
+    }
+    return res as unknown as T;
+  }
+  return data;
 }
 
 /*
@@ -36,12 +67,18 @@ const streamOptionsUnsupported = new Set<string>();
 const PARAM_REJECTED = /stream_options|include_usage|unexpected keyword|extra inputs|unknown parameter|unexpected parameter|unsupported parameter|extra fields/i;
 
 export async function sendChatRequest(options: ChatRequestOptions): Promise<void> {
-  const { messages, model, temperature, maxTokens, signal, onChunk, onReasoning, onUsage } = options;
+  const { messages, model, temperature, maxTokens, sessionId, sessionTitle, signal, onChunk, onReasoning, onUsage } = options;
   
   try {
     // 去掉结尾多余的斜杠，避免拼出 //chat/completions
     const baseUrl = model.baseUrl.replace(/\/+$/, '');
     const endpoint = `${baseUrl}/chat/completions`;
+
+    const vars: Record<string, string> = {
+      sessionId: sessionId ?? '',
+      sessionTitle: sessionTitle ?? '',
+      modelName: model.modelName,
+    };
 
     const buildRequestBody = (withUsage: boolean): Record<string, unknown> => {
       const body: Record<string, unknown> = {
@@ -62,16 +99,41 @@ export async function sendChatRequest(options: ChatRequestOptions): Promise<void
         body.reasoning_effort = reasoningEffort;
       }
 
+      // 用户自定义请求体：深浅合并至顶层，具有最高优先级（可覆盖默认字段或传入非标参数）
+      if (model.customBody && typeof model.customBody === 'object') {
+        const resolvedBody = interpolateDeep(model.customBody, vars);
+        Object.assign(body, resolvedBody);
+      }
+
       return body;
+    };
+
+    const buildHeaders = (): Record<string, string> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (model.apiKey) {
+        headers['Authorization'] = `Bearer ${model.apiKey}`;
+      }
+
+      // 用户自定义 Header：可新增 Header（如 X-Conversation-Id），传空字符串可显式剔除默认 Header
+      if (model.customHeaders && typeof model.customHeaders === 'object') {
+        for (const [key, rawVal] of Object.entries(model.customHeaders)) {
+          if (rawVal === '') {
+            delete headers[key];
+          } else if (typeof rawVal === 'string') {
+            headers[key] = interpolateVariables(rawVal, vars);
+          }
+        }
+      }
+
+      return headers;
     };
 
     const send = (withUsage: boolean) =>
       fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${model.apiKey}`
-        },
+        headers: buildHeaders(),
         body: JSON.stringify(buildRequestBody(withUsage)),
         signal
       });

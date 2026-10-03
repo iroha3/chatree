@@ -118,6 +118,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
       ...source,
       id: generateId(),
       name: t('{name} 副本', { name: source.name }),
+      customHeaders: source.customHeaders ? { ...source.customHeaders } : undefined,
+      customBody: source.customBody ? JSON.parse(JSON.stringify(source.customBody)) : undefined,
     };
 
     const list = [...get().models];

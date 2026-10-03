@@ -797,6 +797,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         model,
         temperature: node.temperature,
         maxTokens: node.maxTokens,
+        sessionId,
         signal: abortController.signal,
         onChunk: (chunk) => {
           accumulatedResponse += chunk;

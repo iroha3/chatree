@@ -361,3 +361,18 @@
 - **结论**：**C**。以极低代码成本（~100 行通信 + ~150 行合并）实现真正可靠的多端同步，彻底根除僵尸复活，同时将操作负担收敛至零思考的单按钮。
 - **触发条件**：已落地并联调完成（坚果云 / AList 实测通过）。
 - **相关代码**：`src/services/webdav.ts`、`src/utils/syncMerge.ts`、`src/stores/syncStore.ts`、`src/components/settings/WebDavSyncSection.tsx`、`src/db/db.ts`（schema v4 `tombstones`）。
+
+## D-022 模型高级字段配置（Extra Body 与 Custom Headers + 占位符插值）
+
+- **状态**：✅ 已定（已实现）
+- **背景**：现实中各大 API 代理网关与兼容层（如 `deepseek-web2api`、`duckai-proxy`、OpenRouter、Azure 等）严重非标化：有的需要顶层非标字段（`thinking_mode: true`、`search_enabled: false`），有的需要会话缓存 Header（`X-Conversation-Id`），有的需要剔除默认 Authorization 头。若为每个特例在 UI 上硬编码专用开关，会导致界面杂乱、包袱沉重且难以跟上新服务商。
+- **选项**：
+  - A. 为每个特例做专用 UI 表单控件（如“开启搜索”、“开启思考模式”复选框）：对普通人可见，但代码侵入极深、协议一变就失效；
+  - B. 通用 JSON 文本域（Extra Body + Custom Headers）+ 低调折叠：
+    1. 在模型表单底部提供默认折叠的「高级参数 (API 扩展)」；
+    2. 支持 JSON 格式的 `customBody`（浅合并至请求体顶层，具有最高优先级）与 `customHeaders`（支持注入或传空字符串剔除）；
+    3. 支持动态占位符（如 `{{sessionId}}`），使 `deepseek-web2api` 等服务能够自动享受服务端会话加速；
+    4. 随 WebDAV 私有同步，但在公开导出会话备份时自动对自定义头中的 Authorization 等敏感凭据脱敏。
+- **结论**：**B**。兼顾极简界面与高阶用户的极致灵活性，以极低的代码量与心智负担彻底解决了非标 API 的混乱问题。
+- **触发条件**：已落地并完成测试。
+- **相关代码**：`src/types.ts`、`src/services/apiService.ts`、`src/components/settings/ModelsPanel.tsx`、`src/utils/sessionTransfer.ts`。

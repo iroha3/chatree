@@ -388,6 +388,31 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - **Firefox HTTPS-Only Mode**：
   - 在局域网 HTTP（如 `http://192.168.x.x:5244/dav/`）调试或部署时，若开启了浏览器的 HTTPS-Only 模式，浏览器会将请求隐式升级为 HTTPS。因纯 HTTP 服务无 TLS 监听，握手直接重置并报错为跨域 `CORS 请求未能成功 (null)`。排查时需检查地址栏盾牌图标或配置 HTTPS 证书。
 
+### 3.19 模型高级字段与占位符规范
+
+详见决策记录 [`docs/DECISIONS.md#D-022`](docs/DECISIONS.md)。
+
+#### 1. 入口与心智
+- **保持低调折叠**：绝大多数用户仅需配置 API Key 与端点，高级参数位于模型编辑面板最底部，默认折叠，避免视觉与心智干扰；有配置时显示灰色徽标。
+
+#### 2. 合并规则（`src/services/apiService.ts`）
+- **自定义请求体 (`customBody`)**：
+  - 必须是合法的 JSON 对象；
+  - 浅合并至请求体顶层，**拥有最高优先级**，可用于注入非标参数（如 `thinking_mode: true`、`search_enabled: false`）或覆盖默认参数。
+- **自定义请求头 (`customHeaders`)**：
+  - 必须是合法的 JSON 键值对对象；
+  - 传入 Header 会覆盖同名默认 Header；若某个 Header 的值填为空字符串 `""`（如 `{"Authorization": ""}`），则发送请求时会**显式移除**该默认请求头（适用于无鉴权的反代网关）。
+
+#### 3. 动态占位符插值
+- `customHeaders` 与 `customBody` 均支持递归字符串占位符：
+  - `{{sessionId}}`：替换为当前活动会话的 ID（例如 `X-Conversation-Id: "{{sessionId}}"` 用于开启服务端会话缓存）；
+  - `{{sessionTitle}}`：替换为当前会话标题；
+  - `{{modelName}}`：替换为当前模型的标识符。
+
+#### 4. 安全与导出脱敏契约（`src/utils/sessionTransfer.ts`）
+- **公开备份导出**（`keepApiKeys = false`）：除清空 `apiKey` 外，自动过滤 `customHeaders` 中包含 `authorization`、`api-key`、`token`、`secret` 的敏感鉴权头，防止公开分享导出文件时泄露 Token。
+- **私有 WebDAV 同步**（`keepApiKeys = true`）：全量保留 `customHeaders` 与 `customBody`，确保多端体验完全一致。
+
 ---
 
 ## 4. React Flow 的坑（血泪）

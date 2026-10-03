@@ -204,6 +204,24 @@ const en: Record<string, string> = {
   添加模型: 'Add model',
   返回列表: 'Back to list',
   新模型: 'New Model',
+  '高级参数 (API 扩展)': 'Advanced parameters (API extensions)',
+  已配置: 'Configured',
+  '自定义请求体 (Extra Body, JSON)': 'Custom Request Body (Extra Body, JSON)',
+  '为 DeepSeek Web2API 注入思考模式与搜索参数':
+    'Inject thinking mode & search for DeepSeek Web2API',
+  '为 DuckAI / OpenAI 注入思考等级': 'Inject reasoning effort for DuckAI / OpenAI',
+  '合并到发送给模型的请求体顶层，可传入非标参数或覆盖默认字段。':
+    'Merged into the top-level payload; allows non-standard fields or overrides.',
+  '自定义请求头 (Custom Headers, JSON)': 'Custom Headers (JSON)',
+  '注入会话缓存头，享受服务端多轮缓存加速':
+    'Inject conversation ID for server-side cache acceleration',
+  '注入 OpenRouter 来源标识': 'Inject OpenRouter referer header',
+  '支持占位符：{{sessionId}}。若需要移除默认 Authorization，可将其值填为空字符串 ""。':
+    'Supports placeholders: {{sessionId}}. Set to empty string "" to omit default Authorization.',
+  '必须是合法的 JSON 对象 (例如 {"key": "value"})':
+    'Must be a valid JSON object (e.g. {"key": "value"})',
+  '必须是合法的 JSON 对象': 'Must be a valid JSON object',
+  'JSON 语法错误': 'Invalid JSON syntax',
 
   // ── DataPanel ─────────────────────────────────────────
   暂无可导出的会话: 'No sessions to export yet',

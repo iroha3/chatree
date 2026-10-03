@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { GripVertical, Plus, Save, Trash2, Star, ChevronLeft, Copy } from 'lucide-react';
+import { GripVertical, Plus, Save, Trash2, Star, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { requestConfirm } from '../../stores/confirmStore';
 import { Model, ReasoningEffort } from '../../types';
@@ -42,6 +42,13 @@ const ModelsPanel: React.FC = () => {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
+
+  // 高级参数折叠状态与编辑缓冲区
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [headersJson, setHeadersJson] = useState('');
+  const [bodyJson, setBodyJson] = useState('');
+  const [headersError, setHeadersError] = useState<string | null>(null);
+  const [bodyError, setBodyError] = useState<string | null>(null);
 
   /*
    * 模型下拉候选（锦上添花）。
@@ -101,10 +108,6 @@ const ModelsPanel: React.FC = () => {
   const handleAddModel = () => {
     const newModel: Model = {
       id: generateId(),
-      // 预填 DeepSeek：用户只需要粘贴 API Key 就能用。
-      // reasoningEffort 故意不设 —— 留空时 resolveReasoningEffort() 会按 baseUrl
-      // 自动判定为 low；如果写死成 low，以后把 baseUrl 换成 OpenAI 就会多发一个
-      // 它不认识的 reasoning_effort 参数。
       name: 'DeepSeek',
       baseUrl: 'https://api.deepseek.com',
       apiKey: '',
@@ -115,14 +118,90 @@ const ModelsPanel: React.FC = () => {
     };
 
     setEditingModel(newModel);
+    setHeadersJson('');
+    setBodyJson('');
+    setHeadersError(null);
+    setBodyError(null);
+    setShowAdvanced(false);
   };
 
   const handleEditModel = (model: Model) => {
     setEditingModel({ ...model });
+    setHeadersJson(model.customHeaders ? JSON.stringify(model.customHeaders, null, 2) : '');
+    setBodyJson(model.customBody ? JSON.stringify(model.customBody, null, 2) : '');
+    setHeadersError(null);
+    setBodyError(null);
+    setShowAdvanced(Boolean(model.customHeaders || model.customBody));
   };
 
   const handleDuplicateModel = async (id: string) => {
     await duplicateModel(id);
+  };
+
+  const handleHeadersChange = (val: string) => {
+    setHeadersJson(val);
+    if (!val.trim()) {
+      setHeadersError(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(val);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        setHeadersError(t('必须是合法的 JSON 对象 (例如 {"key": "value"})'));
+      } else {
+        setHeadersError(null);
+      }
+    } catch {
+      setHeadersError(t('JSON 语法错误'));
+    }
+  };
+
+  const handleBodyChange = (val: string) => {
+    setBodyJson(val);
+    if (!val.trim()) {
+      setBodyError(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(val);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        setBodyError(t('必须是合法的 JSON 对象 (例如 {"key": "value"})'));
+      } else {
+        setBodyError(null);
+      }
+    } catch {
+      setHeadersError(t('JSON 语法错误'));
+    }
+  };
+
+  const insertHeadersTemplate = (template: Record<string, string>) => {
+    try {
+      let current: Record<string, string> = {};
+      if (headersJson.trim()) {
+        current = JSON.parse(headersJson);
+      }
+      const merged = { ...current, ...template };
+      setHeadersJson(JSON.stringify(merged, null, 2));
+      setHeadersError(null);
+    } catch {
+      setHeadersJson(JSON.stringify(template, null, 2));
+      setHeadersError(null);
+    }
+  };
+
+  const insertBodyTemplate = (template: Record<string, unknown>) => {
+    try {
+      let current: Record<string, unknown> = {};
+      if (bodyJson.trim()) {
+        current = JSON.parse(bodyJson);
+      }
+      const merged = { ...current, ...template };
+      setBodyJson(JSON.stringify(merged, null, 2));
+      setBodyError(null);
+    } catch {
+      setBodyJson(JSON.stringify(template, null, 2));
+      setBodyError(null);
+    }
   };
 
   const handleSaveModel = (e: React.FormEvent) => {
@@ -130,10 +209,46 @@ const ModelsPanel: React.FC = () => {
 
     if (!editingModel) return;
 
-    if (models.some(m => m.id === editingModel.id)) {
-      updateModel(editingModel);
+    let parsedHeaders: Record<string, string> | undefined = undefined;
+    if (headersJson.trim()) {
+      try {
+        const parsed = JSON.parse(headersJson);
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          setHeadersError(t('必须是合法的 JSON 对象'));
+          return;
+        }
+        parsedHeaders = parsed;
+      } catch {
+        setHeadersError(t('JSON 语法错误'));
+        return;
+      }
+    }
+
+    let parsedBody: Record<string, unknown> | undefined = undefined;
+    if (bodyJson.trim()) {
+      try {
+        const parsed = JSON.parse(bodyJson);
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          setBodyError(t('必须是合法的 JSON 对象'));
+          return;
+        }
+        parsedBody = parsed;
+      } catch {
+        setBodyError(t('JSON 语法错误'));
+        return;
+      }
+    }
+
+    const modelToSave: Model = {
+      ...editingModel,
+      customHeaders: parsedHeaders,
+      customBody: parsedBody,
+    };
+
+    if (models.some(m => m.id === modelToSave.id)) {
+      updateModel(modelToSave);
     } else {
-      createModel(editingModel);
+      createModel(modelToSave);
     }
 
     setEditingModel(null);
@@ -428,6 +543,120 @@ const ModelsPanel: React.FC = () => {
                   {t('单次最大生成 Token（256–{max}）', { max: MAX_TOKENS_LIMIT })}
                 </p>
               </div>
+            </div>
+
+            {/* 高级参数 (API 扩展) - 默认低调折叠 */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition-colors py-1 group select-none"
+              >
+                <ChevronRight
+                  size={13}
+                  className={`text-neutral-400 group-hover:text-neutral-600 transition-transform duration-150 ${showAdvanced ? 'rotate-90' : ''}`}
+                />
+                <span>{t('高级参数 (API 扩展)')}</span>
+                {(Boolean(headersJson.trim()) || Boolean(bodyJson.trim())) && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-100 text-neutral-500 font-mono">
+                    {t('已配置')}
+                  </span>
+                )}
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-2 p-3 bg-neutral-50/70 border border-neutral-200/80 rounded-lg space-y-3.5">
+                  {/* 自定义请求体 Extra Body */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-neutral-700">
+                        {t('自定义请求体 (Extra Body, JSON)')}
+                      </label>
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => insertBodyTemplate({ thinking_mode: true, search_enabled: false })}
+                          className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
+                          title={t('为 DeepSeek Web2API 注入思考模式与搜索参数')}
+                        >
+                          + DS Web2API
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertBodyTemplate({ reasoning_effort: 'low' })}
+                          className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
+                          title={t('为 DuckAI / OpenAI 注入思考等级')}
+                        >
+                          + DuckAI
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      value={bodyJson}
+                      onChange={(e) => handleBodyChange(e.target.value)}
+                      placeholder={'{\n  "thinking_mode": true,\n  "search_enabled": false\n}'}
+                      rows={3}
+                      className={`w-full p-2 font-mono text-xs border rounded-md bg-white focus:outline-none focus:ring-1 ${
+                        bodyError
+                          ? 'border-red-300 focus:ring-red-400'
+                          : 'border-neutral-200 focus:ring-neutral-400'
+                      }`}
+                    />
+                    {bodyError ? (
+                      <p className="mt-0.5 text-[11px] text-red-500">{bodyError}</p>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-neutral-400 leading-normal">
+                        {t('合并到发送给模型的请求体顶层，可传入非标参数或覆盖默认字段。')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 自定义请求头 Custom Headers */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-neutral-700">
+                        {t('自定义请求头 (Custom Headers, JSON)')}
+                      </label>
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => insertHeadersTemplate({ 'X-Conversation-Id': '{{sessionId}}' })}
+                          className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
+                          title={t('注入会话缓存头，享受服务端多轮缓存加速')}
+                        >
+                          + X-Conversation-Id
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertHeadersTemplate({ 'HTTP-Referer': 'https://chatree.pages.dev', 'X-Title': 'Chatree' })}
+                          className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
+                          title={t('注入 OpenRouter 来源标识')}
+                        >
+                          + OpenRouter
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      value={headersJson}
+                      onChange={(e) => handleHeadersChange(e.target.value)}
+                      placeholder={'{\n  "X-Conversation-Id": "{{sessionId}}"\n}'}
+                      rows={3}
+                      className={`w-full p-2 font-mono text-xs border rounded-md bg-white focus:outline-none focus:ring-1 ${
+                        headersError
+                          ? 'border-red-300 focus:ring-red-400'
+                          : 'border-neutral-200 focus:ring-neutral-400'
+                      }`}
+                    />
+                    {headersError ? (
+                      <p className="mt-0.5 text-[11px] text-red-500">{headersError}</p>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-neutral-400 leading-normal">
+                        {t('支持占位符：{{sessionId}}。若需要移除默认 Authorization，可将其值填为空字符串 ""。')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-3 border-t border-neutral-100">

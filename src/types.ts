@@ -33,6 +33,10 @@ export interface Model {
   reasoningEffort?: ReasoningEffort;
   /** 列表顺序。数字最小的排最前，也就是**默认模型**。旧数据没有这个字段。 */
   sortOrder?: number;
+  /** 自定义请求头 (JSON 键值对，支持 {{sessionId}} 等占位符) */
+  customHeaders?: Record<string, string>;
+  /** 自定义请求体 (JSON 对象，合并至 payload 顶层，支持变量占位符) */
+  customBody?: Record<string, unknown>;
 }
 
 /** 会话文件夹。单层，不支持嵌套 —— 够用，且不会把侧边栏变成一棵要维护的树。 */

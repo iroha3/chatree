@@ -64,10 +64,23 @@ export function buildExportFile(
   };
 
   if (models && models.length > 0) {
-    file.models = models.map(m => ({
-      ...m,
-      apiKey: options?.keepApiKeys ? m.apiKey : ''
-    }));
+    file.models = models.map(m => {
+      const modelCopy: Model = {
+        ...m,
+        apiKey: options?.keepApiKeys ? m.apiKey : ''
+      };
+      // 若不保留 API Key，对 customHeaders 中的敏感凭证头一并脱敏
+      if (!options?.keepApiKeys && modelCopy.customHeaders) {
+        const cleanHeaders: Record<string, string> = { ...modelCopy.customHeaders };
+        for (const k of Object.keys(cleanHeaders)) {
+          if (/authorization|api-key|token|secret/i.test(k)) {
+            delete cleanHeaders[k];
+          }
+        }
+        modelCopy.customHeaders = Object.keys(cleanHeaders).length > 0 ? cleanHeaders : undefined;
+      }
+      return modelCopy;
+    });
   }
 
   if (folders && folders.length > 0) {
