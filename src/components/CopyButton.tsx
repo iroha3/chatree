@@ -76,9 +76,9 @@ const CopyButton: React.FC<CopyButtonProps> = ({ text, size = 14, label, classNa
       title={title ?? t('复制')}
     >
       {copied ? (
-        <Check size={size} className="text-emerald-500" />
+        <Check size={size} className="text-emerald-500 shrink-0" />
       ) : (
-        <Copy size={size} />
+        <Copy size={size} className="shrink-0" />
       )}
       {label ? <span>{label}</span> : null}
     </button>

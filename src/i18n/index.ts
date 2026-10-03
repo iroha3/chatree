@@ -147,6 +147,8 @@ const en: Record<string, string> = {
   'JSON 备份': 'JSON Backup',
   '思维导图 (.mm)': 'Mind map (.mm)',
   'Markdown (.md)': 'Markdown (.md)',
+  '导出此路径 (.md)': 'Export this path (.md)',
+  导出路径: 'Export path',
   重新排布节点: 'Re-layout nodes',
 
   // ── SessionStats ──────────────────────────────────────

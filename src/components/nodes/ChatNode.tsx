@@ -378,18 +378,17 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           )}
         </div>
         
-        {/* 卡片上所有图标按钮统一 size={14} + p-1 —— 之前头部是 12、
-            悬浮簇是 14，摆在一起就像少了一号的副标题。（用户：“按钮都一边大？”） */}
+        {/* 卡片上所有图标按钮统一 size={14}，尺寸统一为 24x24 (h-6 w-6)，右对齐到 12px (right-3) */}
         <div className="flex shrink-0 space-x-1 node-toolbar nodrag nopan">
           <button 
-            className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => setShowSettings(!showSettings)}
             title={t('模型设置')}
           >
             <Settings size={14} />
           </button>
           <button 
-            className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => onDelete(node.id)}
             title={t('删除节点')}
           >
@@ -492,10 +491,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             >
               {node.userMessage ? highlightMatch(node.userMessage, searchQuery) : <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
             </div>
-            <div className="absolute top-0 right-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2.5 right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <CopyButton
                 text={node.userMessage}
-                className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
+                className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
               />
             </div>
           </>
@@ -637,10 +636,10 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       </div>
 
       {/* 节点右下角的**次要动作簇** */}
-      <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">
+      <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">
         {node.isStreaming ? (
           <button
-            className="p-1 rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => onStop(node.id)}
             title={t('停止生成')}
           >
@@ -648,7 +647,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           </button>
         ) : hasAnswer || node.error ? (
           <button
-            className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => onRetry(node.id)}
             title={t('重新生成分支')}
           >
@@ -658,12 +657,12 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         {!node.isStreaming && hasAnswer && (
           <CopyButton
             text={node.assistantMessage}
-            className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
           />
         )}
         {!node.isStreaming && (
           <button
-            className="p-1 rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => setIsReading(true)}
             title={t('展开阅读')}
           >

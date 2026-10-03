@@ -10,6 +10,7 @@ import {
   computeTreeTopology,
   generateMermaidTopology,
   generateChatreeMarkdown,
+  generatePathMarkdown,
 } from '../src/utils/markdownExport.ts';
 
 let failed = 0;
@@ -103,6 +104,23 @@ checkMatch('包含思考链 Thought Process 与 Response', fullMd, /#### 🤔 Th
 const roleRegex = /^###\s+.*\b(User|Assistant|System)\b.*$/gm;
 const matchedRoles = fullMd.match(roleRegex);
 check('所有消息头均能被角色正则命中', matchedRoles.length, 13); // 1 System + 6 User + 6 Assistant
+
+// ── 6. 单路径线性 Markdown 生成测试 ───────────────────────────
+const pathMd = generatePathMarkdown(session, 'q3_b1', models);
+
+const pathConvHeaders = pathMd.match(/^## Conversation$/gm);
+check('单路径 Markdown 有且仅有一行二级标题 ## Conversation', pathConvHeaders ? pathConvHeaders.length : 0, 1);
+
+check('单路径 Markdown 不包含 Mode: tree', /- \*\*Mode:\*\*/.test(pathMd), false);
+check('单路径 Markdown 不包含 Mermaid Topology', /```mermaid/.test(pathMd), false);
+check('单路径 Markdown 不包含节点大纲锚点 > 📌 **Node:**', /> 📌 \*\*Node:\*\*/.test(pathMd), false);
+check('单路径 Markdown 用户头不包含分支后缀', /### 🧑‍💻 User — 分支/.test(pathMd), false);
+checkMatch('单路径 Metadata Nodes 为 3', pathMd, /- \*\*Nodes:\*\* 3/);
+checkMatch('单路径 Metadata Models 包含该路径使用过的模型', pathMd, /- \*\*Models:\*\* `DeepSeek-V3`, `Claude-3\.5-Sonnet`, `GPT-4o`/);
+checkMatch('单路径包含思维链 Thought Process 与 Response', pathMd, /#### 🤔 Thought Process\n\n分析方案 B 的 Paxos 选举\n\n#### 💡 Response/);
+
+const pathMatchedRoles = pathMd.match(roleRegex);
+check('单路径消息头均能被角色正则命中且为 7 条 (1 Sys + 3 User + 3 Assistant)', pathMatchedRoles ? pathMatchedRoles.length : 0, 7);
 
 if (failed > 0) {
   console.error(`\n❌ Total failed: ${failed}`);

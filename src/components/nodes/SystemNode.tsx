@@ -143,10 +143,10 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           )}
         </div>
         
-        {/* 图标尺寸跟对话节点对齐：一律 14（见 ChatNode 头部那段注释）。 */}
+        {/* 图标尺寸跟对话节点对齐：一律 14，尺寸统一为 24x24 (h-6 w-6) */}
         <div className="flex space-x-1 node-toolbar">
           <button 
-            className="p-1 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => setShowSettings(!showSettings)}
             title={t('模型设置')}
           >

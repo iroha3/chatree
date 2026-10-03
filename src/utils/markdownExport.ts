@@ -1,4 +1,5 @@
 import { Session, ChatNode, Model } from '../types';
+import { buildPath } from './tree';
 
 /**
  * 将正文中的 Markdown 标题语法转换为加粗文本。
@@ -395,3 +396,109 @@ export function exportSessionToMarkdown(session: Session, models: Model[]): void
     URL.revokeObjectURL(url);
   }, 100);
 }
+
+/**
+ * 将从根到 targetNodeId 的单一线性路径导出为符合 AC 基础规范的一维 Markdown 文本。
+ * 纯线性对话不包含 Mode 标识、Topology 导览图、层级分支大纲编号及锚点线索。
+ */
+export function generatePathMarkdown(session: Session, targetNodeId: string, models: Model[]): string {
+  const path = buildPath(session.nodes, targetNodeId);
+  const systemNode = path.find((n) => n.type === 'system');
+  const chatNodes = path.filter((n) => n.type === 'chat');
+
+  const modelMap = new Map(models.map((m) => [m.id, m.name]));
+
+  // 收集该路径上使用过的模型名称（去重，保持首次出现顺序）
+  const modelNames: string[] = [];
+  const seenModels = new Set<string>();
+  chatNodes.forEach((n) => {
+    const name = modelMap.get(n.modelId) || n.modelId;
+    if (name && !seenModels.has(name)) {
+      seenModels.add(name);
+      modelNames.push(name);
+    }
+  });
+
+  const sections: string[] = [];
+
+  // ── 1. Metadata 区 ──────────────────────────────────────
+  const metadataLines: string[] = ['## Metadata', ''];
+  if (modelNames.length > 0) {
+    metadataLines.push(`- **Models:** ${modelNames.map((m) => `\`${m}\``).join(', ')}`);
+  }
+  metadataLines.push(`- **Nodes:** ${chatNodes.length}`);
+  metadataLines.push(`- **Time:** ${formatLocalTime(session.createdAt)}`);
+
+  sections.push(metadataLines.join('\n'));
+
+  // ── 2. Conversation 正文区 ─────────────────────────────────
+  const conversationLines: string[] = ['## Conversation', ''];
+
+  if (systemNode && systemNode.userMessage?.trim()) {
+    conversationLines.push('### ⚙️ System');
+    conversationLines.push('');
+    conversationLines.push(stripHashes(systemNode.userMessage.trim()));
+    conversationLines.push('');
+  }
+
+  for (const node of chatNodes) {
+    const modelName = modelMap.get(node.modelId) || node.modelId || 'AI';
+
+    conversationLines.push('### 🧑‍💻 User');
+    conversationLines.push('');
+
+    if (node.userMessage?.trim()) {
+      conversationLines.push(stripHashes(node.userMessage.trim()));
+    } else {
+      conversationLines.push('*(空)*');
+    }
+    conversationLines.push('');
+
+    conversationLines.push(`### 🤖 Assistant — ${modelName}`);
+    conversationLines.push('');
+
+    const hasReasoning = !!node.reasoning?.trim();
+    if (hasReasoning) {
+      conversationLines.push('#### 🤔 Thought Process');
+      conversationLines.push('');
+      conversationLines.push(stripHashes(node.reasoning!.trim()));
+      conversationLines.push('');
+      conversationLines.push('#### 💡 Response');
+      conversationLines.push('');
+    }
+
+    if (node.assistantMessage?.trim()) {
+      conversationLines.push(stripHashes(node.assistantMessage.trim()));
+    } else {
+      conversationLines.push('*(空)*');
+    }
+    conversationLines.push('');
+  }
+
+  sections.push(conversationLines.join('\n'));
+
+  return sections.join('\n\n') + '\n';
+}
+
+/**
+ * 触发浏览器端下载单路径线性 Markdown 文件。
+ */
+export function exportPathToMarkdown(session: Session, targetNodeId: string, models: Model[]): void {
+  const content = generatePathMarkdown(session, targetNodeId, models);
+  const safeTitle = session.title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'chatree_path';
+
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${safeTitle}_path.md`;
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+

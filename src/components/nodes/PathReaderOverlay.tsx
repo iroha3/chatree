@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Brain, ChevronDown, BookOpen, GitBranch, Settings, CornerDownRight } from 'lucide-react';
+import { X, Brain, ChevronDown, BookOpen, GitBranch, Settings, CornerDownRight, Download } from 'lucide-react';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
 import { ChatNode } from '../../types';
@@ -12,6 +12,7 @@ import CopyButton from '../CopyButton';
 import { countChars } from '../../utils/text';
 import { cardConsumesWheel } from '../../utils/wheelChain';
 import { buildPath, branchGroup, childrenOf } from '../../utils/tree';
+import { exportPathToMarkdown } from '../../utils/markdownExport';
 
 /**
  * 连续阅读浮层（双击任意节点打开）。
@@ -157,13 +158,25 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
             </span>
             <span className="shrink-0 text-[11px] text-neutral-400">{t('{n} 轮', { n: turns })}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-            title={t('关闭')}
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {session && (
+              <button
+                onClick={() => exportPathToMarkdown(session, currentId, models)}
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                title={t('导出此路径 (.md)')}
+              >
+                <Download size={13} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('导出路径')}</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+              title={t('关闭')}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div ref={scrollerRef} onWheel={handleReaderWheel} className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
