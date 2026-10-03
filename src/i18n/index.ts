@@ -146,6 +146,7 @@ const en: Record<string, string> = {
   分享与导出: 'Share & export',
   'JSON 备份': 'JSON Backup',
   '思维导图 (.mm)': 'Mind map (.mm)',
+  'Markdown (.md)': 'Markdown (.md)',
   重新排布节点: 'Re-layout nodes',
 
   // ── SessionStats ──────────────────────────────────────

@@ -21,9 +21,10 @@ import { useThemeStore } from '../stores/themeStore';
 import { ChatNode as ChatNodeType, NodeData, UsageStats } from '../types';
 import { useT } from '../i18n';
 import { sendChatRequest } from '../services/apiService';
-import { Share2, LayoutGrid, FileJson, BarChart3, Settings, Network, ZoomIn, ZoomOut, Maximize2, SlidersHorizontal } from 'lucide-react';
+import { Share2, LayoutGrid, FileJson, FileText, BarChart3, Settings, Network, ZoomIn, ZoomOut, Maximize2, SlidersHorizontal } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
 import { exportSessionToFile } from '../utils/sessionTransfer';
+import { exportSessionToMarkdown } from '../utils/markdownExport';
 import { showSuccess, showError, showInfo, showUndo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
 import { deriveSessionTitle } from '../utils/sessionTitle';
@@ -407,88 +408,88 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const calculateNodeLayout = useCallback((forceRecalculate = false) => {
     if (!session || !session.nodes) return;
-  
+
     const getNodeDimensions = (nodeId: string) => {
       return nodeDimensions[nodeId] || { width: getNodeWidth(), height: NODE_HEIGHT };
     };
-    
+
     const nodeHeights = new Map<string, number>();
     session.nodes.forEach(node => {
       nodeHeights.set(node.id, getNodeDimensions(node.id).height);
     });
-    
+
     const nodePositions = new Map<string, { x: number, y: number }>();
     const nodeMap = new Map<string, ChatNodeType>();
-    
+
     session.nodes.forEach(node => {
       nodeMap.set(node.id, node);
     });
-  
+
     const nodeLevels = new Map<string, number>();
     const determineLevel = (nodeId: string, level: number) => {
       nodeLevels.set(nodeId, level);
-      
+
       const children = session.nodes.filter(n => n.parentId === nodeId);
       children.forEach(child => {
         determineLevel(child.id, level + 1);
       });
     };
-  
+
     const systemNode = session.nodes.find(n => n.type === 'system');
     if (systemNode) {
       determineLevel(systemNode.id, 0);
     }
-  
+
     const subtreeWidths = new Map<string, number>();
     const calculateSubtreeWidth = (nodeId: string): number => {
       const children = session.nodes.filter(n => n.parentId === nodeId);
       const nodeDim = getNodeDimensions(nodeId);
-      
+
       if (children.length === 0) {
         subtreeWidths.set(nodeId, nodeDim.width);
         return nodeDim.width;
       }
-      
+
       const childrenWidth = children.reduce((total, child, index) => {
         const width = calculateSubtreeWidth(child.id);
         return total + width + (index < children.length - 1 ? H_GAP : 0);
       }, 0);
-      
+
       const subtreeWidth = Math.max(nodeDim.width, childrenWidth);
       subtreeWidths.set(nodeId, subtreeWidth);
       return subtreeWidth;
     };
-  
+
     if (systemNode) {
       calculateSubtreeWidth(systemNode.id);
     }
-  
+
     const calculateNodePosition = (nodeId: string, startX: number, level: number, startY: number) => {
       const nodeDim = getNodeDimensions(nodeId);
       const width = subtreeWidths.get(nodeId) || nodeDim.width;
       const height = nodeHeights.get(nodeId) || nodeDim.height;
       const x = startX + width / 2 - nodeDim.width / 2;
       const y = startY;
-      
+
       nodePositions.set(nodeId, { x, y });
-      
+
       const nextLevelY = y + height + V_GAP;
-      
+
       const children = session.nodes.filter(n => n.parentId === nodeId);
       let childStartX = startX;
-      
+
       children.forEach(child => {
         const childWidth = subtreeWidths.get(child.id) || getNodeDimensions(child.id).width;
         calculateNodePosition(child.id, childStartX, level + 1, nextLevelY);
         childStartX += childWidth + H_GAP;
       });
     };
-  
+
     if (systemNode) {
       const rootWidth = subtreeWidths.get(systemNode.id) || getNodeDimensions(systemNode.id).width;
       calculateNodePosition(systemNode.id, -rootWidth / 2, 0, 0);
     }
-  
+
     // 强制重排时，把新坐标先收集起来，最后一次性写回。
     // 不能在 .map 里逐个 updateNodeInSession —— 那是同步循环里连发 N 次异步
     // updateSession，会互相覆盖，只有最后一个节点的新坐标存得下来。
@@ -512,7 +513,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       const isSearchMatch = Boolean(
         needle &&
         ((node.userMessage && node.userMessage.toLowerCase().includes(needle)) ||
-         (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
+          (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
       );
 
       return buildFlowNode(node, position, {
@@ -540,15 +541,15 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
     setNodes(reactFlowNodes);
     commitEdges(buildFlowEdges(session.nodes));
-  
+
     // 调整视图以显示所有节点
     setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.2 });
     }, 50);
-  
-  // The handlers below intentionally read the latest session state from this render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, nodeDimensions, streamingResponses, streamingReasoning, sessionId, replaceSessionNodes, searchQuery]);  
+
+    // The handlers below intentionally read the latest session state from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, nodeDimensions, streamingResponses, streamingReasoning, sessionId, replaceSessionNodes, searchQuery]);
 
 
   /**
@@ -603,7 +604,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const handleAddChildNode = (parentId: string) => {
     if (!session || !defaultModelId) return;
-    
+
     const parentNode = session.nodes.find(n => n.id === parentId);
     if (!parentNode) return;
 
@@ -626,12 +627,12 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const handleEditNode = (nodeId: string, content: string, type: 'user' | 'assistant' | 'system', _isDraft = false) => {
     if (!session) return;
-    
+
     const node = session.nodes.find(n => n.id === nodeId);
     if (!node) return;
 
     let updatedNode: ChatNodeType;
-    
+
     if (type === 'system') {
       updatedNode = {
         ...node,
@@ -978,13 +979,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const handleModelChange = (nodeId: string, modelId: string) => {
     if (!session) return;
-    
+
     const node = session.nodes.find(n => n.id === nodeId);
     if (!node) return;
-    
+
     const nextModel = models.find(m => m.id === modelId);
     if (!nextModel) return;
-    
+
     // system 节点的正文就是系统提示词，默认取的是「首次创建时那个模型」的
     // defaultSystemPrompt。所以换模型时，如果用户没动过这段提示词，就跟着换；
     // 一旦用户改过，就绝不覆盖 —— 那是他自己写的内容。
@@ -1009,13 +1010,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         promptReplaced = true;
       }
     }
-    
+
     updateNodeInSession(sessionId, {
       ...node,
       modelId,
       userMessage
     });
-    
+
     // 提示统一从这里发：只有这里才知道系统提示词有没有被一并替换
     showInfo(
       promptReplaced
@@ -1026,10 +1027,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const handleTemperatureChange = (nodeId: string, temperature: number) => {
     if (!session) return;
-    
+
     const node = session.nodes.find(n => n.id === nodeId);
     if (!node) return;
-    
+
     updateNodeInSession(sessionId, {
       ...node,
       temperature
@@ -1038,10 +1039,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   const handleMaxTokensChange = (nodeId: string, maxTokens: number) => {
     if (!session) return;
-    
+
     const node = session.nodes.find(n => n.id === nodeId);
     if (!node) return;
-    
+
     updateNodeInSession(sessionId, {
       ...node,
       maxTokens
@@ -1066,6 +1067,18 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     try {
       exportSessionToFile(session);
       showSuccess(t('会话已导出'));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      showError(t('导出失败: {msg}', { msg: message }));
+    }
+  };
+
+  // 当前会话的 Markdown (.md) 导出（基于输出契约树状拓扑扩展规范）
+  const handleExportMarkdown = () => {
+    if (!session) return;
+    try {
+      exportSessionToMarkdown(session, models);
+      showSuccess(t('导出成功'));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       showError(t('导出失败: {msg}', { msg: message }));
@@ -1200,7 +1213,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
   useEffect(() => {
     if (!session?.nodes) return;
-  
+
     // 创建新的节点数组，确保使用节点保存的位置
     const previousNodes = flowNodesRef.current;
     const needle = searchQuery.trim().toLowerCase();
@@ -1214,7 +1227,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       const isSearchMatch = Boolean(
         needle &&
         ((node.userMessage && node.userMessage.toLowerCase().includes(needle)) ||
-         (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
+          (node.assistantMessage && node.assistantMessage.toLowerCase().includes(needle)))
       );
       const previous = previousNodes.get(node.id);
 
@@ -1248,10 +1261,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     setNodes(reactFlowNodes);
     commitEdges(buildFlowEdges(session.nodes));
 
-  // Keep node callbacks bound to the current render without rebuilding this effect recursively.
-  // pendingFocusId 也要进依赖：清掉它时得把 autoFocus 重新算成 false，
-  // 否则节点上会一直挂着 autoFocus: true。
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Keep node callbacks bound to the current render without rebuilding this effect recursively.
+    // pendingFocusId 也要进依赖：清掉它时得把 autoFocus 重新算成 false，
+    // 否则节点上会一直挂着 autoFocus: true。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.nodes, sessionId, streamingResponses, streamingReasoning, pendingFocusId, searchQuery, isCoarsePointer]);
 
   // 新建的节点可能落在视口外面（分支一多就往右排），所以渲染完成后把它平移到视野中间。
@@ -1298,7 +1311,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       { duration: 450, zoom: reactFlowInstance.getZoom() }
     );
   }, [searchQuery, sessionId, session?.nodes, nodes, reactFlowInstance]);
-  
+
 
   if (!session) {
     return <div>Session not found</div>;
@@ -1316,11 +1329,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         {/* 移动端视图控制菜单：放上面展开，PC 端使用底部的原生 Controls 与排版按钮 */}
         <div className="relative md:hidden" ref={viewMenuRef}>
           <button
-            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${
-              showViewMenu
-                ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
-                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
-            }`}
+            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${showViewMenu
+              ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
+              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
             onClick={() => setShowViewMenu(v => !v)}
             title={t('画布视图')}
           >
@@ -1368,7 +1380,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           )}
         </div>
 
-        <button 
+        <button
           className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           onClick={() => setShowStats(v => !v)}
           title={t('会话统计')}
@@ -1381,11 +1393,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
             不用再往这一排里堆图标。（导出整体待定，见 ROADMAP。） */}
         <div className="relative" ref={exportMenuRef}>
           <button
-            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${
-              showExportMenu
-                ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
-                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
-            }`}
+            className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${showExportMenu
+              ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
+              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
             onClick={() => setShowExportMenu(v => !v)}
             title={t('分享与导出')}
           >
@@ -1393,7 +1404,14 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           </button>
 
           {showExportMenu && (
-            <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
+              <button
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                onClick={() => { setShowExportMenu(false); handleExportMarkdown(); }}
+              >
+                <FileText size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <span>{t('Markdown (.md)')}</span>
+              </button>
               <button
                 className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={() => { setShowExportMenu(false); handleExportSession(); }}
@@ -1414,7 +1432,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       </div>
 
       {showStats && <SessionStats session={session} onClose={() => setShowStats(false)} />}
-      
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -1444,7 +1462,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         // 删除现在只有节点上的删除按钮一条路，走 handleDeleteNode（确认 + 撤销）。
         deleteKeyCode={null}
         fitView={false}
-        defaultEdgeOptions={{ 
+        defaultEdgeOptions={{
           type: 'smoothstep',
           style: { stroke: '#a3a3a3', strokeWidth: 1.5 }
         }}
@@ -1455,10 +1473,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         onNodeDragStop={(_event, node) => {
           // 节点拖动结束后保存位置
           if (!session) return;
-          
+
           const chatNode = session.nodes.find(n => n.id === node.id);
           if (!chatNode) return;
-          
+
           // 更新节点位置
           updateNodeInSession(sessionId, {
             ...chatNode,
@@ -1500,9 +1518,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           </div>
         </div>
       )}
-      
+
       <div className="hidden md:block absolute bottom-4 right-4 z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
-        <button 
+        <button
           className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           onClick={handleReorganizeLayout}
           title={t('重新排布节点')}
