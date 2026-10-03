@@ -102,12 +102,12 @@ assert.ok(
 );
 console.log('ok    Sidebar allows dragging sessions to "全部" to clear folderId');
 
-// Removal of GSAP entrance animation on mount
+// Smooth expand animation guarded against initial mount jitter
 assert.ok(
-  !sidebarSrc.includes('gsap.from'),
-  'Sidebar does not have sluggish GSAP animation on mount'
+  sidebarSrc.includes('hasAppMountedOnce') && sidebarSrc.includes('gsap.fromTo'),
+  'Sidebar has smooth expand animation guarded against initial mount jitter'
 );
-console.log('ok    Sidebar removed GSAP animation on mount for instant smooth loading');
+console.log('ok    Sidebar has smooth expand animation guarded against initial mount jitter');
 
 // Right-aligned folder badge
 assert.ok(

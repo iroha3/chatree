@@ -5,6 +5,7 @@ import {
   MessageSquare, Sun, Moon, Star, Folder, FolderPlus, Check
 } from 'lucide-react';
 import Logo from './Logo';
+import { gsap } from 'gsap';
 import { showSuccess, showWarning, showInfo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -43,6 +44,9 @@ function getSessionMatchSnippet(session: Session, query: string): string | null 
 
 /** 会话需要移动到的目标：某个文件夹，或 null 表示「未分类」 */
 type MoveTarget = string | null;
+
+// 标记应用是否已在浏览器中首屏渲染过一次，用于避免刷新页面时的位移动画，同时保留收起后再展开时的平滑入场动效
+let hasAppMountedOnce = false;
 
 const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCollapse }) => {
   const {
@@ -142,6 +146,34 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // 侧边栏展开动画：首屏静默渲染，收起后再展开时播放流畅的滑入动画
+  useEffect(() => {
+    if (!hasAppMountedOnce) {
+      hasAppMountedOnce = true;
+      return;
+    }
+
+    const el = sidebarRef.current;
+    if (!el) return;
+
+    const tween = gsap.fromTo(
+      el,
+      { x: isMobile ? '-100%' : -20, opacity: isMobile ? 1 : 0 },
+      {
+        x: 0,
+        opacity: 1,
+        duration: 0.22,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+      }
+    );
+
+    return () => {
+      tween.kill();
+      gsap.set(el, { clearProps: 'transform,opacity' });
+    };
+  }, [isMobile]);
 
   /*
    * 新建 / 切换到某个文件夹后，把它滚进横滑栏的可见范围。
@@ -488,26 +520,24 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               return (
                 <div
                   key={folder.id}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none"
+                  className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none"
                 >
                   <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
-                  <span className="inline-grid items-center min-w-[2ch] max-w-[140px]">
-                    <span className="invisible col-start-1 row-start-1 whitespace-pre pr-1 text-xs">
-                      {folderNameDraft || ' '}
-                    </span>
-                    <input
-                      autoFocus
-                      onFocus={(e) => e.target.select()}
-                      className="col-start-1 row-start-1 w-full bg-transparent text-xs text-neutral-800 dark:text-neutral-200 outline-none border-none p-0 focus:ring-0 leading-normal"
-                      value={folderNameDraft}
-                      onChange={(e) => setFolderNameDraft(e.target.value)}
-                      onBlur={() => handleRenameFolder(folder.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameFolder(folder.id);
-                        if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
-                      }}
-                    />
+                  <span className="invisible whitespace-pre text-xs min-w-[2ch] max-w-[140px] pointer-events-none">
+                    {folderNameDraft || ' '}
                   </span>
+                  <input
+                    autoFocus
+                    onFocus={(e) => e.target.select()}
+                    className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 outline-none border-none p-0 focus:ring-0 leading-normal"
+                    value={folderNameDraft}
+                    onChange={(e) => setFolderNameDraft(e.target.value)}
+                    onBlur={() => handleRenameFolder(folder.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRenameFolder(folder.id);
+                      if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
+                    }}
+                  />
                 </div>
               );
             }
@@ -547,25 +577,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           })}
 
           {isCreatingFolder && (
-            <div className="flex-shrink-0 inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none">
+            <div className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none">
               <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
-              <span className="inline-grid items-center min-w-[5ch] max-w-[140px]">
-                <span className="invisible col-start-1 row-start-1 whitespace-pre pr-1 text-xs">
-                  {newFolderName || t('文件夹名')}
-                </span>
-                <input
-                  ref={newFolderInputRef}
-                  className="col-start-1 row-start-1 w-full bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0 leading-normal"
-                  placeholder={t('文件夹名')}
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onBlur={handleCreateFolder}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCreateFolder();
-                    if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
-                  }}
-                />
+              <span className="invisible whitespace-pre text-xs min-w-[5ch] max-w-[140px] pointer-events-none">
+                {newFolderName || t('文件夹名')}
               </span>
+              <input
+                ref={newFolderInputRef}
+                className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0 leading-normal"
+                placeholder={t('文件夹名')}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onBlur={handleCreateFolder}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder();
+                  if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
+                }}
+              />
             </div>
           )}
         </div>
