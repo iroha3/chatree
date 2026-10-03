@@ -5,6 +5,26 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.7.0] - 2026-10-04
+
+### Added
+
+- **Structured Markdown Export.** Export full conversation trees or single linear conversation paths from the top navigation bar:
+  - **Full-tree export**: Exports entire branching tree with numbered outlines (`#1`, `#2.1`), metadata headers, deduplicated model list, thoughts/reasoning process blocks, and optional Mermaid topology diagram.
+  - **Single-path export**: Cleanly exports only the selected leaf's direct path to root, perfect for sharing linear conversation flows without tree annotations.
+  - **Grouped export menu**: Reorganized export actions into a compact, clearly categorized popover dropdown.
+- **Folder System & Context Menus.**
+  - **Refined "All" (全部) mental model**: Eliminated the redundant "Uncategorized" category; sessions moved out of folders can be dragged back to "All" to clear category assignment.
+  - **Desktop context menu & mobile long-press**: Right-click on desktop or long-press on touch screens on any session or folder capsule to open a quick action menu (rename, move, change color tag, delete). Includes touch ghost-click prevention.
+  - **Compact folder capsules**: Capsule titles now feature inline auto-resizing text fields with crisp focus contours and hover-fading, right-aligned folder tags.
+
+### Fixed
+
+- **Tree Connection Line Geometry.** Replaced default React Flow smoothstep with custom `TreeEdge` component:
+  - **1px jog elimination**: Ensures perfectly straight vertical lines for single child connections within a 2px tolerance threshold.
+  - **Pixel-perfect handle alignment**: Re-anchored node handles to match the exact geometric center and dimensions of the circular add-child (`+`) button, eliminating subpixel/border misalignment.
+- **Sidebar Motion Performance.** Replaced GSAP mount animation on the sidebar with hardware-accelerated CSS transitions, eliminating layout jitter on page refresh.
+
 ## [0.6.0] - 2026-10-03
 
 ### Added
