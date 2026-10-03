@@ -90,6 +90,8 @@ const en: Record<string, string> = {
   收藏会话: 'Star session',
   确定: 'Confirm',
   移动到文件夹: 'Move to folder',
+  选择文件夹: 'Select folder',
+  返回: 'Back',
   移动到: 'Move to',
   拖拽会话可归类至文件夹: 'Drag sessions to folders to categorize',
   '拖拽或右键会话可归类至文件夹': 'Drag or right-click to organize into folders',

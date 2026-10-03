@@ -94,17 +94,33 @@ assert.ok(
 );
 console.log('ok    Folder capsules are clean and stable without width-jumping hover buttons');
 
-// Context menu items
+// Drag onto "全部"
 assert.ok(
-  sidebarSrc.includes("t('移出文件夹')"),
-  'Context menu includes "移出文件夹" option'
+  sidebarSrc.includes("dragOverFolder === '__all__'") &&
+  sidebarSrc.includes("handleDropOnFolder(e, null)"),
+  'Sidebar allows dragging sessions from other folders to "全部"'
 );
-console.log('ok    Context menu allows removing a session from its folder');
+console.log('ok    Sidebar allows dragging sessions to "全部" to clear folderId');
 
+// Removal of GSAP entrance animation on mount
 assert.ok(
-  sidebarSrc.includes("t('新建文件夹…')"),
-  'Context menu allows quick folder creation'
+  !sidebarSrc.includes('gsap.from'),
+  'Sidebar does not have sluggish GSAP animation on mount'
 );
-console.log('ok    Context menu provides quick folder creation');
+console.log('ok    Sidebar removed GSAP animation on mount for instant smooth loading');
+
+// Right-aligned folder badge
+assert.ok(
+  sidebarSrc.includes('ml-auto') && sidebarSrc.includes('group-hover:opacity-0'),
+  'Folder badge is right-aligned and fades on hover'
+);
+console.log('ok    Folder badge is right-aligned and fades smoothly on hover');
+
+// Submenu for folders in context menu
+assert.ok(
+  sidebarSrc.includes('sessionFolderSubmenu') && sidebarSrc.includes('max-h-52'),
+  'Context menu provides capped scrollable folder submenu'
+);
+console.log('ok    Context menu handles large folder lists with compact submenu and scroll cap');
 
 console.log('\nAll checks for the "全部" mental model & context menu passed!');

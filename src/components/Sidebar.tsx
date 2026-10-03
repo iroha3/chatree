@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
 import {
-  Search, Plus, Settings, Trash2, Edit, X, ChevronLeft,
+  Search, Plus, Settings, Trash2, Edit, X, ChevronLeft, ChevronRight,
   MessageSquare, Sun, Moon, Star, Folder, FolderPlus, Check
 } from 'lucide-react';
 import Logo from './Logo';
-import { gsap } from 'gsap';
 import { showSuccess, showWarning, showInfo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -88,6 +87,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     | { type: 'folder'; x: number; y: number; folder: FolderType }
     | null
   >(null);
+  // 会话右键菜单里的二级文件夹展开面板
+  const [sessionFolderSubmenu, setSessionFolderSubmenu] = useState(false);
 
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,36 +105,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     : filteredSessions;
 
   const hasFolders = folders.length > 0;
-
-  useEffect(() => {
-    const el = sidebarRef.current;
-    if (!el) return;
-
-    // 用 gsap.from 时必须显式清理：它会“从当前值推到自然值”，
-    // 而 React 18 StrictMode 会双次调用 effect，第二个补间会把第一个补间的
-    // 中间态当成终点，于是侧边栏永久带着一个 -10px 左右的残留偏移
-    // （表现为“边距不对”）。clearProps 负责保证 tween 结束后不留下内联 transform。
-    const tween = gsap.from(el, {
-      x: -20,
-      opacity: 0,
-      duration: 0.5,
-      ease: 'power2.out',
-      clearProps: 'transform,opacity'
-    });
-
-    return () => {
-      tween.kill();
-      gsap.set(el, { clearProps: 'transform,opacity' });
-    };
-  }, [collapsed]);
+  // O(1) 文件夹字典映射，规避列表频繁 find 的渲染开销
+  const folderMap = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders]);
 
   // 点击别处或按 ESC 关掉上下文菜单
   useEffect(() => {
-    if (!contextMenu) return;
+    if (!contextMenu) {
+      setSessionFolderSubmenu(false);
+      return;
+    }
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setContextMenu(null);
+      if (e.key === 'Escape') {
+        setContextMenu(null);
+        setSessionFolderSubmenu(false);
+      }
     };
-    const handleResize = () => setContextMenu(null);
+    const handleResize = () => {
+      setContextMenu(null);
+      setSessionFolderSubmenu(false);
+    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleResize);
     return () => {
@@ -479,8 +469,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           }}
         >
           <button
-            className={chipClass(currentFolderView === 'all')}
+            className={`${chipClass(currentFolderView === 'all')} ${
+              dragOverFolder === '__all__' ? 'ring-2 ring-inset ring-amber-300 border-amber-300' : ''
+            }`}
             onClick={() => setFolderView('all')}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverFolder('__all__');
+            }}
+            onDragLeave={() => setDragOverFolder(prev => (prev === '__all__' ? null : prev))}
+            onDrop={(e) => handleDropOnFolder(e, null)}
           >
             {t('全部')}
           </button>
@@ -489,18 +487,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
             const active = currentFolderView === folder.id;
             if (editingFolderId === folder.id) {
               return (
-                <input
+                <div
                   key={folder.id}
-                  autoFocus
-                  className="flex-shrink-0 w-[72px] px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                  value={folderNameDraft}
-                  onChange={(e) => setFolderNameDraft(e.target.value)}
-                  onBlur={() => handleRenameFolder(folder.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleRenameFolder(folder.id);
-                    if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
-                  }}
-                />
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 h-[26px] rounded-full text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm"
+                >
+                  <Folder size={12} className="shrink-0 text-neutral-400" />
+                  <input
+                    autoFocus
+                    className="w-16 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0"
+                    value={folderNameDraft}
+                    onChange={(e) => setFolderNameDraft(e.target.value)}
+                    onBlur={() => handleRenameFolder(folder.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRenameFolder(folder.id);
+                      if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
+                    }}
+                  />
+                </div>
               );
             }
             return (
@@ -539,18 +542,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           })}
 
           {isCreatingFolder && (
-            <input
-              ref={newFolderInputRef}
-              className="flex-shrink-0 w-[72px] px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400"
-              placeholder={t('文件夹名')}
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onBlur={handleCreateFolder}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateFolder();
-                if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
-              }}
-            />
+            <div className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 h-[26px] rounded-full text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm">
+              <Folder size={12} className="shrink-0 text-neutral-400" />
+              <input
+                ref={newFolderInputRef}
+                className="w-16 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0"
+                placeholder={t('文件夹名')}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onBlur={handleCreateFolder}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder();
+                  if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
+                }}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -569,7 +575,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         ) : (
           visibleSessions.map(session => {
             const matchSnippet = searchQuery ? getSessionMatchSnippet(session, searchQuery) : null;
-            const folder = session.folderId ? folders.find(f => f.id === session.folderId) : null;
+            const folder = session.folderId ? folderMap.get(session.folderId) : null;
 
             return (
               <div
@@ -629,14 +635,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       )}
                     </button>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="truncate text-sm">
+                      <div className="flex items-center justify-between min-w-0">
+                        <span className="truncate text-sm mr-2 flex-1 min-w-0">
                           {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
                         </span>
-                        {/* 「全部」心智模型：在全部会话视图中，已归类的会话展示精致微型胶囊徽标 */}
+                        {/* 「全部」心智模型：在全部会话视图中，已归类的会话展示精致微型胶囊徽标，靠右端齐 */}
                         {currentFolderView === 'all' && folder && (
                           <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neutral-400 dark:text-neutral-400 bg-neutral-200/60 dark:bg-neutral-700/60 shrink-0 font-normal max-w-[76px] truncate"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neutral-400 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/50 dark:border-neutral-700/50 shrink-0 font-normal max-w-[80px] truncate ml-auto group-hover:opacity-0 transition-opacity"
                             title={folder.name}
                           >
                             <Folder size={9} className="shrink-0" />
@@ -709,118 +715,163 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         <>
           <div
             className="fixed inset-0 z-40 bg-transparent"
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              setContextMenu(null);
+              setSessionFolderSubmenu(false);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setContextMenu(null);
+              setSessionFolderSubmenu(false);
             }}
           />
+
+          {/* 主上下文菜单 */}
           <div
             className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-sm select-none"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
             {contextMenu.type === 'session' && (
-              <>
+              isMobile && sessionFolderSubmenu ? (
+                /* 移动端下推二级视图：带返回按钮与高度限制滚动 */
                 <div className="px-1 py-0.5">
                   <button
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
-                    onClick={() => {
-                      const s = contextMenu.session;
-                      setContextMenu(null);
-                      handleStartEdit(s.id, isDefaultSessionTitle(s.title) ? defaultSessionTitle() : s.title);
-                    }}
+                    className="w-full text-left px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-300 font-medium border-b border-neutral-100 dark:border-neutral-800 mb-1"
+                    onClick={() => setSessionFolderSubmenu(false)}
                   >
-                    <Edit size={13} className="text-neutral-400 shrink-0" />
-                    <span>{t('重命名')}</span>
+                    <ChevronLeft size={13} className="shrink-0" />
+                    <span>{t('返回')}</span>
                   </button>
-                  <button
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
-                    onClick={() => {
-                      const s = contextMenu.session;
-                      toggleStarred(s.id);
-                      setContextMenu(null);
-                    }}
-                  >
-                    <Star
-                      size={13}
-                      className={`shrink-0 ${
-                        contextMenu.session.starred
-                          ? 'text-amber-400 fill-amber-400'
-                          : 'text-neutral-400'
-                      }`}
-                    />
-                    <span>{contextMenu.session.starred ? t('取消收藏') : t('收藏')}</span>
-                  </button>
-                </div>
 
-                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
-                <div className="px-1 py-0.5">
-                  <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 flex items-center gap-1">
-                    <Folder size={11} />
-                    <span>{t('文件夹')}</span>
+                  <div className="max-h-52 overflow-y-auto overscroll-contain scrollbar-hide space-y-0.5">
+                    {contextMenu.session.folderId && (
+                      <button
+                        className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                        onClick={() => {
+                          moveSessionToFolder(contextMenu.session.id, null);
+                          setContextMenu(null);
+                          setSessionFolderSubmenu(false);
+                        }}
+                      >
+                        <X size={12} className="text-neutral-400 shrink-0" />
+                        <span>{t('移出文件夹')}</span>
+                      </button>
+                    )}
+                    {folders.map(folder => {
+                      const isCurrent = contextMenu.session.folderId === folder.id;
+                      return (
+                        <button
+                          key={folder.id}
+                          className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                          onClick={() => {
+                            moveSessionToFolder(contextMenu.session.id, folder.id);
+                            setContextMenu(null);
+                            setSessionFolderSubmenu(false);
+                          }}
+                        >
+                          <span className="truncate flex items-center gap-1.5 mr-2">
+                            <Folder
+                              size={12}
+                              className={`shrink-0 ${isCurrent ? 'text-amber-500' : 'text-neutral-400'}`}
+                            />
+                            <span className="truncate">{folder.name}</span>
+                          </span>
+                          {isCurrent && <Check size={12} className="text-neutral-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {contextMenu.session.folderId && (
+
+                  <div className="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-1">
                     <button
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
                       onClick={() => {
-                        moveSessionToFolder(contextMenu.session.id, null);
+                        setContextMenu(null);
+                        setSessionFolderSubmenu(false);
+                        setIsCreatingFolder(true);
+                      }}
+                    >
+                      <FolderPlus size={12} className="shrink-0" />
+                      <span>{t('新建文件夹…')}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* 会话主操作项：紧凑干净，仅展示核心操作与文件夹入口 */
+                <>
+                  <div className="px-1 py-0.5">
+                    <button
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      onMouseEnter={() => setSessionFolderSubmenu(false)}
+                      onClick={() => {
+                        const s = contextMenu.session;
+                        setContextMenu(null);
+                        handleStartEdit(s.id, isDefaultSessionTitle(s.title) ? defaultSessionTitle() : s.title);
+                      }}
+                    >
+                      <Edit size={13} className="text-neutral-400 shrink-0" />
+                      <span>{t('重命名')}</span>
+                    </button>
+                    <button
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      onMouseEnter={() => setSessionFolderSubmenu(false)}
+                      onClick={() => {
+                        const s = contextMenu.session;
+                        toggleStarred(s.id);
                         setContextMenu(null);
                       }}
                     >
-                      <X size={12} className="text-neutral-400 shrink-0" />
-                      <span>{t('移出文件夹')}</span>
+                      <Star
+                        size={13}
+                        className={`shrink-0 ${
+                          contextMenu.session.starred
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-neutral-400'
+                        }`}
+                      />
+                      <span>{contextMenu.session.starred ? t('取消收藏') : t('收藏')}</span>
                     </button>
-                  )}
-                  {folders.map(folder => {
-                    const isCurrent = contextMenu.session.folderId === folder.id;
-                    return (
-                      <button
-                        key={folder.id}
-                        className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
-                        onClick={() => {
-                          moveSessionToFolder(contextMenu.session.id, folder.id);
-                          setContextMenu(null);
-                        }}
-                      >
-                        <span className="truncate flex items-center gap-1.5 mr-2">
-                          <Folder
-                            size={12}
-                            className={`shrink-0 ${isCurrent ? 'text-amber-500' : 'text-neutral-400'}`}
-                          />
-                          <span className="truncate">{folder.name}</span>
-                        </span>
-                        {isCurrent && <Check size={12} className="text-neutral-500 shrink-0" />}
-                      </button>
-                    );
-                  })}
-                  <button
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
-                    onClick={() => {
-                      setContextMenu(null);
-                      setIsCreatingFolder(true);
-                    }}
-                  >
-                    <FolderPlus size={12} className="shrink-0" />
-                    <span>{t('新建文件夹…')}</span>
-                  </button>
-                </div>
+                  </div>
 
-                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
-                <div className="px-1 py-0.5">
-                  <button
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 text-xs transition-colors"
-                    onClick={() => {
-                      const s = contextMenu.session;
-                      setContextMenu(null);
-                      handleDeleteSession(s.id);
-                    }}
-                  >
-                    <Trash2 size={13} className="shrink-0" />
-                    <span>{t('删除会话')}</span>
-                  </button>
-                </div>
-              </>
+                  <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+
+                  <div className="px-1 py-0.5 relative">
+                    <button
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                        sessionFolderSubmenu
+                          ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
+                          : 'text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                      }`}
+                      onMouseEnter={() => setSessionFolderSubmenu(true)}
+                      onClick={() => setSessionFolderSubmenu(v => !v)}
+                    >
+                      <span className="flex items-center gap-2 truncate mr-1">
+                        <Folder size={13} className="text-neutral-400 shrink-0" />
+                        <span className="truncate">{t('移动到文件夹')}</span>
+                      </span>
+                      <ChevronRight size={12} className="text-neutral-400 shrink-0" />
+                    </button>
+                  </div>
+
+                  <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+
+                  <div className="px-1 py-0.5">
+                    <button
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 text-xs transition-colors"
+                      onMouseEnter={() => setSessionFolderSubmenu(false)}
+                      onClick={() => {
+                        const s = contextMenu.session;
+                        setContextMenu(null);
+                        handleDeleteSession(s.id);
+                      }}
+                    >
+                      <Trash2 size={13} className="shrink-0" />
+                      <span>{t('删除会话')}</span>
+                    </button>
+                  </div>
+                </>
+              )
             )}
 
             {contextMenu.type === 'folder' && (
@@ -856,6 +907,78 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               </div>
             )}
           </div>
+
+          {/* 桌面端：二级文件夹悬浮侧栏（支持大量文件夹滚动，不撑爆屏幕） */}
+          {!isMobile && contextMenu.type === 'session' && sessionFolderSubmenu && (
+            <div
+              className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-sm select-none"
+              style={{
+                top: Math.min(contextMenu.y + 35, window.innerHeight - 260),
+                left: contextMenu.x + 185 > window.innerWidth - 190
+                  ? Math.max(10, contextMenu.x - 175)
+                  : contextMenu.x + 175,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 flex items-center gap-1 border-b border-neutral-100 dark:border-neutral-800 mb-1">
+                <Folder size={11} />
+                <span>{t('选择文件夹')}</span>
+              </div>
+
+              <div className="max-h-52 overflow-y-auto overscroll-contain scrollbar-hide px-1 py-0.5 space-y-0.5">
+                {contextMenu.session.folderId && (
+                  <button
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                    onClick={() => {
+                      moveSessionToFolder(contextMenu.session.id, null);
+                      setContextMenu(null);
+                      setSessionFolderSubmenu(false);
+                    }}
+                  >
+                    <X size={12} className="text-neutral-400 shrink-0" />
+                    <span>{t('移出文件夹')}</span>
+                  </button>
+                )}
+                {folders.map(folder => {
+                  const isCurrent = contextMenu.session.folderId === folder.id;
+                  return (
+                    <button
+                      key={folder.id}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      onClick={() => {
+                        moveSessionToFolder(contextMenu.session.id, folder.id);
+                        setContextMenu(null);
+                        setSessionFolderSubmenu(false);
+                      }}
+                    >
+                      <span className="truncate flex items-center gap-1.5 mr-2">
+                        <Folder
+                          size={12}
+                          className={`shrink-0 ${isCurrent ? 'text-amber-500' : 'text-neutral-400'}`}
+                        />
+                        <span className="truncate">{folder.name}</span>
+                      </span>
+                      {isCurrent && <Check size={12} className="text-neutral-500 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-1 px-1">
+                <button
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  onClick={() => {
+                    setContextMenu(null);
+                    setSessionFolderSubmenu(false);
+                    setIsCreatingFolder(true);
+                  }}
+                >
+                  <FolderPlus size={12} className="shrink-0" />
+                  <span>{t('新建文件夹…')}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
