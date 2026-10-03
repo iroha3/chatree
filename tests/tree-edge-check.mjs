@@ -32,7 +32,7 @@ console.log('ok    ReactFlow registers edgeTypes and uses tree edge type');
 
 // 4. Vertical alignment straight line optimization
 assert.ok(
-  chatFlowSrc.includes('Math.abs(sourceX - targetX) < 1'),
+  chatFlowSrc.includes('Math.abs(sourceX - targetX) <= 2'),
   'TreeEdge draws straight vertical line when source and target are horizontally aligned'
 );
 console.log('ok    TreeEdge optimizes vertically aligned nodes to single straight line');

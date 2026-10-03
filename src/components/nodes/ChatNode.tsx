@@ -352,6 +352,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   return (
     <div ref={nodeRef} className="relative group" onDoubleClick={handleDoubleClick}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!bg-neutral-400 !border-white pointer-events-none z-10"
+      />
       <div
         className={`node-content bg-white rounded-lg overflow-hidden border shadow-minimal transition-all ${
           data.isSearchMatch
@@ -359,11 +364,6 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             : 'border-neutral-200'
         }`}
       >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-neutral-400 !border-white"
-      />
 
       <div className="node-drag-handle flex justify-between items-center px-3 py-2 text-neutral-700 border-b border-neutral-100 shrink-0 cursor-grab active:cursor-grabbing">
         <div className="flex min-w-0 items-center">
@@ -630,12 +630,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         ) : null}
       </div>
 
+      </div>
+
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-neutral-400 !border-white"
+        className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 !w-7 !h-7 !rounded-full !border-0"
       />
-      </div>
 
       {/* 节点右下角的**次要动作簇** */}
       <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">

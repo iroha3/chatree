@@ -246,8 +246,8 @@ const TreeEdge: React.FC<EdgeProps> = ({
   interactionWidth,
 }) => {
   if (sourcePosition === Position.Bottom && targetPosition === Position.Top && targetY > sourceY + 10) {
-    if (Math.abs(sourceX - targetX) < 1) {
-      const path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+    if (Math.abs(sourceX - targetX) <= 2) {
+      const path = `M ${sourceX} ${sourceY} L ${sourceX} ${targetY}`;
       return (
         <BaseEdge
           id={id}

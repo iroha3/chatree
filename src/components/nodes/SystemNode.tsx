@@ -231,13 +231,14 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           </div>
         )}
       </div>
+      </div>
 
+      {/* 连线起点：和下面的「+」按钮使用完全一致的锚点与尺寸，保证连线绝对垂直对齐「+」中心 */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-neutral-400 !border-white"
+        className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 !w-7 !h-7 !rounded-full !border-0"
       />
-      </div>
 
       {/* 同 ChatNode：底栏整条删掉，「+」悬浮在节点底边中央，不占布局高度 */}
       <button
