@@ -233,7 +233,7 @@ function cleanMermaidText(str: string): string {
  * 生成纯逻辑 Mermaid 树图
  */
 export function generateMermaidTopology(
-  session: Session,
+  _session: Session,
   models: Model[],
   topology: ReturnType<typeof computeTreeTopology>
 ): string {

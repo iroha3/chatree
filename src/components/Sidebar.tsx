@@ -590,7 +590,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
             return (
               <div
                 key={session.id}
-                draggable={hasFolders}
+                draggable={folders.length > 0}
                 onDragStart={(e) => {
                   e.dataTransfer.setData('text/session-id', session.id);
                   e.dataTransfer.effectAllowed = 'move';
