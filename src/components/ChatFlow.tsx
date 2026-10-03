@@ -6,6 +6,10 @@ import ReactFlow, {
   ReactFlowProvider,
   Edge,
   Node,
+  BaseEdge,
+  EdgeProps,
+  getSmoothStepPath,
+  Position,
   useReactFlow,
   useStoreApi,
   applyNodeChanges,
@@ -215,6 +219,99 @@ function buildFlowNode(
   };
 }
 
+/**
+ * 专为垂直树状对话定制的连接线组件。
+ *
+ * 彻底消灭 React Flow 默认 smoothstep 在垂直落差紧凑时产生的「中段 1px 错位/阶梯抖动」Bug：
+ * React Flow 自带的 smoothstep 在两端写死了各 20px（共 40px）的垂直缓冲区。当父子节点上下有效落差
+ * 小于 40px 时，它会被迫在中点绘制两条微小落差的水平线并在中间加入一截 1px 的多余竖向台阶（即用户反馈的「线弯了大概一个px」）。
+ *
+ * TreeEdge 针对垂直树结构：
+ * 1. 垂直对齐时：直接画完全垂直的直线段，零多余折线；
+ * 2. 正常分支下行时：在恰好一半的高度 midY 处维持唯一、绝对水平的水平线段（配合平滑圆角），
+ *    从几何公式上 100% 杜绝出现任何中途错位或 1px 阶梯；
+ * 3. 逆向/上拉拖拽等异常坐标：回退至带低 offset (12px) 的平滑折线。
+ */
+const TreeEdge: React.FC<EdgeProps> = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition = Position.Bottom,
+  targetPosition = Position.Top,
+  style,
+  markerEnd,
+  markerStart,
+  interactionWidth,
+}) => {
+  if (sourcePosition === Position.Bottom && targetPosition === Position.Top && targetY > sourceY + 10) {
+    if (Math.abs(sourceX - targetX) < 1) {
+      const path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+      return (
+        <BaseEdge
+          id={id}
+          path={path}
+          style={style}
+          markerEnd={markerEnd}
+          markerStart={markerStart}
+          interactionWidth={interactionWidth}
+        />
+      );
+    }
+
+    const midY = (sourceY + targetY) / 2;
+    const r = Math.min(8, (targetY - sourceY) / 2 - 1, Math.abs(targetX - sourceX) / 2);
+    const dir = targetX > sourceX ? 1 : -1;
+    const path = [
+      `M ${sourceX} ${sourceY}`,
+      `L ${sourceX} ${midY - r}`,
+      `Q ${sourceX} ${midY} ${sourceX + dir * r} ${midY}`,
+      `L ${targetX - dir * r} ${midY}`,
+      `Q ${targetX} ${midY} ${targetX} ${midY + r}`,
+      `L ${targetX} ${targetY}`,
+    ].join(' ');
+
+    return (
+      <BaseEdge
+        id={id}
+        path={path}
+        style={style}
+        markerEnd={markerEnd}
+        markerStart={markerStart}
+        interactionWidth={interactionWidth}
+      />
+    );
+  }
+
+  const [path] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 8,
+    offset: 12,
+  });
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      style={style}
+      markerEnd={markerEnd}
+      markerStart={markerStart}
+      interactionWidth={interactionWidth}
+    />
+  );
+};
+
+const edgeTypes = {
+  tree: TreeEdge,
+  smoothstep: TreeEdge,
+};
+
 function buildFlowEdges(nodes: ChatNodeType[]): Edge[] {
   return nodes
     .filter(node => node.parentId)
@@ -222,7 +319,7 @@ function buildFlowEdges(nodes: ChatNodeType[]): Edge[] {
       id: `e-${node.parentId}-${node.id}`,
       source: node.parentId!,
       target: node.id,
-      type: 'smoothstep',
+      type: 'tree',
       animated: false,
     }));
 }
@@ -1462,8 +1559,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         // 删除现在只有节点上的删除按钮一条路，走 handleDeleteNode（确认 + 撤销）。
         deleteKeyCode={null}
         fitView={false}
+        edgeTypes={edgeTypes}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: 'tree',
           style: { stroke: '#a3a3a3', strokeWidth: 1.5 }
         }}
         onNodesChange={(changes: NodeChange[]) => {
