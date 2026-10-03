@@ -104,7 +104,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     ? filteredSessions.filter(s => s.starred)
     : filteredSessions;
 
-  const hasFolders = folders.length > 0;
   // O(1) 文件夹字典映射，规避列表频繁 find 的渲染开销
   const folderMap = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders]);
 
@@ -356,7 +355,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   };
 
   const chipClass = (active: boolean) =>
-    `flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors select-none ${
+    `flex-shrink-0 inline-flex items-center h-[26px] px-2.5 py-1 rounded-full text-xs border transition-colors select-none ${
       active
         ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-100'
         : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800'
@@ -489,20 +488,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               return (
                 <div
                   key={folder.id}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 h-[26px] rounded-full text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm"
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none"
                 >
-                  <Folder size={12} className="shrink-0 text-neutral-400" />
-                  <input
-                    autoFocus
-                    className="w-16 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0"
-                    value={folderNameDraft}
-                    onChange={(e) => setFolderNameDraft(e.target.value)}
-                    onBlur={() => handleRenameFolder(folder.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleRenameFolder(folder.id);
-                      if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
-                    }}
-                  />
+                  <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
+                  <span className="inline-grid items-center min-w-[2ch] max-w-[140px]">
+                    <span className="invisible col-start-1 row-start-1 whitespace-pre pr-1 text-xs">
+                      {folderNameDraft || ' '}
+                    </span>
+                    <input
+                      autoFocus
+                      onFocus={(e) => e.target.select()}
+                      className="col-start-1 row-start-1 w-full bg-transparent text-xs text-neutral-800 dark:text-neutral-200 outline-none border-none p-0 focus:ring-0 leading-normal"
+                      value={folderNameDraft}
+                      onChange={(e) => setFolderNameDraft(e.target.value)}
+                      onBlur={() => handleRenameFolder(folder.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameFolder(folder.id);
+                        if (e.key === 'Escape') { setEditingFolderId(null); setFolderNameDraft(''); }
+                      }}
+                    />
+                  </span>
                 </div>
               );
             }
@@ -542,20 +547,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           })}
 
           {isCreatingFolder && (
-            <div className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 h-[26px] rounded-full text-xs border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm">
-              <Folder size={12} className="shrink-0 text-neutral-400" />
-              <input
-                ref={newFolderInputRef}
-                className="w-16 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0"
-                placeholder={t('文件夹名')}
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onBlur={handleCreateFolder}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreateFolder();
-                  if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
-                }}
-              />
+            <div className="flex-shrink-0 inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none">
+              <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
+              <span className="inline-grid items-center min-w-[5ch] max-w-[140px]">
+                <span className="invisible col-start-1 row-start-1 whitespace-pre pr-1 text-xs">
+                  {newFolderName || t('文件夹名')}
+                </span>
+                <input
+                  ref={newFolderInputRef}
+                  className="col-start-1 row-start-1 w-full bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0 leading-normal"
+                  placeholder={t('文件夹名')}
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onBlur={handleCreateFolder}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateFolder();
+                    if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName(''); }
+                  }}
+                />
+              </span>
             </div>
           )}
         </div>
@@ -692,12 +702,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           })
         )}
       </div>
-
-      {hasFolders && (
-        <div className="px-4 pb-1 text-[11px] text-neutral-400/80 dark:text-neutral-500 text-center">
-          {t('拖拽或右键会话可归类至文件夹')}
-        </div>
-      )}
 
       {/* 底部只留「新建会话」一整条 */}
       <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 dark:border-neutral-800 shrink-0">
