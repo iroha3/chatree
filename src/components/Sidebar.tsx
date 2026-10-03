@@ -5,7 +5,6 @@ import {
   MessageSquare, Sun, Moon, Star, Folder, FolderPlus, Check
 } from 'lucide-react';
 import Logo from './Logo';
-import { gsap } from 'gsap';
 import { showSuccess, showWarning, showInfo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -44,9 +43,6 @@ function getSessionMatchSnippet(session: Session, query: string): string | null 
 
 /** 会话需要移动到的目标：某个文件夹，或 null 表示「未分类」 */
 type MoveTarget = string | null;
-
-// 标记应用是否已在浏览器中首屏渲染过一次，用于避免刷新页面时的位移动画，同时保留收起后再展开时的平滑入场动效
-let hasAppMountedOnce = false;
 
 const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCollapse }) => {
   const {
@@ -146,34 +142,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // 侧边栏展开动画：首屏静默渲染，收起后再展开时播放流畅的滑入动画
-  useEffect(() => {
-    if (!hasAppMountedOnce) {
-      hasAppMountedOnce = true;
-      return;
-    }
-
-    const el = sidebarRef.current;
-    if (!el) return;
-
-    const tween = gsap.fromTo(
-      el,
-      { x: isMobile ? '-100%' : -20, opacity: isMobile ? 1 : 0 },
-      {
-        x: 0,
-        opacity: 1,
-        duration: 0.22,
-        ease: 'power2.out',
-        clearProps: 'transform,opacity',
-      }
-    );
-
-    return () => {
-      tween.kill();
-      gsap.set(el, { clearProps: 'transform,opacity' });
-    };
-  }, [isMobile]);
 
   /*
    * 新建 / 切换到某个文件夹后，把它滚进横滑栏的可见范围。
@@ -393,20 +361,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800'
     }`;
 
-  if (collapsed) return null;
-
   return (
-    <div
+    <aside
       ref={sidebarRef}
-      className={`sidebar w-64 h-full bg-white border-r border-neutral-200 flex flex-col ${
-        isMobile ? 'fixed inset-y-0 left-0 z-30 shadow-2xl' : 'relative z-10'
+      aria-hidden={collapsed}
+      className={`sidebar w-64 h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out ${
+        isMobile
+          ? `fixed inset-y-0 left-0 z-30 shadow-2xl transition-transform ${
+              collapsed ? '-translate-x-full pointer-events-none' : 'translate-x-0'
+            }`
+          : `relative z-10 ${
+              collapsed ? '-ml-64 pointer-events-none opacity-0' : 'ml-0 opacity-100'
+            }`
       }`}
     >
       <button
-        className="absolute -right-3 top-4 bg-white p-1.5 rounded-full border border-neutral-200 shadow-minimal z-20"
+        className="absolute -right-3 top-4 bg-white dark:bg-neutral-800 p-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-minimal z-20 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
         onClick={onToggleCollapse}
       >
-        <ChevronLeft size={14} className="text-neutral-600" />
+        <ChevronLeft size={14} className="text-neutral-600 dark:text-neutral-300" />
       </button>
 
       <div className="px-4 py-4 border-b border-neutral-100 flex items-center justify-between gap-2">
@@ -1013,7 +986,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           )}
         </>
       )}
-    </div>
+    </aside>
   );
 };
 

@@ -82,10 +82,10 @@ const App: React.FC = () => {
     <div className="flex h-screen h-[100dvh] overflow-hidden bg-neutral-50">
       {sidebarCollapsed && (
         <button 
-          className="absolute top-4 left-4 z-20 bg-white p-1.5 rounded-full shadow-minimal border border-neutral-200"
+          className="absolute top-4 left-4 z-20 bg-white dark:bg-neutral-800 p-1.5 rounded-full shadow-minimal border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
           onClick={toggleSidebar}
         >
-          <ChevronRight size={14} className="text-neutral-600" />
+          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-300" />
         </button>
       )}
 

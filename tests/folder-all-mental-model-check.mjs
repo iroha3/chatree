@@ -102,12 +102,12 @@ assert.ok(
 );
 console.log('ok    Sidebar allows dragging sessions to "全部" to clear folderId');
 
-// Smooth expand animation guarded against initial mount jitter
+// Smooth CSS transition for sidebar collapse/expand without mount jitter
 assert.ok(
-  sidebarSrc.includes('hasAppMountedOnce') && sidebarSrc.includes('gsap.fromTo'),
-  'Sidebar has smooth expand animation guarded against initial mount jitter'
+  sidebarSrc.includes('transition-all') && sidebarSrc.includes('duration-300') && !sidebarSrc.includes('gsap.from'),
+  'Sidebar has smooth CSS transition for collapse/expand without GSAP mount jitter'
 );
-console.log('ok    Sidebar has smooth expand animation guarded against initial mount jitter');
+console.log('ok    Sidebar has smooth CSS transition for collapse/expand without GSAP mount jitter');
 
 // Right-aligned folder badge
 assert.ok(
