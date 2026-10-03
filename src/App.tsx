@@ -7,6 +7,7 @@ import NotificationContainer from './components/Notification';
 import ConfirmDialog from './components/ConfirmDialog';
 import { useSessionStore } from './stores/sessionStore';
 import { useModelStore } from './stores/modelStore';
+import { useSyncStore } from './stores/syncStore';
 import { useDatabaseContext } from './context/DatabaseContext';
 import { Session } from './types';
 import { defaultSessionTitle } from './utils/sessionTitle';
@@ -43,6 +44,8 @@ const App: React.FC = () => {
         await loadSessions();
         await loadModels();
         await loadFolders();
+        // 启动后异步检测远端是否有更新，只标记状态，绝不静默打断用户
+        void useSyncStore.getState().checkRemoteUpdate();
       } catch (error) {
         console.error('Failed to initialize data:', error);
       } finally {

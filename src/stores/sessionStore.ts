@@ -146,6 +146,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createSession: async (session) => {
     try {
+      await db.removeTombstone(session.id);
       await db.saveSession(session);
       set((state) => {
         const sessions = sortSessions([...state.sessions, session]);
@@ -192,6 +193,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   deleteSession: async (id) => {
     try {
       await db.deleteSession(id);
+      await db.recordTombstone(id, 'session');
       set((state) => {
         const sessions = state.sessions.filter(s => s.id !== id);
         const newCurrentId = state.currentSessionId === id
@@ -454,6 +456,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
 
     try {
+      await db.removeTombstone(folder.id);
       await db.saveFolder(folder);
       set((state) => {
         const folders = [...state.folders, folder];
@@ -495,6 +498,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     try {
       await db.deleteFolder(id);
+      await db.recordTombstone(id, 'folder');
 
       // 文件夹里的会话回到「未分类」，并把这次变更落库
       const updatedSessions = affected.map(s => ({ ...s, folderId: null }));

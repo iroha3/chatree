@@ -10,6 +10,7 @@ import {
   parseExportFile,
 } from '../../utils/sessionTransfer';
 import { useLangStore, useT } from '../../i18n';
+import { WebDavSyncSection } from './WebDavSyncSection';
 
 /**
  * 数据备份 / 恢复面板。
@@ -137,6 +138,9 @@ const DataPanel: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* WebDAV 云同步 */}
+      <WebDavSyncSection />
 
       <section>
         <h3 className="text-sm font-medium text-neutral-800 mb-1">{t('备份')}</h3>

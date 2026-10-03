@@ -5,6 +5,17 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [Unreleased]
+
+### Added
+
+- **Private WebDAV Cloud Sync.** Connect to private WebDAV services (Nutstore / 坚果云, Nextcloud, AList, NAS) in Settings → Data to synchronize sessions, folders, and model configurations across devices.
+  - **Single-button bidirectional sync**: Unified "Sync Now" workflow pulls remote data, performs a conflict-safe merge, updates local IndexedDB, and uploads the merged state back to WebDAV in a single atomic transaction.
+  - **Tombstone mechanism**: Deleting a session or folder marks a tombstone to permanently prevent deleted items from being resurrected by other devices during sync. Tombstones auto-expire after 30 days.
+  - **Pre-sync local snapshot & instant undo**: A full snapshot of local data is automatically captured in IndexedDB before any sync or overwrite occurs, with a one-click "Undo Last Sync" button to safely roll back.
+  - **Automatic directory creation**: WebDAV requests automatically create parent directories recursively if subfolders are specified in the path.
+  - **Remote update indicator**: A discreet amber dot appears on the sidebar settings button when a newer remote sync payload is detected upon startup.
+
 ## [0.5.0] - 2026-09-26
 
 ### Added

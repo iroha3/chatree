@@ -42,3 +42,8 @@ build/icon-*.png
 # scripts/pake.mjs --json 写出的产物清单，以及 collect-artifacts.mjs 的收集目录
 /pake-artifacts.json
 /release/
+
+# 本地私密或临时手册/草稿
+docs/TMP-*.md
+docs/tmp-*.md
+

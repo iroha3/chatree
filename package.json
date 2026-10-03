@@ -35,6 +35,7 @@
     "test:tree": "bun tests/tree-check.mjs",
     "test:smoke": "bun tests/smoke-check.mjs",
     "test:ux": "bun tests/node-ux-check.mjs",
+    "test:webdav": "bun tests/webdav-sync-test.mjs",
     "desktop:build": "bun run build && bun scripts/pake.mjs",
     "desktop:build:fast": "bun run build && bun scripts/pake.mjs --iterative-build",
     "desktop:build:ci": "bun run build && bun scripts/pake.mjs --json"

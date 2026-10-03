@@ -245,6 +245,45 @@ const en: Record<string, string> = {
   所有会话数据已清空: 'All session data cleared',
   清空数据失败: 'Failed to clear data',
 
+  // ── WebDavSyncSection ─────────────────────────────────
+  'WebDAV 云同步': 'WebDAV Sync',
+  '云端有更新': 'Remote update available',
+  'WebDAV 服务器地址': 'WebDAV Server URL',
+  '测试连接': 'Test Connection',
+  '测试中...': 'Testing...',
+  'WebDAV 服务连接成功！': 'WebDAV connected successfully!',
+  '应用建议地址': 'Apply suggested URL',
+  '高级选项（文件名与凭据保留）': 'Advanced options (filename & credentials)',
+  '云端同步文件名 / 相对路径': 'Remote sync filename / relative path',
+  '同步模型 API Key（保存在你自己的私有 WebDAV 中，换设备免重输）':
+    'Sync model API Keys (stored in your private WebDAV space)',
+  '立即同步 (Sync)': 'Sync Now',
+  '正在双向同步...': 'Syncing...',
+  '撤销上次同步': 'Undo last sync',
+  '撤销上一次同步？': 'Undo last sync?',
+  '撤销上一次同步，恢复同步前的本地快照': 'Undo last sync and restore pre-sync snapshot',
+  '将本地数据还原至上一次同步前的快照状态。确定要继续吗？':
+    'Restore local data to the snapshot taken before the last sync. Continue?',
+  '强制覆盖云端 (Force Push)': 'Force Push to WebDAV',
+  '强制覆盖本地 (Force Pull)': 'Force Pull from WebDAV',
+  '强制推送覆盖云端？': 'Force Push and overwrite WebDAV?',
+  '此操作将以本地当前所有会话完整覆盖云端数据文件。确定要强制推送吗？':
+    'This will overwrite the WebDAV file with current local sessions. Continue?',
+  '从云端拉取 (Pull)': 'Pull from WebDAV',
+  '推送到云端 (Push)': 'Push to WebDAV',
+  '镜像覆盖本地': 'Mirror overwrite local',
+  '尚未进行过同步': 'Not synced yet',
+  '上次同步：': 'Last synced: ',
+  '请先输入 WebDAV 服务器地址': 'Please enter WebDAV server URL',
+  '请先配置并测试 WebDAV 地址': 'Please configure and test WebDAV URL first',
+  '检测到云端更新冲突': 'Remote Conflict Detected',
+  '完全以云端覆盖本地？': 'Mirror overwrite local data from WebDAV?',
+  '撤销恢复': 'Restore snapshot',
+  '设置（WebDAV 云端有更新）': 'Settings (WebDAV update available)',
+  'WebDAV 云端有更新': 'WebDAV remote update available',
+  '支持 AList、NAS、Nextcloud 等 WebDAV 服务。基于墓碑与双向合并，一键双向对齐，删除不会复活，心智模型简单可靠。':
+    'Sync across devices via AList, NAS, Nextcloud, or WebDAV. Tombstone-based bidirectional merge ensures deletions never resurrect.',
+
   // ── AboutPanel ────────────────────────────────────────
   核心特性: 'Key Features',
   数据与隐私: 'Data & privacy',
@@ -354,6 +393,7 @@ function detectLang(): Lang {
 }
 
 export function applyLang(lang: Lang): void {
+  if (typeof document === 'undefined') return;
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
   // 浏览器标签页 / Pake 窗口的标题也跟着切。以前它是 index.html 里写死的英文，
   // 界面全中文了标题栏还是英文。

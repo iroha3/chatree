@@ -10,6 +10,7 @@ import { showSuccess, showWarning, showInfo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useModelStore } from '../stores/modelStore';
+import { useSyncStore } from '../stores/syncStore';
 import { defaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitle';
 import { generateId } from '../utils/id';
 import type { SettingsTab } from './SettingsModal';
@@ -64,6 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     deleteFolder,
     moveSessionToFolder,
   } = useSessionStore();
+  const hasRemoteUpdate = useSyncStore((s) => s.hasRemoteUpdate);
 
   const { theme, toggleTheme } = useThemeStore();
   const { models } = useModelStore();
@@ -304,11 +306,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
             （占右侧 14px）留出约 18px 空隙，两者不撞。 */}
         <div className="flex items-center gap-0.5 shrink-0 pr-4">
           <button
-            className="flex items-center justify-center p-1.5 text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 rounded-md transition-colors"
-            onClick={() => onOpenSettings('models')}
-            title={t('设置')}
+            className="relative flex items-center justify-center p-1.5 text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 rounded-md transition-colors"
+            onClick={() => onOpenSettings(hasRemoteUpdate ? 'data' : 'models')}
+            title={hasRemoteUpdate ? t('设置（WebDAV 云端有更新）') : t('设置')}
           >
             <Settings size={15} />
+            {hasRemoteUpdate && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-neutral-900" />
+            )}
           </button>
           <button
             className="flex items-center justify-center p-1.5 text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 rounded-md transition-colors"

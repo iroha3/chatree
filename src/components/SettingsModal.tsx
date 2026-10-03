@@ -5,6 +5,7 @@ import ModelsPanel from './settings/ModelsPanel';
 import DataPanel from './settings/DataPanel';
 import AppearancePanel from './settings/AppearancePanel';
 import AboutPanel from './settings/AboutPanel';
+import { useSyncStore } from '../stores/syncStore';
 import { useT } from '../i18n';
 
 export type SettingsTab = 'models' | 'data' | 'appearance' | 'about';
@@ -77,12 +78,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
         <div className="flex md:hidden border-b border-neutral-100 px-3 py-2 space-x-1.5 overflow-x-auto shrink-0 scrollbar-hide bg-neutral-50/50">
           {TABS.map(item => {
             const active = tab === item.id;
+            const hasUpdate = item.id === 'data' && useSyncStore.getState().hasRemoteUpdate;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setTab(item.id)}
-                className={`flex shrink-0 items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                className={`relative flex shrink-0 items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
                   active
                     ? 'bg-neutral-900 text-white font-medium shadow-sm'
                     : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50'
@@ -90,6 +92,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
               >
                 {item.icon}
                 <span>{t(item.label)}</span>
+                {hasUpdate && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                )}
               </button>
             );
           })}
@@ -99,19 +104,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ initialTab = 'models', on
           <nav className="hidden md:block w-44 shrink-0 border-r border-neutral-100 p-3 space-y-1">
             {TABS.map(item => {
               const active = tab === item.id;
+              const hasUpdate = item.id === 'data' && useSyncStore.getState().hasRemoteUpdate;
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`w-full flex items-center space-x-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  className={`relative w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
                     active
                       ? 'bg-neutral-100 text-neutral-900 font-medium'
                       : 'text-neutral-600 hover:bg-neutral-50'
                   }`}
                 >
-                  {item.icon}
-                  <span>{t(item.label)}</span>
+                  <div className="flex items-center space-x-2">
+                    {item.icon}
+                    <span>{t(item.label)}</span>
+                  </div>
+                  {hasUpdate && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500" title={t('WebDAV 云端有更新')} />
+                  )}
                 </button>
               );
             })}

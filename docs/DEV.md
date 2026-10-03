@@ -34,13 +34,17 @@ bun test:ux            # 节点交互回归（同上）
 | 东西 | 值 | 位置 |
 |---|---|---|
 | IndexedDB 数据库名 | `TreeChatDatabase` | `src/db/db.ts` |
+| IndexedDB 核心业务表 | `sessions` / `models` / `folders` | `src/db/db.ts` |
+| IndexedDB 同步辅助表 | `syncSnapshots` (安全快照) / `tombstones` (删除墓碑) | `src/db/db.ts` |
 | 导出的 JSON 格式标识 | `treeai-sessions` | `src/utils/sessionTransfer.ts` |
 | localStorage key | `treeai-lang` / `treeai-theme` / `treeai-viewports` | 各 store |
+| WebDAV 配置与状态 key | `chatree-webdav-config` / `chatree-webdav-meta` | `src/stores/syncStore.ts` |
 | 桌面版 identifier | `com.chatree.desktop` | `pake.config.json` |
 
 > `treeai-*` 这套前缀看着像历史遗留（早于改名 Chatree），但**不能顺手"统一"成 `chatree-`**：
 > 改了老用户的语言/主题/视口偏好会丢。桌面版的 `identifier` 同理，改了 IndexedDB 的
 > origin 就变了，等于用户数据清零。
+> 新增的 WebDAV 相关状态采用 `chatree-webdav-*` 前缀。
 
 ---
 
@@ -52,21 +56,25 @@ src/
 │   ├── ChatFlow.tsx          # 画布总编排：节点构建、流式请求、增删改、撤销
 │   ├── Sidebar.tsx           # 会话列表 / 文件夹 / 星标 / 搜索
 │   ├── SettingsModal.tsx     # 设置中心（模型 / 数据 / 外观 / 关于）
+│   ├── settings/WebDavSyncSection.tsx # WebDAV 同步设置卡片（双向同步/测试/高级选项/撤销）
 │   ├── ConfirmDialog.tsx     # 应用内确认框（替代 window.confirm）
 │   ├── CopyButton.tsx        # 统一的复制按钮（点完变对号）
 │   ├── Notification.tsx      # Toast 容器（z-[300]）
 │   ├── nodes/ChatNode.tsx    # 对话节点卡片
 │   ├── nodes/SystemNode.tsx  # 系统提示词节点
 │   └── nodes/PathReaderOverlay.tsx # 双击打开的连续阅读浮层（整条路径 + 分支切换，portal 到 body）
-├── stores/                   # zustand：sessionStore / modelStore / themeStore / ...
-├── db/db.ts                  # Dexie schema
-├── services/apiService.ts    # OpenAI 兼容的流式请求
-├── utils/                    # id / sessionTitle / sessionTransfer / notification
+├── stores/                   # zustand：sessionStore / modelStore / themeStore / syncStore / ...
+├── db/db.ts                  # Dexie schema (v4: +syncSnapshots, +tombstones)
+├── services/
+│   ├── apiService.ts         # OpenAI 兼容的流式请求
+│   ├── modelList.ts          # 模型端点嗅探
+│   └── webdav.ts             # WebDAV 原生协议客户端（PROPFIND/HEAD/GET/PUT/MKCOL）
+├── utils/                    # id / sessionTitle / sessionTransfer / syncMerge / notification
 └── i18n/index.ts             # 极简 i18n（中文原文当 key）
 
 scripts/                      # 构建/打包：图标、Pake、产物收集（见 §8）
 tests/                        # 回归脚本（见 §6）
-docs/                         # 本文件 + ROADMAP
+docs/                         # 本文件 + ROADMAP + DECISIONS
 public/                       # hljs/katex 的本地 shim（离线用，见 §5）
 ```
 
@@ -335,10 +343,50 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 
 **模型列表探测**（`services/modelList.ts`）是一个**惊喜功能**，不是必需流程：
 
-- 只在「模型标识」输入框**聚焦**时静默探一次 `GET {baseUrl}/models`，**没有按钮**；
-- 成功才把输入框换成带 `<datalist>` 的可选可填，失败**什么都不做**（不弹 toast、不拦住保存）——
-  大量服务商没实现这个端点，或没放 CORS 头，失败是常态（D-020）；
-- 手动填写永远是主路径，`<datalist>` 只是加法。
+### 3.18 WebDAV 云同步与墓碑（Tombstone）机制
+
+详见决策记录 [`docs/DECISIONS.md#D-021`](docs/DECISIONS.md)。核心约束与实现约定如下：
+
+#### 1. 心智模型：单按钮双向合并事务
+- **不拆推/拉，统一为「立即同步」**（`syncStore.sync()`）：
+  1. 拉取远端 WebDAV 文件（若不存在则转为初次全量推送）；
+  2. 生成本地 IndexedDB 预同步安全快照（`syncSnapshots`）；
+  3. 执行本地与远端的双向合并（`mergeBidirectional`）；
+  4. 将合并后的新数据集写入本地 IndexedDB；
+  5. 将合并后的新数据集全量推送回远端 WebDAV 服务器。
+- **高级选项**仅作为应急通道保留：强制覆盖云端（`forcePush`）、强制覆盖本地（`forcePull`）、撤销上次同步（`restoreBackup`）。
+
+#### 2. 墓碑机制（防多端僵尸复活）
+- 纯时间戳比较在多端增量合并时会导致「A 端删除会话后，被 B 端推回云端复活」。
+- **实现规则**：
+  - 用户删除 Session 或 Folder 时，立即在 `tombstones` 表中记录一条 `{ id, deletedAt }`；
+  - 双向合并时：
+    - 若 `tombstone.deletedAt >= item.updatedAt`：代表该项目在某端已被删除，本地/远端均应物理清除；
+    - 若 `item.updatedAt > tombstone.deletedAt`：代表在删除操作之后该项目又被更新（例如节点重新生成或改动），保留该项目并从墓碑列表中清除该 ID；
+  - 新建同名/同 ID 实体时自动清除对应墓碑；
+  - 墓碑表采用 **30 天滑动窗口**自动修剪（`pruneOldTombstones`），防止无限制膨胀。
+
+#### 3. 本地安全快照与一键撤销
+- 任何网络同步与导入合并前，在 IndexedDB `syncSnapshots` 表写入当前完整会话、模型、文件夹快照（保留最新 5 份）；
+- 界面提供明确的「撤销上次同步」按钮，发生意外时可秒级全量回滚本地数据。
+
+#### 4. 本地 API Key 凭据保护
+- WebDAV 同步文件默认跟随 `exportSessions(..., { keepApiKeys: true })` 导出；
+- 但在导入合并模型时，遵守**非破坏性凭据合并原则**：远端若未提供 `apiKey`，绝不抹除本地已有的 `apiKey`；仅当远端提供非空密钥且更新时才覆写。
+
+#### 5. 路径支持与递归父目录创建
+- `serverUrl` / `syncPath` 支持子目录（如 `dav/chatree/` 或 `chatree-sync.json`）；
+- WebDAV `PUT` 写入遇到 `409 Conflict`（父目录不存在）时，`services/webdav.ts` 会自动向上逐级发送 `MKCOL` 递归创建所需父级集合，并重试写入。
+
+#### 6. 服务端与浏览器环境适配陷阱
+- **坚果云（Nutstore）**：
+  - 推荐地址：`https://dav.jianguoyun.com/dav/`；
+  - 必须使用坚果云「账户信息 - 安全设置」中生成的独立**应用密码**（非网页登录密码）。
+- **AList 误判 SPA HTML**：
+  - AList 的根路径对于不存在的资源不会返回 404，而是返回 `200 OK` 伴随前端 HTML 页面（`<!DOCTYPE html>`）；
+  - `downloadSyncData` 增加了 Content-Type 与 HTML 签名拦截校验，识别到后给出精准报错：「返回了 HTML 页面而非 JSON，请检查 WebDAV 地址是否包含 /dav/ 等正确前缀」。
+- **Firefox HTTPS-Only Mode**：
+  - 在局域网 HTTP（如 `http://192.168.x.x:5244/dav/`）调试或部署时，若开启了浏览器的 HTTPS-Only 模式，浏览器会将请求隐式升级为 HTTPS。因纯 HTTP 服务无 TLS 监听，握手直接重置并报错为跨域 `CORS 请求未能成功 (null)`。排查时需检查地址栏盾牌图标或配置 HTTPS 证书。
 
 ---
 

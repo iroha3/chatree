@@ -1,4 +1,5 @@
 import { Session, Model, Folder } from '../types';
+import { Tombstone } from '../db/db';
 import { t } from '../i18n';
 
 /**
@@ -20,12 +21,15 @@ export interface SessionExportFile {
   models?: Model[];
   /** 可选。文件夹表。不带时导入后会话都落在「未分类」。 */
   folders?: Folder[];
+  /** 可选。删除墓碑记录，用于多端同步时传播删除状态，防止僵尸复活。 */
+  tombstones?: Tombstone[];
 }
 
 export interface ParsedExportFile {
   sessions: Session[];
   models: Model[];
   folders: Folder[];
+  tombstones?: Tombstone[];
 }
 
 export interface ImportResult {
@@ -33,13 +37,25 @@ export interface ImportResult {
   skipped: number;
 }
 
+export interface BuildExportOptions {
+  /** 是否保留 API Key。本地文件导出默认 false 清空；私有 WebDAV 云同步时可置 true 保留。 */
+  keepApiKeys?: boolean;
+  /** 可选附带的删除墓碑记录 */
+  tombstones?: Tombstone[];
+}
+
 /**
  * 生成导出内容。
  *
- * apiKey 一律清空 —— 备份文件会在网盘/聊天软件里到处走，不该带着凭据。
- * （顺带一提：Session 本身就不含 key，模型是独立的一张表，所以只有带 models 时才需要处理。）
+ * apiKey 默认清空 —— 备份文件会在网盘/聊天软件里到处走，不该带着凭据。
+ * 仅在同步到用户自建私有 WebDAV 时可由 options.keepApiKeys 显式指定保留。
  */
-export function buildExportFile(sessions: Session[], models?: Model[], folders?: Folder[]): SessionExportFile {
+export function buildExportFile(
+  sessions: Session[],
+  models?: Model[],
+  folders?: Folder[],
+  options?: BuildExportOptions
+): SessionExportFile {
   const file: SessionExportFile = {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
@@ -48,11 +64,18 @@ export function buildExportFile(sessions: Session[], models?: Model[], folders?:
   };
 
   if (models && models.length > 0) {
-    file.models = models.map(m => ({ ...m, apiKey: '' }));
+    file.models = models.map(m => ({
+      ...m,
+      apiKey: options?.keepApiKeys ? m.apiKey : ''
+    }));
   }
 
   if (folders && folders.length > 0) {
     file.folders = folders;
+  }
+
+  if (options?.tombstones && options.tombstones.length > 0) {
+    file.tombstones = options.tombstones;
   }
 
   return file;
@@ -138,8 +161,9 @@ export function parseExportFile(text: string): { data: ParsedExportFile } | { er
 
   const models = Array.isArray(file.models) ? file.models.filter(isValidModel) : [];
   const folders = Array.isArray(file.folders) ? file.folders.filter(isValidFolder) : [];
+  const tombstones = Array.isArray(file.tombstones) ? file.tombstones.filter(isValidTombstone) : [];
 
-  return { data: { sessions, models, folders } };
+  return { data: { sessions, models, folders, tombstones } };
 }
 
 function isValidSession(value: unknown): value is Session {
@@ -167,4 +191,10 @@ function isValidFolder(value: unknown): value is Folder {
   if (!value || typeof value !== 'object') return false;
   const f = value as Partial<Folder>;
   return typeof f.id === 'string' && typeof f.name === 'string';
+}
+
+function isValidTombstone(value: unknown): value is Tombstone {
+  if (!value || typeof value !== 'object') return false;
+  const t = value as Partial<Tombstone>;
+  return typeof t.id === 'string' && typeof t.deletedAt === 'string';
 }

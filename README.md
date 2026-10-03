@@ -36,11 +36,16 @@ Explore parallel branches, compare models side-by-side, and read whole paths con
 - **Per-node configuration**: Assign distinct models (DeepSeek, LM Studio, Ollama, OpenAI, etc.) and sampling temperatures on a per-node basis.
 - **Side-by-side evaluation**: Directly compare reasoning depth and code output across different models under the exact same prior context.
 
+### Private WebDAV Sync
+- **Self-hosted cloud storage**: Native support for Nutstore, Nextcloud, AList, or private NAS over standard WebDAV.
+- **Reliable mental model**: Single-button atomic bidirectional merge; tombstone-based deletion tracking to eliminate zombie resurrection across devices; automatic pre-sync local safety snapshots with instant one-click rollback.
+
 ---
 
 ## Privacy & Security
 
 - **Local-first**: Client-only architecture. All sessions, tree topology, and model settings live solely inside your browser's IndexedDB, with zero relay servers.
+- **Private & controlled**: Direct end-to-end sync between your browser and your own WebDAV endpoint, with zero intermediary servers.
 - **Direct credentials**: API keys are stored locally and sent directly from your browser to target provider endpoints; export backups automatically omit API keys to prevent credential leaks.
 - **Fully offline**: Zero third-party CDN dependencies; operates seamlessly in air-gapped or private intranet environments.
 - **Granular metrics**: Real-time breakdown of token usage (prompt, completion, reasoning tokens), context cache hit rate, and generation throughput (tok/s).
