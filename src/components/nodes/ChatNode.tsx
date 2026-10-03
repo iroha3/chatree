@@ -483,21 +483,13 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             rows={3}
           />
         ) : (
-          <>
-            <div 
-              className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap select-text"
-              style={{ touchAction: 'pan-y' }}
-              onClick={() => setIsEditingUser(true)}
-            >
-              {node.userMessage ? highlightMatch(node.userMessage, searchQuery) : <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
-            </div>
-            <div className="absolute top-2.5 right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <CopyButton
-                text={node.userMessage}
-                className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
-              />
-            </div>
-          </>
+          <div 
+            className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap select-text"
+            style={{ touchAction: 'pan-y' }}
+            onClick={() => setIsEditingUser(true)}
+          >
+            {node.userMessage ? highlightMatch(node.userMessage, searchQuery) : <span className="text-neutral-400 italic">{t('点击输入消息...')}</span>}
+          </div>
         )}
 
         {/* 输入框右下角**只留发送** —— 发送键必须在你打字的地方。
@@ -519,6 +511,16 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           )}
         </div>
         </div>
+
+        {/* 提问区复制按钮：直接相对于卡片内容外层定位，避免被内层 px-4 额外内缩，严格对齐至 12px (right-3) */}
+        {!isEditingUser && (
+          <div className="absolute top-2.5 right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <CopyButton
+              text={node.userMessage}
+              className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+            />
+          </div>
+        )}
       </div>
 
       <div 
