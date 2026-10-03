@@ -68,9 +68,9 @@ const en: Record<string, string> = {
   会话已删除: 'Session deleted',
   '已创建文件夹「{name}」': 'Folder "{name}" created',
   文件夹已重命名: 'Folder renamed',
-  '删除文件夹「{name}」？\n其中的会话将移至「未分类」，不会被删除。':
-    'Delete folder "{name}"?\nIts sessions will move to "Uncategorized" and will not be deleted.',
-  '文件夹已删除，会话已移至「未分类」': 'Folder deleted — sessions moved to "Uncategorized"',
+  '删除文件夹「{name}」？\n其中的会话仍会保留在「全部」列表中，不会被删除。':
+    'Delete folder "{name}"?\nChats inside will remain in the "All" list and won\'t be deleted.',
+  '文件夹已删除，会话已保留在列表中': 'Folder deleted, chats retained in list',
   '搜索标题或内容...': 'Search titles or content...',
   清除搜索: 'Clear search',
   显示全部会话: 'Show all sessions',
@@ -79,6 +79,8 @@ const en: Record<string, string> = {
   文件夹名: 'Folder name',
   新建文件夹: 'New folder',
   '新建文件夹…': 'New folder…',
+  移出文件夹: 'Remove from folder',
+  删除会话: 'Delete session',
   没有匹配的会话: 'No matching sessions',
   还没有收藏的会话: 'No starred sessions yet',
   这个文件夹还是空的: 'This folder is empty',
@@ -90,6 +92,7 @@ const en: Record<string, string> = {
   移动到文件夹: 'Move to folder',
   移动到: 'Move to',
   拖拽会话可归类至文件夹: 'Drag sessions to folders to categorize',
+  '拖拽或右键会话可归类至文件夹': 'Drag or right-click to organize into folders',
   切换到日间模式: 'Switch to light mode',
   切换到夜间模式: 'Switch to dark mode',
 

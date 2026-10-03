@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
 import {
   Search, Plus, Settings, Trash2, Edit, X, ChevronLeft,
-  MessageSquare, Sun, Moon, Star, Folder, FolderPlus, FolderInput, Check
+  MessageSquare, Sun, Moon, Star, Folder, FolderPlus, Check
 } from 'lucide-react';
 import Logo from './Logo';
 import { gsap } from 'gsap';
@@ -15,7 +15,7 @@ import { defaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitl
 import { generateId } from '../utils/id';
 import type { SettingsTab } from './SettingsModal';
 import { useT } from '../i18n';
-import { Session } from '../types';
+import { Session, Folder as FolderType } from '../types';
 
 interface SidebarProps {
   onOpenSettings: (tab?: SettingsTab) => void;
@@ -82,8 +82,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   const [folderNameDraft, setFolderNameDraft] = useState('');
   // 拖拽目标高亮
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
-  // 「移动到文件夹」菜单：fixed 定位，避免被列表的 overflow 裁掉
-  const [moveMenu, setMoveMenu] = useState<{ sessionId: string; top: number; left: number } | null>(null);
+  // 上下文菜单（桌面右键 / 移动端长按）：fixed 定位并自动贴合视口
+  const [contextMenu, setContextMenu] = useState<
+    | { type: 'session'; x: number; y: number; session: Session }
+    | { type: 'folder'; x: number; y: number; folder: FolderType }
+    | null
+  >(null);
+
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressTriggered = useRef(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -119,13 +127,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     };
   }, [collapsed]);
 
-  // 点击别处关掉移动菜单
+  // 点击别处或按 ESC 关掉上下文菜单
   useEffect(() => {
-    if (!moveMenu) return;
-    const close = () => setMoveMenu(null);
-    window.addEventListener('resize', close);
-    return () => window.removeEventListener('resize', close);
-  }, [moveMenu]);
+    if (!contextMenu) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
+    const handleResize = () => setContextMenu(null);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [contextMenu]);
 
   const [isMobile, setIsMobile] = useState(() => {
     return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
@@ -149,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   useEffect(() => {
     const bar = folderBarRef.current;
     if (!bar) return;
-    if (currentFolderView === 'all' || currentFolderView === 'uncategorized') return;
+    if (currentFolderView === 'all') return;
     const el = bar.querySelector<HTMLElement>(`[data-folder-id="${currentFolderView}"]`);
     el?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
   }, [currentFolderView, folders.length]);
@@ -176,11 +191,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
       return;
     }
 
-    // 当前正停在某个文件夹里新建，就直接归进去，省一次拖动
-    const folderId =
-      currentFolderView !== 'all' && currentFolderView !== 'uncategorized'
-        ? currentFolderView
-        : null;
+    // 当前正停在某个文件夹里新建，就直接归进去，省一次拖动；全部视图下不预设归属
+    const folderId = currentFolderView !== 'all' ? currentFolderView : null;
 
     const newSession = {
       id: generateId(),
@@ -194,6 +206,87 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
     if (isMobile) {
       onToggleCollapse();
     }
+  };
+
+  const handleTouchStart = (
+    e: React.TouchEvent,
+    target: { type: 'session'; session: Session } | { type: 'folder'; folder: FolderType }
+  ) => {
+    if (e.touches.length !== 1) return;
+    if ((e.target as HTMLElement).closest('button, input')) return;
+
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    isLongPressTriggered.current = false;
+
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+
+    longPressTimer.current = setTimeout(() => {
+      isLongPressTriggered.current = true;
+      try {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(15);
+        }
+      } catch {}
+
+      const x = Math.max(10, Math.min(touch.clientX, window.innerWidth - 200));
+      const y = Math.max(10, Math.min(touch.clientY, window.innerHeight - 280));
+
+      if (target.type === 'session') {
+        setContextMenu({ type: 'session', x, y, session: target.session });
+      } else {
+        setContextMenu({ type: 'folder', x, y, folder: target.folder });
+      }
+    }, 450);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !longPressTimer.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartPos.current.x;
+    const dy = touch.clientY - touchStartPos.current.y;
+    if (Math.hypot(dx, dy) > 8) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    touchStartPos.current = null;
+    if (isLongPressTriggered.current) {
+      setTimeout(() => {
+        isLongPressTriggered.current = false;
+      }, 200);
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    touchStartPos.current = null;
+    isLongPressTriggered.current = false;
+  };
+
+  const handleOpenSessionContextMenu = (e: React.MouseEvent, session: Session) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const x = Math.max(10, Math.min(e.clientX, window.innerWidth - 200));
+    const y = Math.max(10, Math.min(e.clientY, window.innerHeight - 280));
+    setContextMenu({ type: 'session', x, y, session });
+  };
+
+  const handleOpenFolderContextMenu = (e: React.MouseEvent, folder: FolderType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const x = Math.max(10, Math.min(e.clientX, window.innerWidth - 200));
+    const y = Math.max(10, Math.min(e.clientY, window.innerHeight - 280));
+    setContextMenu({ type: 'folder', x, y, folder });
   };
 
   const handleStartEdit = (id: string, title: string) => {
@@ -251,17 +344,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   };
 
   const handleDeleteFolder = async (id: string, name: string) => {
-    // 会话不会被删，只是回到「未分类」，所以这里说清楚，避免用户以为连聊天记录一起没了
+    // 会话不会被删，仍保留在「全部」列表中
     const ok = await requestConfirm({
       title: t('删除文件夹'),
-      message: t('删除文件夹「{name}」？\n其中的会话将移至「未分类」，不会被删除。', { name }),
+      message: t('删除文件夹「{name}」？\n其中的会话仍会保留在「全部」列表中，不会被删除。', { name }),
       confirmLabel: t('删除'),
       cancelLabel: t('取消'),
       danger: true,
     });
     if (!ok) return;
     await deleteFolder(id);
-    showInfo(t('文件夹已删除，会话已移至「未分类」'));
+    showInfo(t('文件夹已删除，会话已保留在列表中'));
   };
 
   const handleDropOnFolder = (e: React.DragEvent, target: MoveTarget) => {
@@ -377,7 +470,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           <FolderPlus size={13} />
         </button>
 
-        {/* 可横滑的标签区：滚轮纵转横（触控板的 deltaX 交给浏览器）。 */}
+        {/* 可横滑的标签区：全部 + 用户文件夹 */}
         <div
           ref={folderBarRef}
           className="flex min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide flex-nowrap"
@@ -391,19 +484,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           >
             {t('全部')}
           </button>
-
-          {(hasFolders || isCreatingFolder) && (
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOverFolder('__uncategorized__'); }}
-              onDragLeave={() => setDragOverFolder(prev => (prev === '__uncategorized__' ? null : prev))}
-              onDrop={(e) => handleDropOnFolder(e, null)}
-              className={`${chipClass(currentFolderView === 'uncategorized')} ${
-                dragOverFolder === '__uncategorized__' ? 'ring-2 ring-inset ring-amber-300 border-amber-300' : ''
-              }`}
-            >
-              <button onClick={() => setFolderView('uncategorized')}>{t('未分类')}</button>
-            </div>
-          )}
 
           {folders.map(folder => {
             const active = currentFolderView === folder.id;
@@ -430,62 +510,34 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folder.id); }}
                 onDragLeave={() => setDragOverFolder(prev => (prev === folder.id ? null : prev))}
                 onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                onContextMenu={(e) => handleOpenFolderContextMenu(e, folder)}
+                onTouchStart={(e) => handleTouchStart(e, { type: 'folder', folder })}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
                 onDoubleClick={() => {
                   setEditingFolderId(folder.id);
                   setFolderNameDraft(folder.name);
                 }}
-                className={`group/chip ${chipClass(active)} ${
+                className={`select-none ${chipClass(active)} ${
                   dragOverFolder === folder.id ? 'ring-2 ring-inset ring-amber-300 border-amber-300' : ''
                 }`}
               >
                 <button
                   className="inline-flex min-w-0 items-center gap-1.5 text-left"
-                  onClick={() => setFolderView(folder.id)}
-                  onDoubleClick={() => {
-                    setEditingFolderId(folder.id);
-                    setFolderNameDraft(folder.name);
+                  onClick={() => {
+                    if (isLongPressTriggered.current) return;
+                    setFolderView(folder.id);
                   }}
                   title={folder.name}
                 >
                   <Folder size={12} className="shrink-0" />
                   <span className="truncate max-w-[140px]">{folder.name}</span>
                 </button>
-                {/* 重命名 / 删除平时收成 0 宽（气泡紧贴文字），hover 才展开。
-                    不在「选中」时展开：新建的文件夹会自动变成当前视图，
-                    若它一出生就顶着两颗图标，短名字（比如「1」）会凭空胖一圈。 */}
-                <span
-                  className="inline-flex max-w-0 shrink-0 items-center gap-0.5 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-200 group-hover/chip:max-w-[34px] group-hover/chip:opacity-100"
-                >
-                  <button
-                    className="shrink-0 p-0.5 hover:text-amber-500 rounded"
-                    title={t('重命名')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingFolderId(folder.id);
-                      setFolderNameDraft(folder.name);
-                    }}
-                  >
-                    <Edit size={10} />
-                  </button>
-                  <button
-                    className="shrink-0 p-0.5 hover:text-red-400 rounded"
-                    title={t('删除文件夹')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFolder(folder.id, folder.name);
-                    }}
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
               </div>
             );
           })}
 
-          {/* 输入槽就在「新文件夹会落到的位置」（列表末尾）：
-              敲完回车，chip 原地长出来，视野不用再跨半个横条去找它。
-              固定宽度；名字敲长了让 input 自己内部横向滚动（浏览器默认行为），
-              胶囊本身不跟着变胖。 */}
           {isCreatingFolder && (
             <input
               ref={newFolderInputRef}
@@ -517,6 +569,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         ) : (
           visibleSessions.map(session => {
             const matchSnippet = searchQuery ? getSessionMatchSnippet(session, searchQuery) : null;
+            const folder = session.folderId ? folders.find(f => f.id === session.folderId) : null;
+
             return (
               <div
                 key={session.id}
@@ -525,15 +579,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   e.dataTransfer.setData('text/session-id', session.id);
                   e.dataTransfer.effectAllowed = 'move';
                 }}
-                className={`sidebar-session py-2 px-3 flex justify-between items-center rounded-md group relative ${
+                onContextMenu={(e) => handleOpenSessionContextMenu(e, session)}
+                onTouchStart={(e) => handleTouchStart(e, { type: 'session', session })}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
+                className={`sidebar-session py-2 px-3 flex justify-between items-center rounded-md group relative select-none ${
                   currentSessionId === session.id
-                    ? 'bg-neutral-100 text-neutral-900'
-                    : 'text-neutral-600 hover:bg-neutral-50'
+                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
+                    : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
                 }`}
-                // 点击切会话：监听器挂在**整行**上。以前只挂在内层标题 div，
-                // 行的 px-3 / py-2 内边距和图标右侧的缝隙都是死区，
-                // 点到那里没反应 —— 表现就是「要点好几次才切得过去」。
                 onClick={() => {
+                  if (isLongPressTriggered.current) return;
                   setCurrentSessionId(session.id);
                   if (isMobile) onToggleCollapse();
                 }}
@@ -541,7 +598,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 {editingId === session.id ? (
                   <input
                     type="text"
-                    className="flex-1 px-2 py-1 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                    className="flex-1 px-2 py-1 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     onBlur={() => handleSaveEdit(session.id)}
@@ -550,13 +607,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   />
                 ) : (
                   <div className="flex min-w-0 flex-1 items-center cursor-pointer">
-                    {/* 左侧气泡就是收藏开关（渐进式状态机）：
-                        平时 = 灰气泡；鼠标移到整行 → 气泡变「灰色星形轮廓」暗示可点；
-                        鼠标移到星上 → 星变金色；点一下 → 金色实心星；再点变回气泡取消。
-                        颜色只表示状态（灰=未收藏 / 金=收藏），形状只表示可点（气泡→星）。
-                        两个坑：① 不要再加边框圆环；② 不要用 group-hover 改色 ——
-                        `.group:hover .x` 的优先级（0,3,0）高于 `.x:hover`（0,2,0），
-                        会把「移到星上变金」盖掉。所以金色只用按钮自己的 hover:。 */}
                     <button
                       className={`mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
                         session.starred
@@ -579,8 +629,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       )}
                     </button>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm">
-                        {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate text-sm">
+                          {isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title}
+                        </span>
+                        {/* 「全部」心智模型：在全部会话视图中，已归类的会话展示精致微型胶囊徽标 */}
+                        {currentFolderView === 'all' && folder && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neutral-400 dark:text-neutral-400 bg-neutral-200/60 dark:bg-neutral-700/60 shrink-0 font-normal max-w-[76px] truncate"
+                            title={folder.name}
+                          >
+                            <Folder size={9} className="shrink-0" />
+                            <span className="truncate">{folder.name}</span>
+                          </span>
+                        )}
                       </div>
                       {matchSnippet && (
                         <div className="truncate text-xs text-amber-600/90 dark:text-amber-400/90 mt-0.5">
@@ -591,69 +653,50 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   </div>
                 )}
 
-              {/* 操作区改成绝对定位：不 hover 时不占任何宽度，长标题能用满整行
-                  （之前星标/编辑/删除虽然透明但仍然占位，把标题截断后右边一片空）。 */}
-              {editingId !== session.id && (
-                <div
-                  className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center space-x-0.5 bg-inherit pl-1 opacity-0 transition-opacity group-hover:opacity-100"
-                  // 操作区整体不冒泡：图标之间的缝隙点到也不该切会话
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {hasFolders && (
+                {/* 桌面悬停快速操作（保留重命名与删除） */}
+                {editingId !== session.id && (
+                  <div
+                    className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center space-x-0.5 bg-inherit pl-1 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
-                      className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-100"
-                      title={t('移动到文件夹')}
+                      className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        setMoveMenu({
-                          sessionId: session.id,
-                          top: Math.min(r.bottom + 4, window.innerHeight - 220),
-                          left: Math.max(8, r.left - 150),
-                        });
+                        handleStartEdit(session.id, isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title);
                       }}
+                      title={t('重命名')}
                     >
-                      <FolderInput size={14} />
+                      <Edit size={14} />
                     </button>
-                  )}
-                  <button
-                    className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // 默认标题按当前语言显示，编辑时也保持一致，免得弹出个英文
-                      handleStartEdit(session.id, isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title);
-                    }}
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSession(session.id);
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })
+                    <button
+                      className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSession(session.id);
+                      }}
+                      title={t('删除')}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
       {hasFolders && (
-        <div className="px-4 pb-1 text-[11px] text-neutral-300 text-center">
-          {t('拖拽会话可归类至文件夹')}
+        <div className="px-4 pb-1 text-[11px] text-neutral-400/80 dark:text-neutral-500 text-center">
+          {t('拖拽或右键会话可归类至文件夹')}
         </div>
       )}
 
-      {/* 底部只留「新建会话」一整条 —— 设置/主题已挤到顶栏，
-          这里不再塞两个小图标，重心就正了。 */}
-      <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 shrink-0">
+      {/* 底部只留「新建会话」一整条 */}
+      <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 dark:border-neutral-800 shrink-0">
         <button
-          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors"
+          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 rounded-md hover:bg-neutral-800 dark:hover:bg-white transition-colors"
           onClick={handleCreateSession}
         >
           <Plus size={16} />
@@ -661,46 +704,157 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         </button>
       </div>
 
-      {/* 移动到文件夹菜单 */}
-      {moveMenu && (
+      {/* 右键 & 移动端长按上下文菜单 */}
+      {contextMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setMoveMenu(null)} />
           <div
-            className="fixed z-50 w-44 bg-white border border-neutral-200 rounded-md shadow-lg py-1 text-sm"
-            style={{ top: moveMenu.top, left: moveMenu.left }}
+            className="fixed inset-0 z-40 bg-transparent"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-sm select-none"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-1 text-[11px] text-neutral-400">{t('移动到')}</div>
-            <button
-              className="w-full text-left px-3 py-1.5 hover:bg-neutral-50 flex items-center justify-between"
-              onClick={() => { moveSessionToFolder(moveMenu.sessionId, null); setMoveMenu(null); }}
-            >
-              <span>{t('未分类')}</span>
-              {!sessions.find(s => s.id === moveMenu.sessionId)?.folderId && <Check size={13} className="text-neutral-400" />}
-            </button>
-            {folders.map(folder => {
-              const current = sessions.find(s => s.id === moveMenu.sessionId)?.folderId === folder.id;
-              return (
+            {contextMenu.type === 'session' && (
+              <>
+                <div className="px-1 py-0.5">
+                  <button
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                    onClick={() => {
+                      const s = contextMenu.session;
+                      setContextMenu(null);
+                      handleStartEdit(s.id, isDefaultSessionTitle(s.title) ? defaultSessionTitle() : s.title);
+                    }}
+                  >
+                    <Edit size={13} className="text-neutral-400 shrink-0" />
+                    <span>{t('重命名')}</span>
+                  </button>
+                  <button
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                    onClick={() => {
+                      const s = contextMenu.session;
+                      toggleStarred(s.id);
+                      setContextMenu(null);
+                    }}
+                  >
+                    <Star
+                      size={13}
+                      className={`shrink-0 ${
+                        contextMenu.session.starred
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-neutral-400'
+                      }`}
+                    />
+                    <span>{contextMenu.session.starred ? t('取消收藏') : t('收藏')}</span>
+                  </button>
+                </div>
+
+                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                <div className="px-1 py-0.5">
+                  <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 flex items-center gap-1">
+                    <Folder size={11} />
+                    <span>{t('文件夹')}</span>
+                  </div>
+                  {contextMenu.session.folderId && (
+                    <button
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                      onClick={() => {
+                        moveSessionToFolder(contextMenu.session.id, null);
+                        setContextMenu(null);
+                      }}
+                    >
+                      <X size={12} className="text-neutral-400 shrink-0" />
+                      <span>{t('移出文件夹')}</span>
+                    </button>
+                  )}
+                  {folders.map(folder => {
+                    const isCurrent = contextMenu.session.folderId === folder.id;
+                    return (
+                      <button
+                        key={folder.id}
+                        className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                        onClick={() => {
+                          moveSessionToFolder(contextMenu.session.id, folder.id);
+                          setContextMenu(null);
+                        }}
+                      >
+                        <span className="truncate flex items-center gap-1.5 mr-2">
+                          <Folder
+                            size={12}
+                            className={`shrink-0 ${isCurrent ? 'text-amber-500' : 'text-neutral-400'}`}
+                          />
+                          <span className="truncate">{folder.name}</span>
+                        </span>
+                        {isCurrent && <Check size={12} className="text-neutral-500 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                  <button
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                    onClick={() => {
+                      setContextMenu(null);
+                      setIsCreatingFolder(true);
+                    }}
+                  >
+                    <FolderPlus size={12} className="shrink-0" />
+                    <span>{t('新建文件夹…')}</span>
+                  </button>
+                </div>
+
+                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                <div className="px-1 py-0.5">
+                  <button
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 text-xs transition-colors"
+                    onClick={() => {
+                      const s = contextMenu.session;
+                      setContextMenu(null);
+                      handleDeleteSession(s.id);
+                    }}
+                  >
+                    <Trash2 size={13} className="shrink-0" />
+                    <span>{t('删除会话')}</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {contextMenu.type === 'folder' && (
+              <div className="px-1 py-0.5">
+                <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 truncate max-w-[170px]">
+                  {contextMenu.folder.name}
+                </div>
                 <button
-                  key={folder.id}
-                  className="w-full text-left px-3 py-1.5 hover:bg-neutral-50 flex items-center justify-between"
-                  onClick={() => { moveSessionToFolder(moveMenu.sessionId, folder.id); setMoveMenu(null); }}
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                  onClick={() => {
+                    const fid = contextMenu.folder.id;
+                    const fname = contextMenu.folder.name;
+                    setContextMenu(null);
+                    setEditingFolderId(fid);
+                    setFolderNameDraft(fname);
+                  }}
                 >
-                  <span className="truncate flex items-center gap-1.5">
-                    <Folder size={12} className="text-neutral-400" />
-                    {folder.name}
-                  </span>
-                  {current && <Check size={13} className="text-neutral-400" />}
+                  <Edit size={13} className="text-neutral-400 shrink-0" />
+                  <span>{t('重命名')}</span>
                 </button>
-              );
-            })}
-            <div className="border-t border-neutral-100 my-1" />
-            <button
-              className="w-full text-left px-3 py-1.5 hover:bg-neutral-50 flex items-center gap-1.5 text-neutral-500"
-              onClick={() => { setMoveMenu(null); setIsCreatingFolder(true); }}
-            >
-              <FolderPlus size={12} />
-              {t('新建文件夹…')}
-            </button>
+                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                <button
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 text-xs transition-colors"
+                  onClick={() => {
+                    const f = contextMenu.folder;
+                    setContextMenu(null);
+                    handleDeleteFolder(f.id, f.name);
+                  }}
+                >
+                  <Trash2 size={13} className="shrink-0" />
+                  <span>{t('删除文件夹')}</span>
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

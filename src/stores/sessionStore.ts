@@ -10,7 +10,7 @@ export interface ImportResult {
 }
 
 /** 侧边栏当前的文件夹视图：全部 / 未分类 / 某个文件夹 id */
-export type FolderView = 'all' | 'uncategorized' | string;
+export type FolderView = 'all' | string;
 
 interface SessionState {
   sessions: Session[];
@@ -90,9 +90,7 @@ function computeVisible(
 ): Session[] {
   let result = sessions;
 
-  if (folderView === 'uncategorized') {
-    result = result.filter(s => !s.folderId);
-  } else if (folderView !== 'all') {
+  if (folderView !== 'all') {
     result = result.filter(s => s.folderId === folderView);
   }
 
@@ -122,7 +120,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       // 当前选中的文件夹被删掉时，退回「全部」，否则列表会空得莫名其妙
       const stillExists =
         state.currentFolderView === 'all' ||
-        state.currentFolderView === 'uncategorized' ||
         folders.some(f => f.id === state.currentFolderView);
       const currentFolderView = stillExists ? state.currentFolderView : 'all';
       return {
@@ -462,9 +459,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         const folders = [...state.folders, folder];
         return {
           folders,
-          // 新建后直接切到新文件夹，用户马上能看到它
-          currentFolderView: folder.id,
-          filteredSessions: computeVisible(state.sessions, state.searchQuery, folder.id)
+          // 保持在当前视图（如 'all'），避免新建文件夹后列表瞬间清空
+          filteredSessions: computeVisible(state.sessions, state.searchQuery, state.currentFolderView)
         };
       });
       return folder;
