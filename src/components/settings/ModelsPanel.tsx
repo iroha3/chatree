@@ -556,7 +556,7 @@ const ModelsPanel: React.FC = () => {
                   size={13}
                   className={`text-neutral-400 group-hover:text-neutral-600 transition-transform duration-150 ${showAdvanced ? 'rotate-90' : ''}`}
                 />
-                <span>{t('高级参数 (API 扩展)')}</span>
+                <span>{t('高级参数')}</span>
                 {(Boolean(headersJson.trim()) || Boolean(bodyJson.trim())) && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-100 text-neutral-500 font-mono">
                     {t('已配置')}
@@ -577,17 +577,17 @@ const ModelsPanel: React.FC = () => {
                           type="button"
                           onClick={() => insertBodyTemplate({ thinking_mode: true, search_enabled: false })}
                           className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
-                          title={t('为 DeepSeek Web2API 注入思考模式与搜索参数')}
+                          title={t('注入思考模式 (thinking_mode) 与联网搜索参数')}
                         >
-                          + DS Web2API
+                          {t('+ 思考与搜索')}
                         </button>
                         <button
                           type="button"
                           onClick={() => insertBodyTemplate({ reasoning_effort: 'low' })}
                           className="px-1.5 py-0.5 rounded border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-600 text-[10px] transition-colors"
-                          title={t('为 DuckAI / OpenAI 注入思考等级')}
+                          title={t('注入思考等级 (reasoning_effort) 参数')}
                         >
-                          + DuckAI
+                          {t('+ 思考等级')}
                         </button>
                       </div>
                     </div>

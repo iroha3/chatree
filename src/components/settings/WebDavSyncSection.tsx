@@ -153,9 +153,7 @@ export const WebDavSyncSection: React.FC = () => {
       </div>
 
       <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-        {t(
-          '支持 AList、NAS、Nextcloud 等 WebDAV 服务。基于墓碑与双向合并，一键双向对齐，删除不会复活，心智模型简单可靠。'
-        )}
+        {t('支持坚果云、AList、NAS、Nextcloud 等 WebDAV 服务。')}
       </p>
 
       {/* 配置表单 */}
@@ -229,11 +227,10 @@ export const WebDavSyncSection: React.FC = () => {
 
           {testResult && (
             <div
-              className={`flex items-center space-x-1 text-xs px-2.5 py-1 rounded ${
-                testResult.ok
+              className={`flex items-center space-x-1 text-xs px-2.5 py-1 rounded ${testResult.ok
                   ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800'
                   : 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800'
-              }`}
+                }`}
             >
               {testResult.ok ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
               <span>{testResult.message}</span>
@@ -258,7 +255,7 @@ export const WebDavSyncSection: React.FC = () => {
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
             <Sliders size={11} />
-            <span>{t('高级选项（文件名与凭据保留）')}</span>
+            <span>{t('高级选项')}</span>
             {showAdvanced ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
           </button>
 
@@ -284,7 +281,7 @@ export const WebDavSyncSection: React.FC = () => {
                   checked={config.syncApiKeys}
                   onChange={(e) => setConfig({ syncApiKeys: e.target.checked })}
                 />
-                <span>{t('同步模型 API Key（保存在你自己的私有 WebDAV 中，换设备免重输）')}</span>
+                <span>{t('同步模型 API Key')}</span>
               </label>
 
               <div className="pt-2 border-t border-neutral-200 dark:border-neutral-700 flex items-center space-x-3 text-xs">
@@ -295,7 +292,7 @@ export const WebDavSyncSection: React.FC = () => {
                   disabled={isSyncing}
                 >
                   <Upload size={12} />
-                  <span>{t('强制覆盖云端 (Force Push)')}</span>
+                  <span>{t('强制覆盖云端')}</span>
                 </button>
 
                 <button
@@ -305,7 +302,7 @@ export const WebDavSyncSection: React.FC = () => {
                   disabled={isSyncing}
                 >
                   <Download size={12} />
-                  <span>{t('强制覆盖本地 (Force Pull)')}</span>
+                  <span>{t('强制覆盖本地')}</span>
                 </button>
               </div>
             </div>

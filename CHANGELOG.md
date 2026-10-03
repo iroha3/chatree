@@ -5,7 +5,7 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-03
 
 ### Added
 
@@ -15,8 +15,8 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   - **Pre-sync local snapshot & instant undo**: A full snapshot of local data is automatically captured in IndexedDB before any sync or overwrite occurs, with a one-click "Undo Last Sync" button to safely roll back.
   - **Automatic directory creation**: WebDAV requests automatically create parent directories recursively if subfolders are specified in the path.
   - **Remote update indicator**: A discreet amber dot appears on the sidebar settings button when a newer remote sync payload is detected upon startup.
-- **Advanced Model Parameters (API Extensions).** Models now support custom request bodies (Extra Body) and custom headers via a discreet, collapsible section in Settings → Models:
-  - **Extra Body (JSON)**: Merged into the root payload sent to the model endpoint, allowing users to pass non-standard parameters (e.g. `"thinking_mode": true`, `"search_enabled": false`) or override default options. Includes quick presets for DeepSeek Web2API and DuckAI.
+- **Advanced Model Parameters.** Models now support custom request bodies (Extra Body) and custom headers via a discreet, collapsible section in Settings → Models:
+  - **Extra Body (JSON)**: Merged into the root payload sent to the model endpoint, allowing users to pass non-standard parameters (e.g. `"thinking_mode": true`, `"search_enabled": false`) or override default options. Includes quick presets for thinking mode and reasoning effort.
   - **Custom Headers (JSON)**: Inject arbitrary HTTP headers (such as `X-Conversation-Id` or `HTTP-Referer`). Supports dynamic placeholder substitution (e.g. `{{sessionId}}` for server-side cache acceleration) and setting header values to `""` to omit default authorization headers.
   - **WebDAV & Export Protection**: Custom parameters sync seamlessly across devices via private WebDAV, while public session exports automatically sanitize sensitive credentials from custom headers.
 

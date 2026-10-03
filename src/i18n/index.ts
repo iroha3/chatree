@@ -204,12 +204,14 @@ const en: Record<string, string> = {
   添加模型: 'Add model',
   返回列表: 'Back to list',
   新模型: 'New Model',
-  '高级参数 (API 扩展)': 'Advanced parameters (API extensions)',
+  高级参数: 'Advanced parameters',
   已配置: 'Configured',
   '自定义请求体 (Extra Body, JSON)': 'Custom Request Body (Extra Body, JSON)',
-  '为 DeepSeek Web2API 注入思考模式与搜索参数':
-    'Inject thinking mode & search for DeepSeek Web2API',
-  '为 DuckAI / OpenAI 注入思考等级': 'Inject reasoning effort for DuckAI / OpenAI',
+  '+ 思考与搜索': '+ Thinking & Search',
+  '+ 思考等级': '+ Reasoning Effort',
+  '注入思考模式 (thinking_mode) 与联网搜索参数':
+    'Inject thinking mode & search parameters',
+  '注入思考等级 (reasoning_effort) 参数': 'Inject reasoning effort parameter',
   '合并到发送给模型的请求体顶层，可传入非标参数或覆盖默认字段。':
     'Merged into the top-level payload; allows non-standard fields or overrides.',
   '自定义请求头 (Custom Headers, JSON)': 'Custom Headers (JSON)',
@@ -271,10 +273,10 @@ const en: Record<string, string> = {
   '测试中...': 'Testing...',
   'WebDAV 服务连接成功！': 'WebDAV connected successfully!',
   '应用建议地址': 'Apply suggested URL',
-  '高级选项（文件名与凭据保留）': 'Advanced options (filename & credentials)',
+  高级选项: 'Advanced options',
   '云端同步文件名 / 相对路径': 'Remote sync filename / relative path',
-  '同步模型 API Key（保存在你自己的私有 WebDAV 中，换设备免重输）':
-    'Sync model API Keys (stored in your private WebDAV space)',
+  '同步模型 API Key':
+    'Sync model API Keys',
   '立即同步 (Sync)': 'Sync Now',
   '正在双向同步...': 'Syncing...',
   '撤销上次同步': 'Undo last sync',
@@ -282,8 +284,8 @@ const en: Record<string, string> = {
   '撤销上一次同步，恢复同步前的本地快照': 'Undo last sync and restore pre-sync snapshot',
   '将本地数据还原至上一次同步前的快照状态。确定要继续吗？':
     'Restore local data to the snapshot taken before the last sync. Continue?',
-  '强制覆盖云端 (Force Push)': 'Force Push to WebDAV',
-  '强制覆盖本地 (Force Pull)': 'Force Pull from WebDAV',
+  强制覆盖云端: 'Force Push to WebDAV',
+  强制覆盖本地: 'Force Pull from WebDAV',
   '强制推送覆盖云端？': 'Force Push and overwrite WebDAV?',
   '此操作将以本地当前所有会话完整覆盖云端数据文件。确定要强制推送吗？':
     'This will overwrite the WebDAV file with current local sessions. Continue?',
@@ -299,8 +301,8 @@ const en: Record<string, string> = {
   '撤销恢复': 'Restore snapshot',
   '设置（WebDAV 云端有更新）': 'Settings (WebDAV update available)',
   'WebDAV 云端有更新': 'WebDAV remote update available',
-  '支持 AList、NAS、Nextcloud 等 WebDAV 服务。基于墓碑与双向合并，一键双向对齐，删除不会复活，心智模型简单可靠。':
-    'Sync across devices via AList, NAS, Nextcloud, or WebDAV. Tombstone-based bidirectional merge ensures deletions never resurrect.',
+  '支持坚果云、AList、NAS、Nextcloud 等 WebDAV 服务。':
+    'Supports Nutstore, AList, NAS, Nextcloud, and other WebDAV services.',
 
   // ── AboutPanel ────────────────────────────────────────
   核心特性: 'Key Features',
