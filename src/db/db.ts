@@ -3,7 +3,7 @@ import { Session, Model, Folder } from '../types';
 
 export interface Tombstone {
   id: string;
-  type: 'session' | 'folder';
+  type: 'session' | 'folder' | 'model';
   deletedAt: string;
 }
 
@@ -103,7 +103,7 @@ class TreeChatDatabase extends Dexie {
     await this.syncSnapshots.delete(id);
   }
 
-  async recordTombstone(id: string, type: 'session' | 'folder'): Promise<void> {
+  async recordTombstone(id: string, type: 'session' | 'folder' | 'model'): Promise<void> {
     await this.tombstones.put({
       id,
       type,

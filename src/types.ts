@@ -20,6 +20,11 @@ export interface UsageStats {
 export interface Model {
   id: string;
   name: string;
+  /**
+   * 该模型**首次加入本设备**的时间。只用于多端同步时与删除墓碑比较，
+   * 判断「删除之后它是否又被重新创建 / 导入过」；界面不展示。旧数据没有这个字段。
+   */
+  createdAt?: string;
   baseUrl: string;
   apiKey: string;
   modelName: string;

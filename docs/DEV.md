@@ -370,12 +370,14 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 #### 2. 墓碑机制（防多端僵尸复活）
 - 纯时间戳比较在多端增量合并时会导致「A 端删除会话后，被 B 端推回云端复活」。
 - **实现规则**：
-  - 用户删除 Session 或 Folder 时，立即在 `tombstones` 表中记录一条 `{ id, deletedAt }`；
-  - 双向合并时：
-    - 若 `tombstone.deletedAt >= item.updatedAt`：代表该项目在某端已被删除，本地/远端均应物理清除；
-    - 若 `item.updatedAt > tombstone.deletedAt`：代表在删除操作之后该项目又被更新（例如节点重新生成或改动），保留该项目并从墓碑列表中清除该 ID；
+  - 用户删除 Session / Folder / Model 时，立即在 `tombstones` 表中记录一条 `{ id, type, deletedAt }`；
+  - 双向合并时（会话比 `updatedAt`、文件夹比 `createdAt`、**模型比 `createdAt`**）：
+    - 若 `tombstone.deletedAt >= 项目时间戳`：代表该项目在某端已被删除，本地/远端均应物理清除；
+    - 若 `项目时间戳 > tombstone.deletedAt`：代表在删除操作之后该项目又被更新 / 重建 / 重新导入，保留该项目并从墓碑列表中清除该 ID；
   - 新建同名/同 ID 实体时自动清除对应墓碑；
-  - 墓碑表采用 **30 天滑动窗口**自动修剪（`pruneOldTombstones`），防止无限制膨胀。
+  - **模型没有 `updatedAt`**：用 `Model.createdAt`（首次加入本设备的时间，界面不展示）比较。删除后**重新导入**同一份备份时，`importModels` 会把 `createdAt` 刷成「现在」，让它按新实体复活；旧数据缺 `createdAt` 时在合并中按 epoch 处理，保证能被墓碑删除；
+  - 墓碑表采用 **30 天滑动窗口**自动修剪（`pruneOldTombstones`），防止无限制膨胀；
+  - 「镜像覆盖本地」（`overwriteWithRemoteData`）会 `models.clear()` —— 完全以云端为准，本地独有模型不保留（撤销快照仍可回滚）。
 
 #### 3. 本地安全快照与一键撤销
 - 任何网络同步与导入合并前，在 IndexedDB `syncSnapshots` 表写入当前完整会话、模型、文件夹快照（保留最新 5 份）；

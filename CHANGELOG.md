@@ -5,6 +5,12 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.8.1] - 2026-10-04
+
+### Fixed
+
+- **Deleting a model now syncs across devices.** Model configs were the one entity left out of the WebDAV tombstone mechanism: they had neither a delete tombstone nor any timestamp, and the merge step was a plain union — so deleting a model on one device was undone the next time another device (or the cloud copy) pushed it back. Models now record a tombstone on delete and are filtered by `createdAt` during merge, exactly like sessions and folders; re-importing a backup revives the model. The sync summary now also reports deleted model configs, and "overwrite local with cloud" clears local-only models.
+
 ## [0.8.0] - 2026-10-04
 
 ### Changed

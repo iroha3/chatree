@@ -361,6 +361,12 @@
 - **结论**：**C**。以极低代码成本（~100 行通信 + ~150 行合并）实现真正可靠的多端同步，彻底根除僵尸复活，同时将操作负担收敛至零思考的单按钮。
 - **触发条件**：已落地并联调完成（坚果云 / AList 实测通过）。
 - **相关代码**：`src/services/webdav.ts`、`src/utils/syncMerge.ts`、`src/stores/syncStore.ts`、`src/components/settings/WebDavSyncSection.tsx`、`src/db/db.ts`（schema v4 `tombstones`）。
+- **补充 D-021.1（模型墓碑，已实现）**：墓碑最初只覆盖会话 / 文件夹，**模型是漏网的** —— `Model` 既没有墓碑、也没有任何时间戳，合并第 4 步是纯并集，于是「A 端删除模型后，B 端 / 云端又把它复活并推回」。现补齐：
+  1. `Tombstone.type` 加 `'model'`，`deleteModel` 记墓碑；
+  2. `Model` 加 `createdAt?`（含义是**首次加入本设备的时间**，界面不展示；旧数据可缺，合并时按 epoch 处理），合并按它与会话 / 文件夹同一套规则过滤；
+  3. `importModels` 导入时把 `createdAt` 刷成「现在」（导入 = 新实体复活，否则会被本条删除留下的墓碑再次杀掉）；
+  4. `MergeStats.modelsDeleted` + 同步文案；`overwriteWithRemoteData`（镜像覆盖）补 `models.clear()`。
+  本补充**不碰**模型编辑的 LWW —— 合并仍是「远端字段覆盖本地，仅 `apiKey` / `sortOrder` 保本地」，属于既有行为、本次不动。
 
 ## D-022 模型高级字段配置（Extra Body 与 Custom Headers + 占位符插值）
 

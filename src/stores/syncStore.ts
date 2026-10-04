@@ -204,6 +204,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         if (stats.foldersAdded > 0) details.push(`新建 ${stats.foldersAdded} 个文件夹`);
         if (stats.foldersDeleted > 0) details.push(`同步删除 ${stats.foldersDeleted} 个文件夹`);
         if (stats.modelsAdded > 0) details.push(`导入 ${stats.modelsAdded} 个模型配置`);
+        if (stats.modelsDeleted > 0) details.push(`同步删除 ${stats.modelsDeleted} 个模型配置`);
 
         summaryMessage = details.length > 0 ? `同步完成：${details.join('，')}` : '同步完成：双端数据完全一致';
       }

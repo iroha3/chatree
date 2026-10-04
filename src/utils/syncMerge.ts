@@ -15,6 +15,7 @@ export interface MergeStats {
   foldersDeleted: number;
   modelsAdded: number;
   modelsUpdated: number;
+  modelsDeleted: number;
 }
 
 /**
@@ -145,6 +146,7 @@ export async function mergeBidirectional(
     foldersDeleted: 0,
     modelsAdded: 0,
     modelsUpdated: 0,
+    modelsDeleted: 0,
   };
 
   // 2. 双向合并会话
@@ -239,17 +241,17 @@ export async function mergeBidirectional(
 
   // 4. 双向合并模型配置
   const localModelMap = new Map(localModels.map(m => [m.id, m]));
-  const finalModelMap = new Map<string, Model>();
+  const modelCandidates = new Map<string, Model>();
 
   for (const m of localModels) {
-    finalModelMap.set(m.id, m);
+    modelCandidates.set(m.id, m);
   }
 
   if (incoming.models) {
     for (const remoteModel of incoming.models) {
       const local = localModelMap.get(remoteModel.id);
       if (!local) {
-        finalModelMap.set(remoteModel.id, remoteModel);
+        modelCandidates.set(remoteModel.id, remoteModel);
         stats.modelsAdded++;
       } else {
         // 本地有效 key 永远优先保留；远端若带有效 key 且本地为空则补充
@@ -259,13 +261,37 @@ export async function mergeBidirectional(
           apiKey: effectiveApiKey,
           sortOrder: local.sortOrder ?? remoteModel.sortOrder,
         };
-        finalModelMap.set(remoteModel.id, mergedModel);
+        modelCandidates.set(remoteModel.id, mergedModel);
         stats.modelsUpdated++;
       }
     }
   }
 
-  const finalModels = Array.from(finalModelMap.values());
+  // 按墓碑过滤已删除的模型（与会话 / 文件夹同一套规则）
+  const finalModels: Model[] = [];
+  const modelsToDeleteLocally: string[] = [];
+
+  for (const [id, model] of modelCandidates.entries()) {
+    const tombstone = tombstoneMap.get(id);
+    if (tombstone) {
+      // 旧数据可能没有 createdAt，按 epoch 处理：早于任何删除，保证能被墓碑删掉
+      const modelTime = new Date(model.createdAt ?? 0).getTime();
+      const deletedTime = new Date(tombstone.deletedAt).getTime();
+      if (deletedTime >= modelTime) {
+        // 该模型已在某端被删除，且删除后未被重新创建 / 导入：确认删除，绝不复活
+        stats.modelsDeleted++;
+        if (localModelMap.has(id)) {
+          modelsToDeleteLocally.push(id);
+        }
+        continue;
+      } else {
+        // 删除之后又被重新创建 / 导入：保留它，并销毁该墓碑
+        tombstoneMap.delete(id);
+      }
+    }
+    finalModels.push(model);
+  }
+
   const finalTombstones = Array.from(tombstoneMap.values());
 
   // 5. 写入本地 IndexedDB
@@ -275,6 +301,9 @@ export async function mergeBidirectional(
   }
   for (const id of foldersToDeleteLocally) {
     await db.deleteFolder(id);
+  }
+  for (const id of modelsToDeleteLocally) {
+    await db.deleteModel(id);
   }
 
   // (2) 保存保留和新增的会话/文件夹/模型
@@ -326,6 +355,8 @@ export async function overwriteWithRemoteData(incoming: SessionExportFile): Prom
   // 清空旧数据
   await db.sessions.clear();
   await db.folders.clear();
+  // 模型也一并清空：镜像覆盖的语义是「完全以云端为准」，本地独有模型不该留
+  await db.models.clear();
   await db.tombstones.clear();
 
   // 写入会话

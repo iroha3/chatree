@@ -85,7 +85,11 @@ export const useModelStore = create<ModelState>((set, get) => ({
 
   createModel: async (model) => {
     try {
-      const withOrder: Model = { ...model, sortOrder: nextSortOrder(get().models) };
+      const withOrder: Model = {
+        ...model,
+        createdAt: model.createdAt ?? new Date().toISOString(),
+        sortOrder: nextSortOrder(get().models),
+      };
       await db.saveModel(withOrder);
       set((state) => {
         const models = [...state.models, withOrder];
@@ -117,6 +121,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
     const copy: Model = {
       ...source,
       id: generateId(),
+      // 副本是新实体：重置 createdAt，否则会继承源的旧时间，同步时被旧墓碑误判
+      createdAt: new Date().toISOString(),
       name: t('{name} 副本', { name: source.name }),
       customHeaders: source.customHeaders ? { ...source.customHeaders } : undefined,
       customBody: source.customBody ? JSON.parse(JSON.stringify(source.customBody)) : undefined,
@@ -143,8 +149,13 @@ export const useModelStore = create<ModelState>((set, get) => ({
   updateModel: async (model) => {
     try {
       const existing = get().models.find(m => m.id === model.id);
-      // 编辑表单不会带 sortOrder，这里补回去，否则一编辑就掉到列表最后
-      const withOrder: Model = { ...model, sortOrder: model.sortOrder ?? existing?.sortOrder };
+      // 编辑表单不会带 sortOrder / createdAt，这里补回去：前者防止一编辑就掉到列表最后，
+      // 后者必须保持原值，不能因编辑而刷新（那不是「重新创建」）。
+      const withOrder: Model = {
+        ...model,
+        createdAt: model.createdAt ?? existing?.createdAt,
+        sortOrder: model.sortOrder ?? existing?.sortOrder,
+      };
       await db.saveModel(withOrder);
       set((state) => {
         const models = sortByOrder(state.models.map(m => (m.id === model.id ? withOrder : m)));
@@ -163,6 +174,8 @@ export const useModelStore = create<ModelState>((set, get) => ({
   deleteModel: async (id) => {
     try {
       await db.deleteModel(id);
+      // 记墓碑：否则别的端/云端还留着这个模型，下次同步会把它复活（僵尸模型）
+      await db.recordTombstone(id, 'model');
       set((state) => {
         const models = state.models.filter(m => m.id !== id);
         return {
@@ -218,7 +231,9 @@ export const useModelStore = create<ModelState>((set, get) => ({
     for (const model of incoming) {
       if (existingIds.has(model.id) || seen.has(model.id)) continue;
       seen.add(model.id);
-      toAdd.push({ ...model, apiKey: model.apiKey ?? '' });
+      // createdAt 刷新为「现在」：导入 = 该模型重新加入本设备。
+      // 若沿用文件里的旧时间，它会被本次删除留下的墓碑再次杀掉。
+      toAdd.push({ ...model, apiKey: model.apiKey ?? '', createdAt: new Date().toISOString() });
     }
 
     let order = nextSortOrder(get().models);
