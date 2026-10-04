@@ -285,7 +285,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 
       return {
         success: true,
-        message: `已强制推送覆盖云端（${sessions.length} 个会话）`
+        message: `已强制推送覆盖云端（${sessions.length} 个会话、${models.length} 个模型配置、${folders.length} 个文件夹）`
       };
     } catch (err: unknown) {
       set({ isSyncing: false, syncAction: null });
@@ -330,7 +330,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 
       return {
         success: true,
-        message: `已完全以云端镜像重置本地（共 ${res.sessionsCount} 个会话）`
+        message: `已完全以云端镜像重置本地（${res.sessionsCount} 个会话、${res.modelsCount} 个模型配置）`
       };
     } catch (err: unknown) {
       set({ isSyncing: false, syncAction: null });

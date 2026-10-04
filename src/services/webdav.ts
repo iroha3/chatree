@@ -292,7 +292,10 @@ export async function downloadSyncData(config: WebDavConfig): Promise<{
   try {
     const res = await fetch(fileUrl, {
       method: 'GET',
-      headers: getHeaders(config),
+      // 绝不能让浏览器 / 代理拿缓存糊弄我们：强推刚写完文件，紧接着的同步若读到旧的
+      // 云端副本，合并就会把刚删掉的模型 / 会话当成「远端独有」又加回来。
+      cache: 'no-store',
+      headers: getHeaders(config, { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }),
     });
 
     if (res.status === 404) {

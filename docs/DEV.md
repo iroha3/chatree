@@ -386,6 +386,9 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 #### 4. 本地 API Key 凭据保护
 - WebDAV 同步文件默认跟随 `exportSessions(..., { keepApiKeys: true })` 导出；
 - 但在导入合并模型时，遵守**非破坏性凭据合并原则**：远端若未提供 `apiKey`，绝不抹除本地已有的 `apiKey`；仅当远端提供非空密钥且更新时才覆写。
+- `customHeaders` 同理：不勾「同步模型 API Key」时，导出会删掉含 `authorization` / `token` / `secret` 的头，合并时**远端缺失的键一律保留本地**（`mergeCustomHeaders`）。否则会出现「强推之后再点同步，本地这几个头被静默抹掉」—— 用户会把它描述成「模型列表变了」。勾了同步 Key 时远端是全量，按远端覆盖，允许删除传播。
+- **模型配置按 `Model.updatedAt` 做 Last-Write-Wins**：只有远端**严格更新**（`remote.updatedAt > local.updatedAt`）才覆盖本地，相等时保留本地。模型以前是唯一没有时间戳护栏的实体，合并永远用远端盖本地 —— 一个略旧 / 陈旧的云端副本就能把本地刚改的东西（典型：清空的系统提示词）冲回来。`createModel` / `updateModel` / `duplicateModel` / `importModels` 都会刷新 `updatedAt`；`reorderModels` 不动它（排序不是改配置），旧数据缺该字段时按 epoch 处理。
+- **硬约束：「强推 → 立即同步」必须是一次 no-op。** 强推后本机就是金标准，任何导出侧的脱敏 / 有损变换、或陈旧读取，都不能借合并反噬本地。回归在 `bun test:sync`。
 
 #### 5. 路径、文件名与传输格式
 - **同步文件名固定为 `chatree-sync.json.gz`，不暴露给用户配置**（`services/webdav.ts` 的 `SYNC_FILE_NAME`）。把 `syncPath` 摆进高级选项纯属把实现细节丢给用户，已删。
@@ -484,6 +487,7 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 | `bun test:usage` | 无 | `utils/usage.ts` 的字段映射（DeepSeek/OpenAI/Anthropic 缓存字段、思考 token、不估算）+ `utils/text.ts` 的码点字数 |
 | `bun test:tree` | 无 | `utils/tree.ts` 的路径 / 子节点 / 兄弟组（含父节点遗失、数据成环不许死循环） |
 | `bun test:compress` | 无 | `utils/compress.ts` 的 gzip 往返无损、魔数嗅探、坏数据必须抛错（WebDAV 同步文件的传输层） |
+| `bun test:sync` | 无 | `utils/syncMerge.ts` 的模型墓碑、以及「强推后同步必须幂等」（用 `mock.module` 把 Dexie / zustand 换成内存实现） |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
 | `bun test:ux` | Edge:9222 + dev:5175 | 50 项节点交互：去重、思考折叠、连续阅读（整条路径 + 分支切换 + 读到底翻页 + 落点高亮）、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
 

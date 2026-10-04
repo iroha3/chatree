@@ -295,8 +295,8 @@ const en: Record<string, string> = {
   强制覆盖云端: 'Force Push to WebDAV',
   强制覆盖本地: 'Force Pull from WebDAV',
   '强制推送覆盖云端？': 'Force Push and overwrite WebDAV?',
-  '此操作将以本地当前所有会话完整覆盖云端数据文件。确定要强制推送吗？':
-    'This will overwrite the WebDAV file with current local sessions. Continue?',
+  '此操作将以本地当前的会话、模型配置与文件夹完整覆盖云端数据文件。确定要强制推送吗？':
+    'This will overwrite the WebDAV file with the current local sessions, model configs and folders. Continue?',
   '从云端拉取 (Pull)': 'Pull from WebDAV',
   '推送到云端 (Push)': 'Push to WebDAV',
   '镜像覆盖本地': 'Mirror overwrite local',

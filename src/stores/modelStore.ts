@@ -88,6 +88,7 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const withOrder: Model = {
         ...model,
         createdAt: model.createdAt ?? new Date().toISOString(),
+        updatedAt: model.updatedAt ?? new Date().toISOString(),
         sortOrder: nextSortOrder(get().models),
       };
       await db.saveModel(withOrder);
@@ -121,8 +122,9 @@ export const useModelStore = create<ModelState>((set, get) => ({
     const copy: Model = {
       ...source,
       id: generateId(),
-      // 副本是新实体：重置 createdAt，否则会继承源的旧时间，同步时被旧墓碑误判
+      // 副本是新实体：重置 createdAt / updatedAt，否则会继承源的旧时间，同步时被旧墓碑误判
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       name: t('{name} 副本', { name: source.name }),
       customHeaders: source.customHeaders ? { ...source.customHeaders } : undefined,
       customBody: source.customBody ? JSON.parse(JSON.stringify(source.customBody)) : undefined,
@@ -151,9 +153,11 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const existing = get().models.find(m => m.id === model.id);
       // 编辑表单不会带 sortOrder / createdAt，这里补回去：前者防止一编辑就掉到列表最后，
       // 后者必须保持原值，不能因编辑而刷新（那不是「重新创建」）。
+      // updatedAt 则**必须刷新**：它就是多端同步的 Last-Write-Wins 依据。
       const withOrder: Model = {
         ...model,
         createdAt: model.createdAt ?? existing?.createdAt,
+        updatedAt: new Date().toISOString(),
         sortOrder: model.sortOrder ?? existing?.sortOrder,
       };
       await db.saveModel(withOrder);
@@ -233,7 +237,13 @@ export const useModelStore = create<ModelState>((set, get) => ({
       seen.add(model.id);
       // createdAt 刷新为「现在」：导入 = 该模型重新加入本设备。
       // 若沿用文件里的旧时间，它会被本次删除留下的墓碑再次杀掉。
-      toAdd.push({ ...model, apiKey: model.apiKey ?? '', createdAt: new Date().toISOString() });
+      // updatedAt 同样刷新：导入算一次新的本地编辑，应能覆盖云端的旧配置。
+      toAdd.push({
+        ...model,
+        apiKey: model.apiKey ?? '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     let order = nextSortOrder(get().models);

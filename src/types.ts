@@ -25,6 +25,12 @@ export interface Model {
    * 判断「删除之后它是否又被重新创建 / 导入过」；界面不展示。旧数据没有这个字段。
    */
   createdAt?: string;
+  /**
+   * 最后一次**修改配置**的时间（改名 / 改提示词 / 调参 / 改端点等）。
+   * 多端同步按它做 Last-Write-Wins；「强推 → 同步」在时间戳相等时保留本地，
+   * 所以是一次 no-op。旧数据没有这个字段（按 epoch 处理）。
+   */
+  updatedAt?: string;
   baseUrl: string;
   apiKey: string;
   modelName: string;

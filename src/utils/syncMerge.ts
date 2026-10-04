@@ -6,6 +6,18 @@ import { useModelStore } from '../stores/modelStore';
 
 const SNAPSHOT_KEY = 'pre-sync-latest';
 
+/**
+ * 非破坏性合并两组自定义请求头：远端同名键覆盖本地，但**远端缺失的键一律保留本地**。
+ * 用于「未同步 Key」场景：脱敏导出会删掉敏感头，不能把它当成「用户删除了该头」。
+ */
+function mergeCustomHeaders(
+  local?: Record<string, string>,
+  remote?: Record<string, string>
+): Record<string, string> | undefined {
+  if (!local && !remote) return undefined;
+  return { ...(local || {}), ...(remote || {}) };
+}
+
 export interface MergeStats {
   sessionsAdded: number;
   sessionsUpdated: number;
@@ -254,15 +266,31 @@ export async function mergeBidirectional(
         modelCandidates.set(remoteModel.id, remoteModel);
         stats.modelsAdded++;
       } else {
-        // 本地有效 key 永远优先保留；远端若带有效 key 且本地为空则补充
-        const effectiveApiKey = local.apiKey || remoteModel.apiKey || '';
-        const mergedModel: Model = {
-          ...remoteModel,
-          apiKey: effectiveApiKey,
-          sortOrder: local.sortOrder ?? remoteModel.sortOrder,
-        };
-        modelCandidates.set(remoteModel.id, mergedModel);
-        stats.modelsUpdated++;
+        // Last-Write-Wins：只有**远端严格更新**才覆盖本地。
+        // 这是模型唯一的时间戳护栏 —— 没有它，合并永远用远端盖本地，
+        // 「改了模型（如清空提示词）→ 强推 → 同步」就可能被一个略旧 / 陈旧的
+        // 云端副本把本地编辑冲掉（用户：提示词又回来了）。相等时保留本地，
+        // 保证「强推 → 同步」是一次 no-op。
+        const localTime = new Date(local.updatedAt ?? 0).getTime();
+        const remoteTime = new Date(remoteModel.updatedAt ?? 0).getTime();
+        if (remoteTime > localTime) {
+          // 本地有效 key 永远优先保留；远端若带有效 key 且本地为空则补充
+          const effectiveApiKey = local.apiKey || remoteModel.apiKey || '';
+          // 不勾「同步模型 API Key」时，导出会把 Authorization / token / secret 等敏感头删掉。
+          // 这时绝不能用远端的 customHeaders 直接盖掉本地 —— 否则本地这些头会被静默抹掉。
+          const mergedHeaders = options.syncApiKeys
+            ? remoteModel.customHeaders
+            : mergeCustomHeaders(local.customHeaders, remoteModel.customHeaders);
+          const mergedModel: Model = {
+            ...remoteModel,
+            apiKey: effectiveApiKey,
+            customHeaders: mergedHeaders,
+            sortOrder: local.sortOrder ?? remoteModel.sortOrder,
+          };
+          modelCandidates.set(remoteModel.id, mergedModel);
+          stats.modelsUpdated++;
+        }
+        // 否则保留本地候选（modelCandidates 里已经是 local，无需改写）
       }
     }
   }
@@ -348,6 +376,7 @@ export async function mergeBidirectional(
 export async function overwriteWithRemoteData(incoming: SessionExportFile): Promise<{
   sessionsCount: number;
   foldersCount: number;
+  modelsCount: number;
 }> {
   const localModels = await db.getAllModels();
   const localModelMap = new Map(localModels.map(m => [m.id, m]));
@@ -405,5 +434,6 @@ export async function overwriteWithRemoteData(incoming: SessionExportFile): Prom
   return {
     sessionsCount: incoming.sessions.length,
     foldersCount: incoming.folders?.length || 0,
+    modelsCount: incoming.models?.length || 0,
   };
 }

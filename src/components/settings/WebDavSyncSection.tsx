@@ -78,7 +78,7 @@ export const WebDavSyncSection: React.FC = () => {
 
     const ok = await requestConfirm({
       title: t('强制推送覆盖云端？'),
-      message: t('此操作将以本地当前所有会话完整覆盖云端数据文件。确定要强制推送吗？'),
+      message: t('此操作将以本地当前的会话、模型配置与文件夹完整覆盖云端数据文件。确定要强制推送吗？'),
       confirmLabel: t('强制覆盖云端'),
       cancelLabel: t('取消'),
       danger: true,
@@ -102,7 +102,7 @@ export const WebDavSyncSection: React.FC = () => {
     const ok = await requestConfirm({
       title: t('完全以云端覆盖本地？'),
       message: t(
-        '此操作将清空本地全部会话与文件夹，并完全载入云端数据。\n系统已自动备份本地数据，如操作失误可随时点击「撤销恢复」。是否继续？'
+        '此操作将清空本地全部会话、模型配置与文件夹，并完全载入云端数据。\n系统已自动备份本地数据，如操作失误可随时点击「撤销恢复」。是否继续？'
       ),
       confirmLabel: t('确认覆盖本地'),
       cancelLabel: t('取消'),

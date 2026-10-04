@@ -5,6 +5,14 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [0.8.2] - 2026-10-04
+
+### Fixed
+
+- **Force-pushing no longer changes your models on the next sync.** When "Sync model API Keys" was off, the export deliberately strips `Authorization` / `token` / `secret` headers from a model's custom headers — but the merge then rebuilt the model from the (stripped) remote copy, silently wiping those headers locally. So adjusting a model, force-pushing, and then pressing Sync visibly changed the model again. Custom headers are now merged non-destructively when keys are not synced (remote keys win, keys missing remotely are kept locally), so force-push followed by Sync is a no-op. The force push/pull messages also now report model and folder counts, not just sessions.
+- **Sync downloads bypass the HTTP cache.** A force push followed by a Sync could pull a stale, cached copy of the cloud file and re-add models/sessions that were just deleted. The download now uses `cache: 'no-store'` and sends `Cache-Control: no-cache`, so the merge always sees the file that was just uploaded.
+- **Model edits survive a sync.** Models were the only entity merged without a timestamp guard, so the merge always let the remote copy win — meaning a force push followed by a Sync (or an older cloud copy) could silently revert a local edit, e.g. a system prompt you had just cleared came back. Models now carry `updatedAt` and the merge only takes the remote copy when it is strictly newer; equal timestamps keep local, so force-push → Sync is a no-op while genuine edits from other devices still propagate.
+
 ## [0.8.1] - 2026-10-04
 
 ### Fixed

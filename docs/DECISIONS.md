@@ -367,6 +367,13 @@
   3. `importModels` 导入时把 `createdAt` 刷成「现在」（导入 = 新实体复活，否则会被本条删除留下的墓碑再次杀掉）；
   4. `MergeStats.modelsDeleted` + 同步文案；`overwriteWithRemoteData`（镜像覆盖）补 `models.clear()`。
   本补充**不碰**模型编辑的 LWW —— 合并仍是「远端字段覆盖本地，仅 `apiKey` / `sortOrder` 保本地」，属于既有行为、本次不动。
+- **补充 D-021.2（强推幂等 + 敏感头不被抹，已实现）**：用户报「调整好模型 → 强推 → 再点同步，模型列表又变了，而此时本机是金标准」。根因：不勾「同步模型 API Key」时 `buildExportFile` 会把 `customHeaders` 里含 `authorization` / `token` / `secret` 的键**删掉**再上传，而模型合并拿远端当基底 `{...remoteModel}`，于是把本地这些头静默抹掉。结论：
+  1. 模型合并的 `customHeaders` 改为**非破坏性合并**（`mergeCustomHeaders`：远端同名键覆盖，远端缺失的键保留本地），且**仅在「未同步 Key」时启用**；勾了同步 Key 时远端是全量，仍按远端覆盖、允许删除传播；
+  2. 立下硬约束：**「强推 → 立即同步」必须是一次 no-op** —— 强推后本机是金标准，导出侧任何脱敏 / 有损变换都不能借合并反噬本地；
+  3. 顺手把强推 / 强拉的成功提示从只报「会话」改成「会话 + 模型 + 文件夹」（旧文案让人以为强推只推会话）；`overwriteWithRemoteData` 补 `modelsCount`；
+  4. 新增 `bun test:sync`：用 `mock.module` 把 Dexie / zustand 换成内存实现，纯 bun 直接跑 `mergeBidirectional`（模型墓碑 / 强推幂等 / 重新导入复活）。
+  5. **GET 必须绕开 HTTP 缓存**（`services/webdav.ts` 下载用 `cache: 'no-store'` + `Cache-Control: no-cache`）：强推刚 PUT 完，紧接着同步若读到浏览器 / 代理缓存的旧云端副本，合并就会把刚删掉的模型 / 会话当「远端独有」又加回来 —— 用户看到的「多出了删掉的模型」。
+  6. **模型合并补上 `updatedAt` Last-Write-Wins**（严格 `>` 才覆盖，相等保留本地）：此前模型是唯一没有时间戳护栏的实体，合并永远用远端盖本地。用户报「清空某模型的系统提示词 → 强推 → 同步后提示词又回来了」正是此因（同步读到了一个略旧 / 陈旧的云端副本）。时间戳相等 = no-op，让本地成为金标准；真正更新的远端仍能覆盖。`createModel`/`updateModel`/`duplicateModel`/`importModels` 刷新 `updatedAt`，`reorderModels` 不动它。
 
 ## D-022 模型高级字段配置（Extra Body 与 Custom Headers + 占位符插值）
 
