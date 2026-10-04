@@ -1427,8 +1427,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         <div className="relative md:hidden" ref={viewMenuRef}>
           <button
             className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${showViewMenu
-              ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
-              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              ? 'bg-neutral-100 border-neutral-300 text-neutral-900'
+              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
               }`}
             onClick={() => setShowViewMenu(v => !v)}
             title={t('画布视图')}
@@ -1437,40 +1437,40 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           </button>
 
           {showViewMenu && (
-            <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle">
               <button
-                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => reactFlowInstance.zoomIn()}
               >
-                <ZoomIn size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <ZoomIn size={15} className="shrink-0 text-neutral-500" />
                 <span>{t('放大')}</span>
               </button>
               <button
-                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => reactFlowInstance.zoomOut()}
               >
-                <ZoomOut size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <ZoomOut size={15} className="shrink-0 text-neutral-500" />
                 <span>{t('缩小')}</span>
               </button>
               <button
-                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => {
                   reactFlowInstance.fitView({ padding: 0.2, duration: 200 });
                   setShowViewMenu(false);
                 }}
               >
-                <Maximize2 size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <Maximize2 size={15} className="shrink-0 text-neutral-500" />
                 <span>{t('适应画布')}</span>
               </button>
-              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              <div className="my-1 border-t border-neutral-100" />
               <button
-                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => {
                   handleReorganizeLayout();
                   setShowViewMenu(false);
                 }}
               >
-                <LayoutGrid size={15} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <LayoutGrid size={15} className="shrink-0 text-neutral-500" />
                 <span>{t('重新排布')}</span>
               </button>
             </div>
@@ -1478,7 +1478,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         </div>
 
         <button
-          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          className="flex items-center justify-center p-2 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
           onClick={() => setShowStats(v => !v)}
           title={t('会话统计')}
         >
@@ -1491,8 +1491,8 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         <div className="relative" ref={exportMenuRef}>
           <button
             className={`flex items-center justify-center p-2 border rounded-md transition-colors shadow-minimal ${showExportMenu
-              ? 'bg-neutral-100 border-neutral-300 text-neutral-900 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100'
-              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              ? 'bg-neutral-100 border-neutral-300 text-neutral-900'
+              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
               }`}
             onClick={() => setShowExportMenu(v => !v)}
             title={t('分享与导出')}
@@ -1501,26 +1501,26 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           </button>
 
           {showExportMenu && (
-            <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-md border border-neutral-200 bg-white p-1 shadow-subtle">
               <button
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => { setShowExportMenu(false); handleExportMarkdown(); }}
               >
-                <FileText size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <FileText size={14} className="shrink-0 text-neutral-500" />
                 <span>{t('Markdown (.md)')}</span>
               </button>
               <button
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => { setShowExportMenu(false); handleExportSession(); }}
               >
-                <FileJson size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <FileJson size={14} className="shrink-0 text-neutral-500" />
                 <span>{t('JSON 备份')}</span>
               </button>
               <button
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                 onClick={() => { setShowExportMenu(false); handleExport(); }}
               >
-                <Network size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <Network size={14} className="shrink-0 text-neutral-500" />
                 <span>{t('思维导图 (.mm)')}</span>
               </button>
             </div>
@@ -1619,7 +1619,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
 
       <div className="hidden md:block absolute bottom-4 right-4 z-10 mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]">
         <button
-          className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          className="flex items-center justify-center p-2.5 bg-white border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors shadow-minimal"
           onClick={handleReorganizeLayout}
           title={t('重新排布节点')}
         >

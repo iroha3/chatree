@@ -162,16 +162,16 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
             {session && (
               <button
                 onClick={() => exportPathToMarkdown(session, currentId, models)}
-                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
                 title={t('导出此路径 (.md)')}
               >
-                <Download size={13} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                <Download size={13} className="shrink-0 text-neutral-500" />
                 <span>{t('导出路径')}</span>
               </button>
             )}
             <button
               onClick={onClose}
-              className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+              className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
               title={t('关闭')}
             >
               <X size={16} />

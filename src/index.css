@@ -489,6 +489,13 @@ html.dark {
 }
 
 /* 写死了 white / 黑色的类，需要逐个覆盖 */
+/*
+ * ⚠️ 不要给中性色写 `dark:` 前缀（如 `dark:bg-neutral-800`）。
+ * 本项目的中性色阶由 --c-neutral-* 变量在夜间整组反转，`bg-neutral-100` 到夜间
+ * 自动变成 #1c1c1c。再叠一层按“标准 Tailwind 语义”写的 `dark:bg-neutral-800`
+ * 反而会落在反转后的浅色 #e8e8e8 上（白底、白边框、深色文字都会出现）。
+ * 只有 white 系（bg/text/border/ring-white）和半透明 `bg-white/95` 需要单独覆盖。
+ */
 html.dark .bg-white {
   background-color: rgb(var(--c-neutral-100));
 }
@@ -500,6 +507,10 @@ html.dark .text-white {
 
 html.dark .border-white {
   border-color: rgb(var(--c-neutral-300));
+}
+
+html.dark .ring-white {
+  --tw-ring-color: rgb(var(--c-neutral-100));
 }
 
 html.dark .sidebar {

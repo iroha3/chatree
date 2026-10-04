@@ -146,6 +146,13 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - ❌ 不要把发送键搬回卡片最底部（曾经搬过，用户：“这颗太糟糕了，发送得跨过整张卡片”）。
 - ❌ 不要再生一个停止按钮塞进“AI 正在思考…”那一行（曾经有过，被用户点名“这是啥玩意”）。
 - ❌ 代码块头部那条 `w-full` 的标题栏与代码区之间不能有缝（见 §3.9）。
+- ❌ **不要给中性色写 `dark:` 前缀**（`dark:bg-neutral-800` / `dark:text-neutral-300` /
+  `dark:border-neutral-800` …）。本项目的中性色阶由 `--c-neutral-*` 变量在夜间**整组反转**，
+  `bg-neutral-100` 夜里会自动变成 `#1c1c1c`；再叠一层按「标准 Tailwind 语义」写的 `dark:`，
+  反而会落在反转后的**浅色**上 —— 白底、白边框、深色文字（曾经的夜间模式：选中会话变成
+  白色药丸、`全部` / `新建会话` 文字看不见、面板边框发光）。
+  例外只有 white 系与半透明：`bg-white` / `text-white` / `border-white` / `ring-white` 由
+  `index.css` 的 `html.dark .*` 覆盖；`bg-white/95` 绕过覆盖，必须显式写 `dark:bg-neutral-100/95`。
 - ❌ 不要用 `bg-white/90` 这类半透明底色 —— 它绕过 `html.dark .bg-white` 覆盖，
   夜里会变成一块亮白药丸。
 

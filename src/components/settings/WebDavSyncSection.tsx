@@ -136,12 +136,12 @@ export const WebDavSyncSection: React.FC = () => {
   };
 
   return (
-    <section className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/60 p-4 space-y-4">
+    <section className="rounded-lg border border-neutral-200 bg-white p-4 space-y-4">
       {/* 头部标题与说明 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Cloud className="text-neutral-700 dark:text-neutral-300" size={18} />
-          <h3 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
+          <Cloud className="text-neutral-700" size={18} />
+          <h3 className="text-sm font-medium text-neutral-800">
             {t('WebDAV 云同步')}
           </h3>
         </div>
@@ -152,19 +152,19 @@ export const WebDavSyncSection: React.FC = () => {
         )}
       </div>
 
-      <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+      <p className="text-xs text-neutral-500 leading-relaxed">
         {t('支持坚果云、AList、NAS、Nextcloud 等 WebDAV 服务。')}
       </p>
 
       {/* 配置表单 */}
       <div className="space-y-3 pt-1">
         <div>
-          <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+          <label className="block text-xs font-medium text-neutral-700 mb-1">
             {t('WebDAV 服务器地址')}
           </label>
           <input
             type="text"
-            className="w-full text-xs px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+            className="w-full text-xs px-3 py-2 rounded-md border border-neutral-200 bg-neutral-50/50 focus:outline-none focus:ring-1 focus:ring-neutral-400"
             placeholder="https://dav.jianguoyun.com/dav/"
             value={config.serverUrl}
             onChange={(e) => setConfig({ serverUrl: e.target.value })}
@@ -173,12 +173,12 @@ export const WebDavSyncSection: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+            <label className="block text-xs font-medium text-neutral-700 mb-1">
               {t('用户名')}
             </label>
             <input
               type="text"
-              className="w-full text-xs px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              className="w-full text-xs px-3 py-2 rounded-md border border-neutral-200 bg-neutral-50/50 focus:outline-none focus:ring-1 focus:ring-neutral-400"
               placeholder="username"
               value={config.username}
               onChange={(e) => setConfig({ username: e.target.value })}
@@ -186,20 +186,20 @@ export const WebDavSyncSection: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+            <label className="block text-xs font-medium text-neutral-700 mb-1">
               {t('密码')}
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                className="w-full text-xs px-3 py-2 pr-8 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                className="w-full text-xs px-3 py-2 pr-8 rounded-md border border-neutral-200 bg-neutral-50/50 focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 placeholder="••••••••"
                 value={config.password}
                 onChange={(e) => setConfig({ password: e.target.value })}
               />
               <button
                 type="button"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? t('隐藏密码') : t('显示密码')}
               >
@@ -213,7 +213,7 @@ export const WebDavSyncSection: React.FC = () => {
         <div className="flex items-center space-x-2 pt-1">
           <button
             type="button"
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50"
             onClick={handleTest}
             disabled={isTesting}
           >
@@ -251,7 +251,7 @@ export const WebDavSyncSection: React.FC = () => {
         <div className="pt-1">
           <button
             type="button"
-            className="flex items-center space-x-1 text-[11px] text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+            className="flex items-center space-x-1 text-[11px] text-neutral-500 hover:text-neutral-700"
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
             <Sliders size={11} />
@@ -260,21 +260,21 @@ export const WebDavSyncSection: React.FC = () => {
           </button>
 
           {showAdvanced && (
-            <div className="mt-2.5 p-3 rounded-md bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-100 dark:border-neutral-800 space-y-2.5">
+            <div className="mt-2.5 p-3 rounded-md bg-neutral-50 border border-neutral-100 space-y-2.5">
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
                   {t('云端同步文件名 / 相对路径')}
                 </label>
                 <input
                   type="text"
-                  className="w-full text-xs px-2.5 py-1.5 rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800"
+                  className="w-full text-xs px-2.5 py-1.5 rounded border border-neutral-200 bg-white"
                   placeholder="chatree-sync.json"
                   value={config.syncPath}
                   onChange={(e) => setConfig({ syncPath: e.target.value })}
                 />
               </div>
 
-              <label className="flex items-center space-x-2 text-xs text-neutral-600 dark:text-neutral-400 cursor-pointer pt-0.5">
+              <label className="flex items-center space-x-2 text-xs text-neutral-600 cursor-pointer pt-0.5">
                 <input
                   type="checkbox"
                   className="rounded text-neutral-900 focus:ring-0"
@@ -284,10 +284,10 @@ export const WebDavSyncSection: React.FC = () => {
                 <span>{t('同步模型 API Key')}</span>
               </label>
 
-              <div className="pt-2 border-t border-neutral-200 dark:border-neutral-700 flex items-center space-x-3 text-xs">
+              <div className="pt-2 border-t border-neutral-200 flex items-center space-x-3 text-xs">
                 <button
                   type="button"
-                  className="text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 flex items-center space-x-1 underline"
+                  className="text-neutral-500 hover:text-neutral-800 flex items-center space-x-1 underline"
                   onClick={handleForcePush}
                   disabled={isSyncing}
                 >
@@ -297,7 +297,7 @@ export const WebDavSyncSection: React.FC = () => {
 
                 <button
                   type="button"
-                  className="text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 flex items-center space-x-1 underline"
+                  className="text-neutral-500 hover:text-neutral-800 flex items-center space-x-1 underline"
                   onClick={handleForcePull}
                   disabled={isSyncing}
                 >
@@ -311,12 +311,12 @@ export const WebDavSyncSection: React.FC = () => {
       </div>
 
       {/* 底部同步主操作区 */}
-      <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+      <div className="pt-3 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="text-xs text-neutral-500">
           {lastSyncTime ? (
             <span>
               {t('上次同步：')}
-              <span className="font-medium text-neutral-700 dark:text-neutral-300">
+              <span className="font-medium text-neutral-700">
                 {new Date(lastSyncTime).toLocaleString()}
               </span>
             </span>
@@ -330,7 +330,7 @@ export const WebDavSyncSection: React.FC = () => {
           {hasBackup && (
             <button
               type="button"
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-xs transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs transition-colors"
               onClick={handleRestore}
               title={t('撤销上一次同步，恢复同步前的本地快照')}
             >
@@ -342,7 +342,7 @@ export const WebDavSyncSection: React.FC = () => {
           {/* 一键立即同步主按钮 */}
           <button
             type="button"
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-md bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 text-xs font-medium transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-md bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-medium transition-colors shadow-sm disabled:opacity-50"
             onClick={handleSync}
             disabled={isSyncing}
           >

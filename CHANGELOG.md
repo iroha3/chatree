@@ -5,6 +5,12 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [Unreleased]
+
+### Fixed
+
+- **Dark mode regained its contrast.** Several recent sidebar / folder / settings styles had added `dark:bg-neutral-*` / `dark:text-neutral-*` / `dark:border-neutral-*` classes, but Chatree's neutral scale is **inverted** via CSS variables (`--c-neutral-*`), so those classes landed on near-white (`#e8e8e8`) backgrounds, white borders and dark text: the active session rendered as a white pill, the `全部` / `新建会话` labels were invisible, and panel borders glowed. Removed the redundant inverted variants so the variable flip drives dark mode again, and fixed the cases that genuinely need an explicit dark value (semi-transparent menus `bg-white/95`, the `ring-white` halo).
+
 ## [0.7.0] - 2026-10-04
 
 ### Added

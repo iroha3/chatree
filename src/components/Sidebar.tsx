@@ -359,15 +359,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
   const chipClass = (active: boolean) =>
     `flex-shrink-0 inline-flex items-center h-[26px] px-2.5 py-1 rounded-full text-xs border transition-colors select-none ${
       active
-        ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-100'
-        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800'
+        ? 'bg-neutral-900 text-white border-neutral-900'
+        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
     }`;
 
   return (
     <aside
       ref={sidebarRef}
       aria-hidden={collapsed}
-      className={`sidebar w-64 h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out ${
+      className={`sidebar w-64 h-full bg-white border-r border-neutral-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out ${
         isMobile
           ? `fixed inset-y-0 left-0 z-30 shadow-2xl transition-transform ${
               collapsed ? '-translate-x-full pointer-events-none' : 'translate-x-0'
@@ -382,10 +382,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           这里直接不渲染。 */}
       {!collapsed && (
         <button
-          className="absolute -right-3 top-4 bg-white dark:bg-neutral-800 p-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-minimal z-20 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+          className="absolute -right-3 top-4 bg-white p-1.5 rounded-full border border-neutral-200 shadow-minimal z-20 hover:bg-neutral-50 transition-colors"
           onClick={onToggleCollapse}
         >
-          <ChevronLeft size={14} className="text-neutral-600 dark:text-neutral-300" />
+          <ChevronLeft size={14} className="text-neutral-600" />
         </button>
       )}
 
@@ -406,7 +406,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           >
             <Settings size={15} />
             {hasRemoteUpdate && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-neutral-900" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
             )}
           </button>
           <button
@@ -464,7 +464,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           新文件夹追加在最后，输入槽就在它将要出现的位置。 */}
       <div className="px-4 pb-2 flex items-center gap-1.5 shrink-0">
         <button
-          className="flex-shrink-0 inline-flex h-[26px] w-[26px] items-center justify-center rounded-full text-neutral-400 border border-dashed border-neutral-300 hover:text-neutral-700 hover:border-neutral-400 dark:border-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+          className="flex-shrink-0 inline-flex h-[26px] w-[26px] items-center justify-center rounded-full text-neutral-400 border border-dashed border-neutral-300 hover:text-neutral-700 hover:border-neutral-400 transition-colors"
           onClick={() => setIsCreatingFolder(true)}
           title={t('新建文件夹')}
         >
@@ -500,16 +500,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               return (
                 <div
                   key={folder.id}
-                  className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none"
+                  className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 bg-white shadow-sm select-none"
                 >
-                  <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
+                  <Folder size={12} className="shrink-0 text-neutral-600" />
                   <span className="invisible whitespace-pre text-xs min-w-[2ch] max-w-[140px] pointer-events-none">
                     {folderNameDraft || ' '}
                   </span>
                   <input
                     autoFocus
                     onFocus={(e) => e.target.select()}
-                    className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 outline-none border-none p-0 focus:ring-0 leading-normal"
+                    className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 outline-none border-none p-0 focus:ring-0 leading-normal"
                     value={folderNameDraft}
                     onChange={(e) => setFolderNameDraft(e.target.value)}
                     onBlur={() => handleRenameFolder(folder.id)}
@@ -557,14 +557,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           })}
 
           {isCreatingFolder && (
-            <div className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-900 shadow-sm select-none">
-              <Folder size={12} className="shrink-0 text-neutral-600 dark:text-neutral-300" />
+            <div className="flex-shrink-0 relative inline-flex items-center gap-1.5 h-[26px] px-2.5 py-1 rounded-full text-xs border border-neutral-400 bg-white shadow-sm select-none">
+              <Folder size={12} className="shrink-0 text-neutral-600" />
               <span className="invisible whitespace-pre text-xs min-w-[5ch] max-w-[140px] pointer-events-none">
                 {newFolderName || t('文件夹名')}
               </span>
               <input
                 ref={newFolderInputRef}
-                className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0 leading-normal"
+                className="absolute left-[28px] right-2.5 top-0 bottom-0 bg-transparent text-xs text-neutral-800 placeholder:text-neutral-400 outline-none border-none p-0 focus:ring-0 leading-normal"
                 placeholder={t('文件夹名')}
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
@@ -610,8 +610,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 onTouchCancel={handleTouchCancel}
                 className={`sidebar-session py-2 px-3 flex justify-between items-center rounded-md group relative select-none ${
                   currentSessionId === session.id
-                    ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
-                    : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
+                    ? 'bg-neutral-100 text-neutral-900'
+                    : 'text-neutral-600 hover:bg-neutral-50'
                 }`}
                 onClick={() => {
                   if (isLongPressTriggered.current) return;
@@ -622,7 +622,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 {editingId === session.id ? (
                   <input
                     type="text"
-                    className="flex-1 px-2 py-1 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                    className="flex-1 px-2 py-1 border border-neutral-300 bg-white rounded text-sm focus:outline-none focus:ring-1 focus:ring-neutral-400"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     onBlur={() => handleSaveEdit(session.id)}
@@ -660,7 +660,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                         {/* 「全部」心智模型：在全部会话视图中，已归类的会话展示精致微型胶囊徽标，靠右端齐 */}
                         {currentFolderView === 'all' && folder && (
                           <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neutral-400 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/50 dark:border-neutral-700/50 shrink-0 font-normal max-w-[80px] truncate ml-auto group-hover:opacity-0 transition-opacity"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neutral-400 bg-neutral-100 border border-neutral-200/50 shrink-0 font-normal max-w-[80px] truncate ml-auto group-hover:opacity-0 transition-opacity"
                             title={folder.name}
                           >
                             <Folder size={9} className="shrink-0" />
@@ -684,7 +684,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
-                      className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50"
+                      className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-200/50"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartEdit(session.id, isDefaultSessionTitle(session.title) ? defaultSessionTitle() : session.title);
@@ -694,7 +694,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       <Edit size={14} />
                     </button>
                     <button
-                      className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 p-1 rounded-md hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50"
+                      className="text-neutral-500 hover:text-neutral-700 p-1 rounded-md hover:bg-neutral-200/50"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteSession(session.id);
@@ -712,9 +712,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
       </div>
 
       {/* 底部只留「新建会话」一整条 */}
-      <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 dark:border-neutral-800 shrink-0">
+      <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-neutral-100 shrink-0">
         <button
-          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 rounded-md hover:bg-neutral-800 dark:hover:bg-white transition-colors"
+          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors"
           onClick={handleCreateSession}
         >
           <Plus size={16} />
@@ -740,7 +740,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
 
           {/* 主上下文菜单 */}
           <div
-            className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-sm select-none"
+            className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-100/95 backdrop-blur-md border border-neutral-200 rounded-xl shadow-xl py-1 text-sm select-none"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -749,7 +749,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 /* 移动端下推二级视图：带返回按钮与高度限制滚动 */
                 <div className="px-1 py-0.5">
                   <button
-                    className="w-full text-left px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-300 font-medium border-b border-neutral-100 dark:border-neutral-800 mb-1"
+                    className="w-full text-left px-2 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-1.5 text-xs text-neutral-600 font-medium border-b border-neutral-100 mb-1"
                     onClick={() => setSessionFolderSubmenu(false)}
                   >
                     <ChevronLeft size={13} className="shrink-0" />
@@ -759,7 +759,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   <div className="max-h-52 overflow-y-auto overscroll-contain scrollbar-hide space-y-0.5">
                     {contextMenu.session.folderId && (
                       <button
-                        className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                        className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-2 text-xs text-neutral-600 transition-colors"
                         onClick={() => {
                           moveSessionToFolder(contextMenu.session.id, null);
                           setContextMenu(null);
@@ -775,7 +775,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       return (
                         <button
                           key={folder.id}
-                          className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                          className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center justify-between text-xs text-neutral-700 transition-colors"
                           onClick={() => {
                             moveSessionToFolder(contextMenu.session.id, folder.id);
                             setContextMenu(null);
@@ -795,9 +795,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     })}
                   </div>
 
-                  <div className="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-1">
+                  <div className="border-t border-neutral-100 mt-1 pt-1">
                     <button
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
                       onClick={() => {
                         setContextMenu(null);
                         setSessionFolderSubmenu(false);
@@ -814,7 +814,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 <>
                   <div className="px-1 py-0.5">
                     <button
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-2 text-xs text-neutral-700 transition-colors"
                       onMouseEnter={() => setSessionFolderSubmenu(false)}
                       onClick={() => {
                         const s = contextMenu.session;
@@ -826,7 +826,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                       <span>{t('重命名')}</span>
                     </button>
                     <button
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-2 text-xs text-neutral-700 transition-colors"
                       onMouseEnter={() => setSessionFolderSubmenu(false)}
                       onClick={() => {
                         const s = contextMenu.session;
@@ -846,14 +846,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     </button>
                   </div>
 
-                  <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                  <div className="border-t border-neutral-100 my-1" />
 
                   <div className="px-1 py-0.5 relative">
                     <button
                       className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
                         sessionFolderSubmenu
-                          ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100'
-                          : 'text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                          ? 'bg-neutral-100 text-neutral-900'
+                          : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
                       onMouseEnter={() => setSessionFolderSubmenu(true)}
                       onClick={() => setSessionFolderSubmenu(v => !v)}
@@ -866,7 +866,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                     </button>
                   </div>
 
-                  <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                  <div className="border-t border-neutral-100 my-1" />
 
                   <div className="px-1 py-0.5">
                     <button
@@ -892,7 +892,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   {contextMenu.folder.name}
                 </div>
                 <button
-                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-2 text-xs text-neutral-700 transition-colors"
                   onClick={() => {
                     const fid = contextMenu.folder.id;
                     const fname = contextMenu.folder.name;
@@ -904,7 +904,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   <Edit size={13} className="text-neutral-400 shrink-0" />
                   <span>{t('重命名')}</span>
                 </button>
-                <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                <div className="border-t border-neutral-100 my-1" />
                 <button
                   className="w-full text-left px-2.5 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 text-xs transition-colors"
                   onClick={() => {
@@ -923,7 +923,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
           {/* 桌面端：二级文件夹悬浮侧栏（支持大量文件夹滚动，不撑爆屏幕） */}
           {!isMobile && contextMenu.type === 'session' && sessionFolderSubmenu && (
             <div
-              className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1 text-sm select-none"
+              className="fixed z-50 min-w-[170px] max-w-[220px] bg-white/95 dark:bg-neutral-100/95 backdrop-blur-md border border-neutral-200 rounded-xl shadow-xl py-1 text-sm select-none"
               style={{
                 top: Math.min(contextMenu.y + 35, window.innerHeight - 260),
                 left: contextMenu.x + 185 > window.innerWidth - 190
@@ -932,7 +932,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 flex items-center gap-1 border-b border-neutral-100 dark:border-neutral-800 mb-1">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-neutral-400 flex items-center gap-1 border-b border-neutral-100 mb-1">
                 <Folder size={11} />
                 <span>{t('选择文件夹')}</span>
               </div>
@@ -940,7 +940,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
               <div className="max-h-52 overflow-y-auto overscroll-contain scrollbar-hide px-1 py-0.5 space-y-0.5">
                 {contextMenu.session.folderId && (
                   <button
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400 transition-colors"
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-2 text-xs text-neutral-600 transition-colors"
                     onClick={() => {
                       moveSessionToFolder(contextMenu.session.id, null);
                       setContextMenu(null);
@@ -956,7 +956,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                   return (
                     <button
                       key={folder.id}
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-200 transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center justify-between text-xs text-neutral-700 transition-colors"
                       onClick={() => {
                         moveSessionToFolder(contextMenu.session.id, folder.id);
                         setContextMenu(null);
@@ -976,9 +976,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
                 })}
               </div>
 
-              <div className="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-1 px-1">
+              <div className="border-t border-neutral-100 mt-1 pt-1 px-1">
                 <button
-                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-100 rounded-lg flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
                   onClick={() => {
                     setContextMenu(null);
                     setSessionFolderSubmenu(false);
