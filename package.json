@@ -1,7 +1,7 @@
 {
   "name": "chatree",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.8.2",
   "engines": {
     "bun": ">=1.1.0"
   },
@@ -35,6 +35,7 @@
     "test:tree": "bun tests/tree-check.mjs",
     "test:md": "bun tests/markdown-export-check.mjs",
     "test:compress": "bun tests/compress-check.mjs",
+    "test:sync": "bun tests/sync-merge-check.mjs",
     "test:folder": "bun tests/folder-all-mental-model-check.mjs",
     "test:custom": "bun tests/custom-fields-test.mjs",
     "test:smoke": "bun tests/smoke-check.mjs",
