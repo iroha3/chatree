@@ -5,12 +5,6 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
-## [Unreleased]
-
-### Fixed
-
-- **Collapsed sidebar no longer shows a half button.** On narrow screens the sidebar is only slid off-screen (`-translate-x-full`), so its floating collapse button used to peek out as a clipped half-circle beside the expand button. The collapse button is now removed while collapsed; the top-level expand button handles re-opening.
-
 ## [0.7.0] - 2026-10-04
 
 ### Added
@@ -30,6 +24,7 @@ semantic versioning for tagged releases. `package.json`'s `version` is the singl
   - **1px jog elimination**: Ensures perfectly straight vertical lines for single child connections within a 2px tolerance threshold.
   - **Pixel-perfect handle alignment**: Re-anchored node handles to match the exact geometric center and dimensions of the circular add-child (`+`) button, eliminating subpixel/border misalignment.
 - **Sidebar Motion Performance.** Replaced GSAP mount animation on the sidebar with hardware-accelerated CSS transitions, eliminating layout jitter on page refresh.
+- **Collapsed sidebar no longer shows a half button.** On narrow screens the sidebar is only slid off-screen (`-translate-x-full`), so its floating collapse button used to peek out as a clipped half-circle beside the expand button. The collapse button is now removed while collapsed; the top-level expand button handles re-opening.
 
 ## [0.6.0] - 2026-10-03
 
