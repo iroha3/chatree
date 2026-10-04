@@ -376,3 +376,15 @@
 - **结论**：**B**。兼顾极简界面与高阶用户的极致灵活性，以极低的代码量与心智负担彻底解决了非标 API 的混乱问题。
 - **触发条件**：已落地并完成测试。
 - **相关代码**：`src/types.ts`、`src/services/apiService.ts`、`src/components/settings/ModelsPanel.tsx`、`src/utils/sessionTransfer.ts`。
+
+## D-023 WebDAV 同步载荷 gzip 压缩 + 固定同步文件名
+
+- **状态**：✅ 已定（已实现）
+- **背景**：D-021 的同步是「全量 JSON + `JSON.stringify(file, null, 2)`」明文上传。20 多条带思维链的对话就要 500KB，用户反馈「离谱」。体积几乎全在正文/思维链文本上，JSON 本身的缩进只占几个百分点 —— 真正的杠杆是压缩。同时发现高级选项里那个「云端同步文件名 / 相对路径」`syncPath` 输入框，是把实现细节暴露给用户，用户明确表示「这怎么能暴露出来，之前没好好考虑」。
+- **选项**：
+  - A. 真 `.zip`（引入 `fflate` 或手写 ZIP 容器）：能被资源管理器双击打开，但要加依赖或维护一段易错的二进制封装代码，而这是私有同步文件，没人会去点开；
+  - B. 原生 gzip（`CompressionStream` / `DecompressionStream`，零依赖）：一次调用，自然语言载荷约 1/5；文件名 `chatree-sync.json.gz`，双击也能用解压软件看；读取靠魔数 `1f 8b` 嗅探，顺带兼容旧明文文件；
+  - C. 会话级分片 / 增量同步：每次只传变化的会话，但需要把远端拆成一堆文件并重做合并/墓碑/原子性，复杂度远超额。
+- **结论**：**B**。压缩收口在 `services/webdav.ts` 的上传/下载两处，合并算法零改动。同时**删掉 `syncPath` 配置**，文件名固定为 `SYNC_FILE_NAME`；子目录改由 `serverUrl` 承载。**不做自动迁移**（0.x、单人用户，旧远端文件由用户自己处理），读取端保留明文回退兜底。
+- **触发条件**：已落地；`bun test:compress` 守住 gzip 往返无损与坏数据必须抛错。
+- **相关代码**：`src/utils/compress.ts`、`src/services/webdav.ts`、`src/stores/syncStore.ts`、`src/components/settings/WebDavSyncSection.tsx`、`tests/compress-check.mjs`。

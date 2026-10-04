@@ -30,7 +30,6 @@ const DEFAULT_CONFIG: WebDavConfig = {
   serverUrl: '',
   username: '',
   password: '',
-  syncPath: 'chatree-sync.json',
   syncApiKeys: true,
 };
 
@@ -38,7 +37,14 @@ function loadStoredConfig(): WebDavConfig {
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (raw) {
-      return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+      // 只挑已知字段，丢弃旧版本遗留的 syncPath（文件名已固定为 chatree-sync.json.gz）
+      const parsed = JSON.parse(raw) as Partial<Record<keyof WebDavConfig, unknown>>;
+      return {
+        serverUrl: typeof parsed.serverUrl === 'string' ? parsed.serverUrl : DEFAULT_CONFIG.serverUrl,
+        username: typeof parsed.username === 'string' ? parsed.username : DEFAULT_CONFIG.username,
+        password: typeof parsed.password === 'string' ? parsed.password : DEFAULT_CONFIG.password,
+        syncApiKeys: typeof parsed.syncApiKeys === 'boolean' ? parsed.syncApiKeys : DEFAULT_CONFIG.syncApiKeys,
+      };
     }
   } catch {
     // 忽略解析错误

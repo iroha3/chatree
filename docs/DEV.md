@@ -385,9 +385,15 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - WebDAV 同步文件默认跟随 `exportSessions(..., { keepApiKeys: true })` 导出；
 - 但在导入合并模型时，遵守**非破坏性凭据合并原则**：远端若未提供 `apiKey`，绝不抹除本地已有的 `apiKey`；仅当远端提供非空密钥且更新时才覆写。
 
-#### 5. 路径支持与递归父目录创建
-- `serverUrl` / `syncPath` 支持子目录（如 `dav/chatree/` 或 `chatree-sync.json`）；
+#### 5. 路径、文件名与传输格式
+- **同步文件名固定为 `chatree-sync.json.gz`，不暴露给用户配置**（`services/webdav.ts` 的 `SYNC_FILE_NAME`）。把 `syncPath` 摆进高级选项纯属把实现细节丢给用户，已删。
+- 需要子目录时把目录写进 `serverUrl`（如 `https://dav.jianguoyun.com/dav/chatree/`），不要再加「文件名 / 相对路径」字段。
 - WebDAV `PUT` 写入遇到 `409 Conflict`（父目录不存在）时，`services/webdav.ts` 会自动向上逐级发送 `MKCOL` 递归创建所需父级集合，并重试写入。
+- **内容永远是 gzip 字节**（`utils/compress.ts`，原生 `CompressionStream`，零依赖）：
+  - 上传：`JSON.stringify`（去缩进）→ gzip → `Content-Type: application/gzip`；**绝不设 `Content-Encoding: gzip`** —— 那是传输层编码，服务器 / 代理可能透明解压，回读时就废了。
+  - 下载：读 `arrayBuffer()`，靠魔数 `1f 8b` 嗅探 → 是 gzip 就解压，否则按 UTF-8 明文解析（兼容未压缩的旧文件）。
+  - 解压 / 解析失败必须在**写本地之前**返回错误，绝不把坏数据合并进 IndexedDB。
+  - 只改传输层：`syncMerge` / 墓碑 / 合并算法零改动。回归在 `bun test:compress`。
 
 #### 6. 服务端与浏览器环境适配陷阱
 - **坚果云（Nutstore）**：
@@ -468,13 +474,14 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 
 ## 6. 回归测试
 
-四个纯逻辑脚本加两个端到端脚本，都在 `tests/`（不要放回 `scripts/` —— 那是构建/打包用的）。
+纯逻辑与端到端脚本都在 `tests/`（不要放回 `scripts/` —— 那是构建/打包用的）。
 
 | 脚本 | 依赖 | 覆盖 |
 |---|---|---|
 | `bun test:edge` | 无 | 复制 React Flow 的 `createNodeInternals/applyNodeChanges` 语义，断言"掉边"的两种取法 |
 | `bun test:usage` | 无 | `utils/usage.ts` 的字段映射（DeepSeek/OpenAI/Anthropic 缓存字段、思考 token、不估算）+ `utils/text.ts` 的码点字数 |
 | `bun test:tree` | 无 | `utils/tree.ts` 的路径 / 子节点 / 兄弟组（含父节点遗失、数据成环不许死循环） |
+| `bun test:compress` | 无 | `utils/compress.ts` 的 gzip 往返无损、魔数嗅探、坏数据必须抛错（WebDAV 同步文件的传输层） |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
 | `bun test:ux` | Edge:9222 + dev:5175 | 50 项节点交互：去重、思考折叠、连续阅读（整条路径 + 分支切换 + 读到底翻页 + 落点高亮）、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
 

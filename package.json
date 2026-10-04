@@ -34,6 +34,7 @@
     "test:usage": "bun tests/usage-check.mjs",
     "test:tree": "bun tests/tree-check.mjs",
     "test:md": "bun tests/markdown-export-check.mjs",
+    "test:compress": "bun tests/compress-check.mjs",
     "test:folder": "bun tests/folder-all-mental-model-check.mjs",
     "test:custom": "bun tests/custom-fields-test.mjs",
     "test:smoke": "bun tests/smoke-check.mjs",

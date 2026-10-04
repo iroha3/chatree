@@ -5,15 +5,14 @@ const config = {
   serverUrl: 'http://192.168.31.9:5244/dav/',
   username: 'webdav',
   password: 'webdav',
-  syncPath: 'chatree-integration-test.json',
   syncApiKeys: true,
 };
 
 async function run() {
   console.log('1. Testing URL resolution...');
-  const url = resolveWebDavUrl(config.serverUrl, config.syncPath);
+  const url = resolveWebDavUrl(config.serverUrl);
   console.log('Resolved URL:', url);
-  if (url !== 'http://192.168.31.9:5244/dav/chatree-integration-test.json') {
+  if (url !== 'http://192.168.31.9:5244/dav/chatree-sync.json.gz') {
     throw new Error(`Unexpected URL: ${url}`);
   }
 

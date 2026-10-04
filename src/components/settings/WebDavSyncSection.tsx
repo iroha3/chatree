@@ -261,19 +261,6 @@ export const WebDavSyncSection: React.FC = () => {
 
           {showAdvanced && (
             <div className="mt-2.5 p-3 rounded-md bg-neutral-50 border border-neutral-100 space-y-2.5">
-              <div>
-                <label className="block text-[11px] font-medium text-neutral-600 mb-1">
-                  {t('云端同步文件名 / 相对路径')}
-                </label>
-                <input
-                  type="text"
-                  className="w-full text-xs px-2.5 py-1.5 rounded border border-neutral-200 bg-white"
-                  placeholder="chatree-sync.json"
-                  value={config.syncPath}
-                  onChange={(e) => setConfig({ syncPath: e.target.value })}
-                />
-              </div>
-
               <label className="flex items-center space-x-2 text-xs text-neutral-600 cursor-pointer pt-0.5">
                 <input
                   type="checkbox"

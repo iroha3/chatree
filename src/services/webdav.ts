@@ -1,12 +1,18 @@
 import { SessionExportFile, parseExportFile } from '../utils/sessionTransfer';
+import { gzipText, gunzipToText, isGzip, supportsGzip } from '../utils/compress';
 
 export interface WebDavConfig {
   serverUrl: string;
   username: string;
   password: string;
-  syncPath: string;
   syncApiKeys: boolean;
 }
+
+/**
+ * 云端同步文件名（固定，不暴露给用户配置）。
+ * 内容是 gzip 压缩后的 JSON；扩展名写全 `.json.gz`，双击也能用解压软件看。
+ */
+export const SYNC_FILE_NAME = 'chatree-sync.json.gz';
 
 export interface FileMeta {
   exists: boolean;
@@ -17,18 +23,17 @@ export interface FileMeta {
 
 /**
  * 规整并拼装 WebDAV 完整文件 URL。
- * 例如 serverUrl 为 http://192.168.31.9:5244/dav/，syncPath 为 chatree-sync.json
- * 结果为 http://192.168.31.9:5244/dav/chatree-sync.json
+ * 例如 serverUrl 为 http://192.168.31.9:5244/dav/，结果为
+ * http://192.168.31.9:5244/dav/chatree-sync.json.gz
  */
-export function resolveWebDavUrl(serverUrl: string, syncPath = 'chatree-sync.json'): string {
+export function resolveWebDavUrl(serverUrl: string): string {
   let base = serverUrl.trim();
   if (!base) return '';
   if (!/^https?:\/\//i.test(base)) {
     base = 'http://' + base;
   }
   const cleanBase = base.replace(/\/+$/, '');
-  const cleanPath = (syncPath || 'chatree-sync.json').trim().replace(/^\/+/, '');
-  return `${cleanBase}/${cleanPath}`;
+  return `${cleanBase}/${SYNC_FILE_NAME}`;
 }
 
 /**
@@ -128,7 +133,7 @@ export async function testConnection(config: WebDavConfig): Promise<{
  * 获取云端备份文件的元数据（是否存在、修改时间、ETag 等）
  */
 export async function getFileMeta(config: WebDavConfig): Promise<FileMeta> {
-  const fileUrl = resolveWebDavUrl(config.serverUrl, config.syncPath);
+  const fileUrl = resolveWebDavUrl(config.serverUrl);
   if (!fileUrl) return { exists: false };
 
   try {
@@ -211,19 +216,24 @@ export async function uploadSyncData(
   config: WebDavConfig,
   file: SessionExportFile
 ): Promise<{ ok: boolean; etag?: string | null; error?: string }> {
-  const fileUrl = resolveWebDavUrl(config.serverUrl, config.syncPath);
+  const fileUrl = resolveWebDavUrl(config.serverUrl);
   if (!fileUrl) {
     return { ok: false, error: 'WebDAV 地址未配置' };
   }
 
   try {
-    const jsonString = JSON.stringify(file, null, 2);
+    // 摘要：去掉缩进后用 gzip 压缩。自然语言正文一般能压到 1/5，
+    // 传输层的事，合并逻辑（墓碑 / 双向 merge）完全无感。
+    const body = await gzipText(JSON.stringify(file));
+    const contentType = supportsGzip()
+      ? 'application/gzip'
+      : 'application/json; charset=utf-8';
     const res = await fetch(fileUrl, {
       method: 'PUT',
       headers: getHeaders(config, {
-        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Type': contentType,
       }),
-      body: jsonString,
+      body,
     });
 
     if (res.status === 200 || res.status === 201 || res.status === 204) {
@@ -246,9 +256,9 @@ export async function uploadSyncData(
         const retryRes = await fetch(fileUrl, {
           method: 'PUT',
           headers: getHeaders(config, {
-            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Type': contentType,
           }),
-          body: jsonString,
+          body,
         });
         if (retryRes.status === 200 || retryRes.status === 201 || retryRes.status === 204) {
           return { ok: true, etag: retryRes.headers.get('ETag') };
@@ -274,7 +284,7 @@ export async function downloadSyncData(config: WebDavConfig): Promise<{
   lastModified?: string | null;
   error?: string;
 }> {
-  const fileUrl = resolveWebDavUrl(config.serverUrl, config.syncPath);
+  const fileUrl = resolveWebDavUrl(config.serverUrl);
   if (!fileUrl) {
     return { ok: false, error: 'WebDAV 地址未配置' };
   }
@@ -295,20 +305,34 @@ export async function downloadSyncData(config: WebDavConfig): Promise<{
       return { ok: false, error: `下载失败（HTTP ${res.status} ${res.statusText}）` };
     }
 
-    const text = await res.text();
+    const bytes = new Uint8Array(await res.arrayBuffer());
     const contentType = res.headers.get('content-type') || '';
 
-    // 检测是否返回了网页 (HTML)，如 AList 根路径前端网页
+    // 检测是否返回了网页 (HTML)，如 AList 根路径前端网页。
+    // 只解码前 512 字节，不要把整个二进制文件（可能是 gzip）当文本处理。
+    const head = new TextDecoder().decode(bytes.slice(0, 512));
     if (
       contentType.includes('text/html') ||
-      text.trim().startsWith('<!DOCTYPE') ||
-      text.trim().startsWith('<html')
+      head.trimStart().startsWith('<!DOCTYPE') ||
+      head.trimStart().startsWith('<html')
     ) {
       return {
         ok: false,
         error:
           '云端返回了网页 (HTML) 而非数据文件。通常是因为 WebDAV 地址未包含正确的挂载路径（例如 AList 需在地址后包含 /dav/，如 http://...:5244/dav/）',
       };
+    }
+
+    // 正常是 gzip 字节；万一读到未压缩的旧明文 JSON，也兼容（嗅探魔数）。
+    let text: string;
+    if (isGzip(bytes)) {
+      try {
+        text = await gunzipToText(bytes);
+      } catch {
+        return { ok: false, error: '云端同步文件解压失败：文件可能已损坏，请先在别的设备重新同步' };
+      }
+    } else {
+      text = new TextDecoder().decode(bytes);
     }
 
     const parsed = parseExportFile(text);
