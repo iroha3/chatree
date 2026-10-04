@@ -219,13 +219,16 @@ export function computeTreeTopology(session: Session): {
   };
 }
 
+/** Mermaid 节点文本里必须剔除的语法字符（方括号、圆括号、花括号、尖括号）。 */
+const MERMAID_ILLEGAL_CHARS = new Set('[](){}<>');
+
 /**
  * 清洗 Mermaid 节点显示文本，避免由于双引号、方括号等导致语法崩溃。
  */
 function cleanMermaidText(str: string): string {
-  return str
-    .replace(/"/g, "'")
-    .replace(/[\[\]\(\)\{\}<>]/g, '')
+  return [...str.replace(/"/g, "'")]
+    .filter((ch) => !MERMAID_ILLEGAL_CHARS.has(ch))
+    .join('')
     .trim();
 }
 

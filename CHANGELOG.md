@@ -5,6 +5,12 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [Unreleased]
+
+### Fixed
+
+- **Collapsed sidebar no longer shows a half button.** On narrow screens the sidebar is only slid off-screen (`-translate-x-full`), so its floating collapse button used to peek out as a clipped half-circle beside the expand button. The collapse button is now removed while collapsed; the top-level expand button handles re-opening.
+
 ## [0.7.0] - 2026-10-04
 
 ### Added

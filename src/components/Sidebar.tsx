@@ -216,7 +216,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate(15);
         }
-      } catch {}
+      } catch {
+        /* 振动 API 在桌面端不可用，静默忽略 */
+      }
 
       const x = Math.max(10, Math.min(touch.clientX, window.innerWidth - 200));
       const y = Math.max(10, Math.min(touch.clientY, window.innerHeight - 280));
@@ -375,12 +377,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, collapsed, onToggleCo
             }`
       }`}
     >
-      <button
-        className="absolute -right-3 top-4 bg-white dark:bg-neutral-800 p-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-minimal z-20 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-        onClick={onToggleCollapse}
-      >
-        <ChevronLeft size={14} className="text-neutral-600 dark:text-neutral-300" />
-      </button>
+      {/* 收起时侧栏只是平移到屏幕外（移动端没有 opacity-0），
+          这颗浮在右边框上的小圆钮会露出半颗 —— 收起后交给 App 的展开钮，
+          这里直接不渲染。 */}
+      {!collapsed && (
+        <button
+          className="absolute -right-3 top-4 bg-white dark:bg-neutral-800 p-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-minimal z-20 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+          onClick={onToggleCollapse}
+        >
+          <ChevronLeft size={14} className="text-neutral-600 dark:text-neutral-300" />
+        </button>
+      )}
 
       <div className="px-4 py-4 border-b border-neutral-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
