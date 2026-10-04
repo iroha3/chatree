@@ -201,9 +201,8 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                     data-reader-node={node.id}
                   >
                     <div
-                      className={`rounded-xl border border-neutral-200 px-5 py-4 shadow-sm ${
-                        isSystem ? 'bg-neutral-50' : 'bg-white'
-                      }`}
+                      className={`rounded-xl border border-neutral-200 px-5 py-4 shadow-sm ${isSystem ? 'bg-neutral-50' : 'bg-white'
+                        }`}
                     >
                       {/* 窄屏端：在卡片顶部提供横向滚动胶囊，单手即可切换分支 */}
                       {group.length > 1 ? (
@@ -219,11 +218,10 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                                 behaviorRef.current = 'smooth';
                                 setCurrentId(m.id);
                               }}
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${
-                                m.id === node.id
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${m.id === node.id
                                   ? 'bg-neutral-900 text-white font-medium'
                                   : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                              }`}
+                                }`}
                             >
                               <span>{i + 1}. {preview(m)}</span>
                             </button>
@@ -331,14 +329,13 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                             <button
                               key={m.id}
                               onClick={() => {
-                              behaviorRef.current = 'smooth';
-                              setCurrentId(m.id);
-                            }}
-                              className={`w-full rounded-md px-2 py-1.5 text-left text-[12px] leading-snug transition-colors ${
-                                m.id === node.id
+                                behaviorRef.current = 'smooth';
+                                setCurrentId(m.id);
+                              }}
+                              className={`w-full rounded-md px-2 py-1.5 text-left text-[12px] leading-snug transition-colors ${m.id === node.id
                                   ? 'bg-neutral-900 text-white'
                                   : 'text-neutral-600 hover:bg-neutral-100'
-                              }`}
+                                }`}
                             >
                               <span className="mr-1 opacity-60">{i + 1}.</span>
                               {preview(m)}
