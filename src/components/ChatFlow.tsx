@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import ReactFlow, {
-  Background,
-  BackgroundVariant,
   Controls,
   ReactFlowProvider,
   Edge,
@@ -18,6 +16,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import SystemNode from './nodes/SystemNode';
 import ChatNode from './nodes/ChatNode';
+import CanvasDots from './CanvasDots';
 import SessionStats from './SessionStats';
 import { useSessionStore } from '../stores/sessionStore';
 import { useModelStore } from '../stores/modelStore';
@@ -38,7 +37,7 @@ import { generateId } from '../utils/id';
 /*
  * 画布布局常量。
  *
- * 宽度必须和 index.css 里 .node-content 的 width（516px）保持一致，
+ * 宽度必须和 index.css 里 .node-content 的 width（600px）保持一致，
  * 否则子树宽度会算得比实际窄，兄弟节点互相重叠。
  * 高度没法预先知道（回答长短不一），420 只是估值 —— 真实尺寸由
  * collectNodeDimensions 从 React Flow 量到后覆盖。
@@ -46,7 +45,7 @@ import { generateId } from '../utils/id';
  * 这几个值必须放模块级：建图有两条路径（calculateNodeLayout 和下面那个
  * 渲染 useEffect），放函数里就没法共用了。
  */
-const NODE_WIDTH = 516;
+const NODE_WIDTH = 600;
 
 export function getNodeWidth(): number {
   if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -1586,12 +1585,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         }}
       >
         {grid === 'dots' && (
-          <Background
-            variant={BackgroundVariant.Dots}
-            color={theme === 'dark' ? '#525252' : '#a3a3a3'}
-            gap={22}
-            size={1.5}
-          />
+          <CanvasDots color={theme === 'dark' ? '#525252' : '#a3a3a3'} gap={28} radius={0.75} />
         )}
         <Controls
           className="hidden md:block bg-white border border-neutral-200 rounded-md shadow-minimal mb-[env(safe-area-inset-bottom)]"

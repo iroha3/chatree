@@ -195,9 +195,11 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 - `node.maxTokens` 字段保留以兼容旧数据，新节点默认从模型继承配置；`onMaxTokensChange` 保留在 `NodeData` 接口中。
 
 ### 3.9 界面宽度与排版
-- **宽度对齐**：`.node-content` 的宽度（`src/index.css`）必须与 `ChatFlow.tsx` 的 `NODE_WIDTH` 严格一致（当前 **516**），避免节点与连线出现锚点错位。
+- **宽度对齐**：`.node-content` 的宽度（`src/index.css`）必须与 `ChatFlow.tsx` 的 `NODE_WIDTH` 严格一致（当前 **600**），避免节点与连线出现锚点错位。
 - **正文渲染**：回答正文由 `md-editor-rt` 渲染，字号与间距集中于 `src/index.css` 的 `.md-preview`（卡片与阅读浮窗共用）：卡片正文 19px，紧凑段落与列表间距；阅读浮层追加 `.reader` 降至 16px。
+- **排版参数只定义一次**：字号 / 行高 / 段距 / 标题缩放全部是 `index.css` `:root` 的 `--md-*` 变量（`--md-card-font` / `--md-reader-font` / `--md-line-height` / `--md-para-gap` / `--md-li-gap` / `--md-reader-para-gap` / `--md-h1`~`--md-h4`）。要调整就改这几行，**不要**在 `.md-preview` / `.question-text` / 卡片里硬编码像素值；行高与段距用 em，字号一改会跟着走。改动后跑 `bun test:ux`：那几条排版断言量的是计算后的 px（卡片 19px、浮窗 16px、段距上限），硬编码会直接失败。
 - **代码块等宽无缝**：标题栏 `.md-editor-code-head` 与代码区域必须严格等宽且垂直无缝隙。`.md-preview .md-editor-code pre` 内边距强制归零，缩进由内部 code 自身控制，行号不受影响。回归校验见 `node-ux-check.mjs`。
+- **画布点阵固定在屏幕空间**：`components/CanvasDots.tsx` 替代 React Flow 自带的 `<Background variant="dots">`。点阵的间距 / 半径 / 偏移全按屏幕像素写死，**缩放和平移都不动它** —— 只有卡片和连线在动。自带组件做不到：它把点半径乘上缩放（`radius = size × zoom / 2`），而且整块图案跟着视口 translate 一起走，放大时点胀成色斑、平移时点阵滑走。改回自带组件就会退回旧行为。
 
 ### 3.10 用量数字
 - 箭头方向：**↑ = 输入（prompt），↓ = 输出（completion）**。卡片底部的用量行和

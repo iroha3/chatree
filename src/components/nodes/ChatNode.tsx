@@ -470,7 +470,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
                 showInfo(t('消息已保存'));
               }
             }}
-            className="w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 text-[19px] leading-relaxed nodrag nopan"
+            className="question-text w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
             placeholder={t('输入消息...')}
             onKeyDown={handleKeyDown}
             onFocus={() => {
@@ -484,7 +484,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           />
         ) : (
           <div 
-            className="pr-10 max-h-[200px] min-h-[80px] overflow-auto text-[19px] leading-relaxed whitespace-pre-wrap select-text"
+            className="question-text pr-10 max-h-[200px] min-h-[80px] overflow-auto whitespace-pre-wrap select-text"
             style={{ touchAction: 'pan-y' }}
             onClick={() => setIsEditingUser(true)}
           >

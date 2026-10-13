@@ -5,6 +5,15 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [Unreleased]
+
+### Changed
+
+- **Cards are wider (516 → 600px).** The narrow column held only ~25 CJK characters per line, which made long answers feel cramped; the extra width brings it into a more comfortable reading range. Node spacing and the layout math were updated to match.
+- **Canvas grid dots are now a static backdrop.** They no longer scale or drift when you zoom or pan the canvas — only the cards and edges move. (React Flow's built-in dot background scaled the dot radius with zoom *and* translated the whole pattern with the viewport, so dots ballooned into blobs when zoomed in.)
+- **Scrollbars got tidier, and Firefox is covered too.** Thumb color/size now come from shared `--scrollbar-*` variables, so Chromium's `::-webkit-scrollbar` and Firefox's standard `scrollbar-width` / `scrollbar-color` stay in sync and follow dark mode automatically.
+- **Reading rhythm is now consistent inside a card.** The question and the answer used two different line-heights (1.625 vs. 1.75), and markdown headings were scaled down so far that they barely stood out in the narrow column. Both now share one line-height and the headings have a little more hierarchy. All of these values (font size, line height, paragraph/list gaps, heading scale) now live in a single set of `--md-*` CSS variables, so they can be tuned in one place.
+
 ## [0.8.2] - 2026-10-04
 
 ### Fixed

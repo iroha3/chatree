@@ -41,6 +41,33 @@
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
+
+  /* ------------------------------------------------------------
+     正文排版可调参数（卡片与阅读浮窗共用一套）。
+     字号 / 行高 / 段距全部只在这里定义一次：想整体调，改这几行；
+     改完跑 bun test:ux（排版断言：卡片 19px、浮窗 16px、段距上限）。
+     em 值会在使用处按当前字号解析，所以字号一改，间距跟着走。
+     ------------------------------------------------------------ */
+  --md-card-font: 19px;        /* 卡片正文 / 提问区字号 */
+  --md-reader-font: 16px;      /* 阅读浮窗正文字号 */
+  --md-line-height: 1.7;       /* 正文行高（提问区与回答统一，不再两种节奏） */
+  --md-para-gap: 0.5em;        /* 卡片段落 / 列表上下间距 */
+  --md-li-gap: 0.12em;         /* 卡片列表项之间 */
+  --md-reader-para-gap: 0.4em; /* 浮窗段落 / 列表上下间距（浮窗更紧凑） */
+  --md-h1: 1.3em;              /* 标题相对正文的缩放，窄列里拉开层级 */
+  --md-h2: 1.18em;
+  --md-h3: 1.06em;
+  --md-h4: 0.98em;
+
+  /* 滚动条（Chromium 用 ::-webkit-scrollbar，Firefox 用标准属性，共用这组颜色）。 */
+  --scrollbar-size: 10px;
+  --scrollbar-thumb: rgb(147 147 153 / 0.5);
+  --scrollbar-thumb-hover: rgb(120 120 125 / 0.7);
+}
+
+html.dark {
+  --scrollbar-thumb: rgb(120 120 125 / 0.5);
+  --scrollbar-thumb-hover: rgb(150 150 155 / 0.75);
 }
 
 html {
@@ -79,7 +106,14 @@ body {
 .user-message {
   background: linear-gradient(to bottom, #ffffff, #f9fafb);
   border: 1px solid rgba(226, 232, 240, 0.8);
-  font-size: 20px;
+  font-size: var(--md-card-font);
+}
+
+/* 提问区（编辑态 textarea 与只读态）字号 / 行高统一，
+   和回答正文共用同一组变量，避免一张卡片里出现两种纵向节奏。 */
+.question-text {
+  font-size: var(--md-card-font);
+  line-height: var(--md-line-height);
 }
 
 .assistant-message {
@@ -193,10 +227,11 @@ body {
   display: flex;
   flex-direction: column;
   /* 固定宽度：ChatFlow.tsx 的树形布局是按固定宽度算子树宽度的，
-     节点宽度不固定会让兄弟节点重叠。桌面端 516px，移动端（< 640px）自适应为全屏留边距。 */
-  width: 516px;
-  min-width: 516px;
-  max-width: 516px;
+     节点宽度不固定会让兄弟节点重叠。桌面端 600px，移动端（< 640px）自适应为全屏留边距。
+     改这里必须同步 ChatFlow.tsx 的 NODE_WIDTH（见 DEV §3.9）。 */
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
   max-height: 760px;
   scroll-behavior: smooth;
   overflow-wrap: break-word;
@@ -275,8 +310,11 @@ body {
   @apply prose prose-blue max-w-none;
   max-width: 100% !important;
   /* 和输入框 / 用户消息保持同一字号。Tailwind prose 默认 1rem（16px），
-     比输入区小一号，看起来像两种字体。 */
-  font-size: 19px;
+     比输入区小一号，看起来像两种字体。字号 / 行高见 :root 的 --md-* 变量。 */
+  font-size: var(--md-card-font);
+  /* prose 默认行高 1.75，和提问区的 leading-relaxed（1.625）不一致 ——
+     统一到同一个变量，同一张卡片只有一种纵向节奏。 */
+  line-height: var(--md-line-height);
   /* 代码块配色交给 md-editor 自己管（亮色 #f8f8f8 / 暗色 #1a1a1a）。
      Tailwind prose 默认会给 pre 铺一层深色底（--tw-prose-pre-bg = #1f2937），
      不关掉的话白天也是黑底。 */
@@ -290,7 +328,8 @@ body {
    `div.vuepress-theme{font-size:16px}`），只改 .md-preview 容器没用 ——
    真正装正文的是内层。标题用 em，会跟着一起缩放。 */
 .md-preview .md-editor-preview {
-  font-size: 19px;
+  font-size: var(--md-card-font);
+  line-height: var(--md-line-height);
 }
 
 /* 代码折行：长行直接换行，不靠横向滚动条。
@@ -319,12 +358,12 @@ body {
    Tailwind prose 也是 2.25em，塞在卡片里显得非常大。用户要求 # / ## 再小一点。
    注意 md-editor 的选择器是 `div.vuepress-theme h1`（特异度 0,1,2），
    高于 `.md-preview h1`（0,1,1），所以这里必须用 !important 才压得住。 */
-.md-preview h1 { font-size: 1.15em !important; }
-.md-preview h2 { font-size: 1.05em !important; }
-.md-preview h3 { font-size: 1em !important; }
+.md-preview h1 { font-size: var(--md-h1) !important; }
+.md-preview h2 { font-size: var(--md-h2) !important; }
+.md-preview h3 { font-size: var(--md-h3) !important; }
 .md-preview h4,
 .md-preview h5,
-.md-preview h6 { font-size: 0.95em !important; }
+.md-preview h6 { font-size: var(--md-h4) !important; }
 
 /* 纵向节奏。Tailwind prose 默认段落 / 列表上下各 1.25em、li 上下 0.5em，
    在 19px 字号下段距 ≈ 24px，卡片和浮窗里都显得空。用户反馈「段间距略大、
@@ -332,16 +371,16 @@ body {
    用 !important：md-editor 的 `div.vuepress-theme p` 特异度 (0,1,1) 不低于
    `.md-preview p` (0,1,1)，靠加载顺序取胜太脆。 */
 .md-preview :where(p) {
-  margin-top: 0.5em !important;
-  margin-bottom: 0.5em !important;
+  margin-top: var(--md-para-gap) !important;
+  margin-bottom: var(--md-para-gap) !important;
 }
 .md-preview :where(ul, ol) {
-  margin-top: 0.5em !important;
-  margin-bottom: 0.5em !important;
+  margin-top: var(--md-para-gap) !important;
+  margin-bottom: var(--md-para-gap) !important;
 }
 .md-preview :where(li) {
-  margin-top: 0.12em !important;
-  margin-bottom: 0.12em !important;
+  margin-top: var(--md-li-gap) !important;
+  margin-bottom: var(--md-li-gap) !important;
 }
 /* li 里再套 p（宽松列表）时不要再叠加一层段距 */
 .md-preview :where(li > p) {
@@ -369,12 +408,13 @@ body {
    `.md-editor-preview` 和 `div.vuepress-theme` 两处，所以都要盖。 */
 .md-preview.reader .md-editor-preview,
 .md-preview.reader .md-editor-preview .vuepress-theme {
-  font-size: 16px !important;
+  font-size: var(--md-reader-font) !important;
+  line-height: var(--md-line-height);
 }
 .md-preview.reader :where(p),
 .md-preview.reader :where(ul, ol) {
-  margin-top: 0.4em !important;
-  margin-bottom: 0.4em !important;
+  margin-top: var(--md-reader-para-gap) !important;
+  margin-bottom: var(--md-reader-para-gap) !important;
 }
 
 .md-preview table {
@@ -404,24 +444,38 @@ body {
   backdrop-filter: none !important;
 }
 
-/* 自定义滚动条 */
+/* 自定义滚动条。
+   Chromium / WebKit 走 ::-webkit-scrollbar 伪元素；Firefox 走标准的
+   scrollbar-width / scrollbar-color（这两个是**继承属性**，写在 html 上即可）。
+   两边共用上面那组 --scrollbar-* 变量，所以夜间模式白送。 */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
 }
 
 ::-webkit-scrollbar-track {
-  background-color: transparent;
-  -webkit-border-radius: 2em;
-  -moz-border-radius: 2em;
-  border-radius: 2em;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgb(147, 147, 153, 0.5);
-  -webkit-border-radius: 2em;
-  -moz-border-radius: 2em;
-  border-radius: 2em;
+  /* 透明边框 + background-clip：把滑块从 10px “收窄”成 6px，四周留出呼吸感。 */
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* 主要按钮 */
@@ -600,10 +654,6 @@ html.dark .md-preview {
   --tw-prose-pre-bg: #1a1a1a;
   --tw-prose-th-borders: #3d3d3d;
   --tw-prose-td-borders: #2e2e2e;
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background-color: rgba(120, 120, 125, 0.5);
 }
 
 /* ============================================================
