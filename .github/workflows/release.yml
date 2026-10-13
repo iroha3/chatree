@@ -8,15 +8,29 @@
 #   1. 这次 push 动过 package.json 的 version（对比 github.event.before）；
 #   2. 这个版本还没打过 tag `v<version>`（发完自动打，所以天然幂等）。
 #
+# 但闸门只能挡住「浪费一次打包」；它挡不住**取消正在跑的发布**：concurrency 是
+# 工作流级的，任何 push 都会在同一个 group 里建一个新 run。所以真正的根治是两道：
+#
+#   * `on.push.paths: ['package.json']` —— 日常提交根本不碰 package.json，压根不会
+#     创建 Release run（连那个十几秒的闸门 job 都省了）；
+#   * `cancel-in-progress: false` —— 即便连改两次版本号，也让前一次跑完，而不是把它
+#     连 tag 一起取消掉（tag 只在最后才打）。
+#
 # ❗ 别退回「只要 tag 不存在就发版」那种写法。版本号在开发期长期不变，而 tag 又只有
 #    发完才建 —— 那样每次 push 都会被判成「该发版」，然后重跑一遍全平台打包
 #    （四个 runner、每个 5–10 分钟）。第一版就是这么写的，用户原话：
 #    「构建成本巨高，怎么又不要钱随手构建啊」「哪有 push 一次构建一次的」。
+#
+# ❗ 也别把 `cancel-in-progress` 改回 true。取消的往往是**正在跑的那次发布**，
+#    而 tag / Release 只在最后才建，取消就留下一个半成品（实测过 0.2.0）。
 name: Release
 
 on:
   push:
     branches: [master]
+    # 只在动了 package.json 的 push 上触发。日常提交（docs / src）不会进
+    # Release 工作流，也就不可能取消一次正在进行的发布。
+    paths: ['package.json']
   # 后门：只有「发版跑挂了想原样重试」才用它，日常不碰。
   workflow_dispatch:
 
@@ -25,8 +39,10 @@ permissions:
   packages: write
 
 concurrency:
+  # 故意设成 false。连改两次版本号时，取消的会是**正在跑的那次发布**，而 tag
+  # 只在最后才打 —— 取消就留下一个没有 tag / Release 的半成品。让它们排队跑完即可。
   group: release
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ── 0. 版本与是否发版 ─────────────────────────────────────────

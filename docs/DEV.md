@@ -586,7 +586,7 @@ git push               # ← 这一个 push 就会触发全平台打包并建 Re
 1. 这次 push **动过** `package.json` 的 version（对比 `github.event.before`）；
 2. 这个版本**还没打过 tag** `v<version>`（发完自动打，所以天然幂等）。
 
-不满足就把后面所有 job 全部跳过 —— 普通提交依旧只花 ~15 秒。
+不满足就把后面所有 job 全部跳过。而且因为下面的 `paths` 过滤，普通提交（docs / src）**根本不会触发**这个工作流。
 
 > ❗ **不要退回「只要 tag 不存在就发版」那种写法。** 版本号在开发期长期不变，
 > 而 tag 又只有发完才建 —— 那样**每次 push 都会被判成「该发版」**，然后重跑
@@ -595,17 +595,12 @@ git push               # ← 这一个 push 就会触发全平台打包并建 Re
 >
 > `workflow_dispatch` 只作为后门保留（比如发版跑挂了想原样重试），日常不碰。
 >
-> `concurrency.cancel-in-progress: true`：连续改两次版本号时，旧的构建会被新的取消，
-> 不白烧一个 ——— 因为 tag 是在最后才打的，取消掉不会留下半个版本。
+> **发版不再会被普通提交打断。** 以前「任何 push 都触发」+ `cancel-in-progress: true` 的组合有个坑：`concurrency` 是**工作流级**的，一条 docs 提交也会在同一个 group 里建新 run，并在**入队时**把正在跑的发布取消掉 —— 而 tag / Release 只在最后才建，取消就留下半成品（实测过 0.2.0）。现在两道一起堵：
 >
-> ⚠️ **但发版正在跑的时候，别往 `master` 推代码。** `concurrency` 是**工作流级**的：
-> 任何 push 都会在同一个 group 里建一个新 run，而 `cancel-in-progress: true` 会在新 run
-> **入队时**就把正在跑的那次发版取消掉 —— 闸门 job 属于同一个 workflow，挡不住这个取消。
-> 也就是说「版本号没变、本来会被闸门跳过的普通提交」会**误杀一次正在进行的发版**。
-> **实测过了**：0.2.0 那次发版就是这样被一条 docs 提交取消掉的（想发版就跑一次
-> `workflow_dispatch` 补）。
-> 修法（未做）：把「闸门」和「打包」拆成两个 workflow（闸门在前、用自己的 group），
-> 或者干脆去掉 `cancel-in-progress`（代价：连改两次版本号会跑两次）。
+> 1. `on.push.paths: ['package.json']`：日常提交不碰 `package.json`，压根不会创建 Release run（连闸门 job 都省了）；
+> 2. `concurrency.cancel-in-progress: false`：即便连改两次版本号，也让前一次跑完，而不是把它取消掉。
+>
+> Push 事件的 workflow 定义取自**被推的那个 commit**，所以改触发器的那次 push 本身就已经按新规则判 —— 不会出现「改的这一下反而取消了自己」。（代价：连改两次版本号会排队跑两次全平台打包，可接受。）
 
 矩阵（公开仓库的 runner 不计费，但**时间**才是真正的成本）：
 
