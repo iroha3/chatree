@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
+import { Handle, Position, NodeProps, useReactFlow, useUpdateNodeInternals } from 'reactflow';
 import { Plus, Settings } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
 import { useSessionStore } from '../../stores/sessionStore';
@@ -7,10 +7,11 @@ import { gsap } from 'gsap';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import { useCardWheelChain } from '../../utils/wheelChain';
+import { centerCardOnNarrowScreen, focusWithoutScrolling } from '../../utils/cardFocus';
 import { highlightMatch } from '../../utils/text';
 import PathReaderOverlay from './PathReaderOverlay';
 
-const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
+const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data, xPos, yPos }) => {
   const { node, onEdit, onAddChild, onModelChange, onTemperatureChange } = data;
   const [isEditing, setIsEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -26,6 +27,7 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   // 同 ChatNode：Ctrl/⌘+滚轮缩放，普通滚轮先滚内层、滚到底再平移画布。
   useCardWheelChain(nodeRef);
   const updateNodeInternals = useUpdateNodeInternals();
+  const reactFlow = useReactFlow();
   const t = useT();
 
   // 同 ChatNode：入场不用位移动画（transform 会污染 React Flow 对 handle 的测量，
@@ -80,17 +82,16 @@ const SystemNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
+      // preventScroll：普通 focus() 会让浏览器把 `.react-flow`（假滚动容器）滚走，
+      // 整块画布和左下角的 Controls 会被永久推歪。手机上改用画布自己的平移。
+      focusWithoutScrolling(textareaRef.current);
       textareaRef.current.setSelectionRange(
         textareaRef.current.value.length,
         textareaRef.current.value.length
       );
-      if (typeof window !== 'undefined' && window.innerWidth < 640) {
-        setTimeout(() => {
-          textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
-      }
+      centerCardOnNarrowScreen(reactFlow, nodeRef.current, xPos, yPos);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
   useEffect(() => {

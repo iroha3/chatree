@@ -27,10 +27,6 @@
 
 ## 正确性 / 测试
 
-- 🟡 **发版的 `concurrency` 会误杀正在跑的构建**：见 `DEV.md` §8.1 的 ⚠️。
-  `cancel-in-progress: true` 是工作流级的，发版跑着时**任何** push 都会把它取消 ——
-  v0.2.0 那次发版就是这样被取消掉的。初步修法：闸门拆成独立 workflow，
-  或去掉 `cancel-in-progress`。待实测后定。
 - 📋 **补自动测试**：分支上下文组装、持久化、SSE 解析、`sessionTransfer` 导入校验、
   `sessionStore.importSessions` 去重、`computeChildPosition` 落点不重叠。
 - 📋 **假 SSE 服务器的端到端测试**：现在没覆盖「流式请求 → 停止 → 已生成内容落盘」。

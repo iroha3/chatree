@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
+import { Handle, Position, NodeProps, useReactFlow, useUpdateNodeInternals } from 'reactflow';
 import { MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/preview.css';
 import { Plus, Send, RefreshCcw, Settings, Trash2, MessageSquare, Brain, ChevronDown, Square, Maximize2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { gsap } from 'gsap';
 import { showInfo } from '../../utils/notification';
 import { countChars, highlightMatch, highlightDomText } from '../../utils/text';
 import { useCardWheelChain } from '../../utils/wheelChain';
+import { centerCardOnNarrowScreen, focusWithoutScrolling } from '../../utils/cardFocus';
 import { NodeData } from '../../types';
 import { useT } from '../../i18n';
 import PathReaderOverlay from './PathReaderOverlay';
@@ -31,7 +32,7 @@ const BouncingDots: React.FC = () => (
   </span>
 );
 
-const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
+const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data, xPos, yPos }) => {
   const { node, streamingResponse, streamingReasoning, autoFocus, onEdit, onAddChild, onDelete, onRetry, onResubmit, onStop, onModelChange, onTemperatureChange } = data;
   const [userMessage, setUserMessage] = useState(node.userMessage || '');
   const [isEditingUser, setIsEditingUser] = useState(!node.userMessage);
@@ -130,6 +131,14 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const userInputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
+  const reactFlow = useReactFlow();
+
+  /*
+   * 手机上把正在编辑的卡片挪到视野中央（软键盘会吃掉下半屏）。
+   * 必须用画布自己的平移 —— `scrollIntoView` 会去滚 `.react-flow` 这个
+   * 「假滚动容器」，把整块画布（连同 Controls）永久推歪。见 utils/cardFocus.ts。
+   */
+  const centerCard = () => centerCardOnNarrowScreen(reactFlow, nodeRef.current, xPos, yPos);
   
   /*
    * 入场只做透明度，**不做位移动画**。
@@ -197,17 +206,16 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
 
   useEffect(() => {
     if (isEditingUser && userInputRef.current) {
-      userInputRef.current.focus();
+      // preventScroll：普通 focus() 会让浏览器去「把焦点元素滚进视野」，
+      // 而它能滚的祖先只有 `.react-flow` 那个假滚动容器 —— 画布会被永久推歪。
+      focusWithoutScrolling(userInputRef.current);
       userInputRef.current.setSelectionRange(
         userInputRef.current.value.length,
         userInputRef.current.value.length
       );
-      if (typeof window !== 'undefined' && window.innerWidth < 640) {
-        setTimeout(() => {
-          userInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
-      }
+      centerCard();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditingUser]);
 
   /*
@@ -255,7 +263,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       // 用户已经在别的输入框里打字了，就不要抢
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) { stop(); return; }
 
-      el.focus();
+      focusWithoutScrolling(el);
       el.setSelectionRange(el.value.length, el.value.length);
       if (document.activeElement === el) stop();
     };
@@ -473,13 +481,7 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
             className="question-text w-full block p-3 pr-12 resize-none border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400 nodrag nopan"
             placeholder={t('输入消息...')}
             onKeyDown={handleKeyDown}
-            onFocus={() => {
-              if (typeof window !== 'undefined' && window.innerWidth < 640) {
-                setTimeout(() => {
-                  userInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
-              }
-            }}
+            onFocus={centerCard}
             rows={3}
           />
         ) : (
@@ -638,8 +640,11 @@ const ChatNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
         className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 !w-7 !h-7 !rounded-full !border-0"
       />
 
-      {/* 节点右下角的**次要动作簇** */}
-      <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">
+      {/* 节点右下角的**次要动作簇**
+          右边缘必须和输入框里的发送键落在同一条竖列上（DEV §3.3）：
+          发送键 = 卡片 1px 边框 + 输入框 px-4(16) + 框内 right-2(8) = 25px；
+          这簇在 `.node-content` 之外、没有那条 1px 边框，所以要用 1.5rem + 1px。 */}
+      <div className="absolute bottom-2 right-[calc(1.5rem_+_1px)] z-10 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity nodrag nopan">
         {node.isStreaming ? (
           <button
             className="flex h-6 w-6 items-center justify-center rounded text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"

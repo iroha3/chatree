@@ -23,7 +23,7 @@ async function getPageTarget() {
 
 class CDP {
   constructor(ws) {
-    this.ws = ws; this.id = 0; this.pending = new Map();
+    this.ws = ws; this.id = 0; this.evalSeq = 0; this.pending = new Map();
     ws.addEventListener('message', (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.id && this.pending.has(msg.id)) {
@@ -42,6 +42,41 @@ class CDP {
     const res = await this.send('Runtime.evaluate', { expression, awaitPromise, returnByValue: true });
     if (res.exceptionDetails) throw new Error('eval failed: ' + JSON.stringify(res.exceptionDetails));
     return res.result.value;
+  }
+  /*
+   * 异步求值：**不用** CDP 的 awaitPromise。
+   * 页面正忙 / V8 GC 时，evaluate 拿到的那个 promise 会在 resolve 之前被回收，
+   * CDP 报 `{"code":-32000,"message":"Promise was collected"}` —— 假失败，
+   * 重试也没用（同一个长挂起的 promise 会被反复丢）。改成「先发货、再轮询」：
+   * 同步 eval 起跑 IIFE、结果塞进 window.__chatreeEval，然后同步读回来。
+   */
+  async run(expression, timeoutMs = 30000) {
+    const tag = ++this.evalSeq;
+    await this.eval(`(() => {
+      const box = (window.__chatreeEval = window.__chatreeEval || {});
+      box[${tag}] = { pending: true };
+      Promise.resolve(${expression}).then(
+        (v) => { box[${tag}] = { done: true, value: v === undefined ? null : v }; },
+        (e) => { box[${tag}] = { done: true, error: String((e && e.stack) || e) }; },
+      );
+      return true;
+    })()`);
+    const started = Date.now();
+    for (;;) {
+      const r = await this.eval(`(() => {
+        const box = window.__chatreeEval || {};
+        const s = box[${tag}];
+        if (!s || s.pending) return null;
+        delete box[${tag}];
+        return s;
+      })()`);
+      if (r) {
+        if (r.error) throw new Error('eval failed: ' + r.error);
+        return r.value;
+      }
+      if (Date.now() - started > timeoutMs) throw new Error(`eval timeout (${timeoutMs}ms): ` + expression.slice(0, 80));
+      await sleep(60);
+    }
   }
 }
 
@@ -106,13 +141,37 @@ async function main() {
       const rE = { id: 's6e', parentId: 's6c', type: 'chat', userMessage: 'follow up', assistantMessage: 'follow up answer', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: now };
       tx.objectStore('sessions').put({ id: 's6', title: 'ReaderProbe', createdAt: now, updatedAt: now, nodes: [rA, rC, rD, rE], systemNodeSeeded: true });
       tx.objectStore('sessions').put({ id: 's5', title: 'WheelProbe', createdAt: now, updatedAt: now, nodes: [wheelSys, wheelChat], systemNodeSeeded: true });
+      // 长链专用：「卡片很多时新建卡片，画布被浏览器滚走」的回归。
+      // 必须是一条**很长的单链**：深部的节点在视口外，新建卡片的输入框一自动聚焦，
+      // 浏览器就会去「把焦点元素滚进视野」。updatedAt 故意早一天，别挤到列表最前面
+      // （下面的「新建会话」「关于页」用例都按列表顺序取行）。
+      const old = new Date(Date.now() - 86400000).toISOString();
+      const tall = [{ id: 's7a', parentId: null, type: 'system', userMessage: 'TALL-SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: old, systemPromptTouched: true, position: { x: -300, y: 0 } }];
+      for (let i = 1; i <= 8; i++) {
+        tall.push({ id: 's7' + 'abcdefgh'[i - 1], parentId: tall[i - 1].id, type: 'chat', userMessage: 'q' + i, assistantMessage: 'answer ' + i, modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: old, position: { x: -300, y: i * 608 } });
+      }
+      tx.objectStore('sessions').put({ id: 's7', title: 'TallChain', createdAt: old, updatedAt: old, nodes: tall, systemNodeSeeded: true });
+      // 拖动专用：坐标是手动指定的，别和别的会话挤在一起（按坐标点的用例都在 s3/s6/s7）。
+      const dragSys = { id: 's8a', parentId: null, type: 'system', userMessage: 'DRAG-SYS', assistantMessage: '', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: old, systemPromptTouched: true, position: { x: 0, y: 0 } };
+      const dragChat = { id: 's8c', parentId: 's8a', type: 'chat', userMessage: 'drag me', assistantMessage: 'answer body', modelId: 'm1', temperature: 0.7, maxTokens: 8192, createdAt: old, position: { x: 0, y: 200 } };
+      tx.objectStore('sessions').put({ id: 's8', title: 'DragProbe', createdAt: old, updatedAt: old, nodes: [dragSys, dragChat], systemNodeSeeded: true });
       tx.oncomplete = () => resolve('seeded');
       tx.onerror = () => resolve('tx-error:' + tx.error);
     };
     req.onerror = () => resolve('open-error');
   })`;
-  const seedRes = await cdp.eval(seed, true);
+  const seedRes = await cdp.run(seed);
   check('seed duplicate-system session', seedRes === 'seeded', seedRes);
+
+  // 清掉 TallChain 上次跑留下存的视口：那个回归用例需要**打开时它在最顶上**
+  // （深部卡片才在视口外、画布才有内容溢出）。不清的话第二次跑就会直接落在
+  // 上次的深部位置，断言什么都测不到。必须在这一步（下面重新 goto 之前）清 ——
+  // ChatFlow 是在模块加载时把 localStorage 读进内存 Map 的。
+  await cdp.eval(`(() => {
+    const v = JSON.parse(localStorage.getItem('treeai-viewports') || '{}');
+    delete v.s7;
+    localStorage.setItem('treeai-viewports', JSON.stringify(v));
+  })()`);
 
   await goto(APP);
   await sleep(1200);
@@ -238,7 +297,11 @@ async function main() {
 
   // 复制 Toast 要盖在阅读覆盖层之上（z 轴），否则根本看不见
   const toastZ = await cdp.eval(`(() => {
-    const t = document.querySelector('.fixed.top-4.right-4');
+    // Toast 容器是 fixed top-4 + z-[300]（移动端居中、桌面靠右），
+    // 别按具体定位类去找 —— 原来写的 .fixed.top-4.right-4 在改成
+    // 响应式定位后就匹配不到了。
+    const t = Array.from(document.querySelectorAll('.fixed.top-4'))
+      .find(el => el.className.includes('z-[300]'));
     return t ? getComputedStyle(t).zIndex : null;
   })()`);
   check('复制 Toast 在覆盖层之上', toastZ === '300', 'zIndex=' + toastZ);
@@ -430,7 +493,7 @@ async function main() {
     const n = document.querySelector('.react-flow__node[data-id="s3c"]');
     const cluster = Array.from(n.querySelectorAll('div')).find(d =>
       typeof d.className === 'string' && d.className.includes('opacity-0') &&
-      d.className.includes('gap-0.5') && d.className.includes('bottom-2'));
+      d.className.includes('gap-1') && d.className.includes('bottom-2'));
     if (!cluster) return { error: 'no cluster' };
     const inputRow = Array.from(n.querySelectorAll('div')).find(d =>
       typeof d.className === 'string' && d.className.includes('relative px-4 py-3'));
@@ -571,7 +634,7 @@ async function main() {
   await sleep(250);
 
   // 浏览器标签页标题：以前是 index.html 里写死的英文，界面切中文了它也不变。
-  const titleSwitch = await cdp.eval(`(async () => {
+  const titleSwitch = await cdp.run(`(async () => {
     const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/i18n/index.ts'));
     if (!url) return { error: 'i18n module not found', sample: performance.getEntriesByType('resource').map(e => e.name).slice(0, 5) };
     const m = await import(url);
@@ -580,7 +643,7 @@ async function main() {
     const en = document.title;
     m.useLangStore.getState().setLang('zh');
     return { before, en, back: document.title };
-  })()`, true);
+  })()`);
   check('标签页标题跟随语言（zh/en 都换）',
     !!titleSwitch && titleSwitch.before?.includes('分叉思考，并行对照') &&
       titleSwitch.en?.includes('Branch, Compare') &&
@@ -590,7 +653,7 @@ async function main() {
   // 回归：删除节点后，任何「迟到」的 updateNodeInSession（流式结束落盘 /
   // 输入框 onBlur 草稿保存 / 中止回调）都不能把节点复活 —— 这正是
   // 「删掉的节点又跳出来」的根因（旧实现是 upsert，找不到就 append）。
-  const ghost = await cdp.eval(`(async () => {
+  const ghost = await cdp.run(`(async () => {
     // 必须复用页面里已加载的那份模块（带 Vite 的 ?t= HMR 查询），
     // 否则动态 import 会新建一个 zustand store 实例，读不到真实 session。
     const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/stores/sessionStore.ts'));
@@ -604,7 +667,7 @@ async function main() {
     const deleted = !has();
     st.updateNodeInSession('s3', { ...fake, assistantMessage: 'late' });
     return { url, added, deleted, resurrected: has() };
-  })()`, true);
+  })()`);
   check('删除后迟到的 updateNodeInSession 不会复活节点', ghost.added && ghost.deleted && ghost.resurrected === false, JSON.stringify(ghost));
 
   // 新建会话：中文界面下标题就是「新会话」，而且不再被 hover 操作区挤到截断
@@ -633,15 +696,21 @@ async function main() {
   check('关于页显示版本号，且网页版不提示更新',
     typeof about.version === 'string' && about.nags.length === 0,
     JSON.stringify(about));
-  await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
-  await sleep(300);
+  // 关掉设置弹窗。不能 dispatch 到 window —— SettingsModal 的 Esc 监听挂在
+  // `document` 上，而 `window.dispatchEvent` 的事件到 window 就结束了，document
+  // 收不到。留着不关的话，后面所有**按坐标**的用例都会被这层遮罩吃掉
+  // （鼠标事件落在弹窗上，拖动压根不会发生）。
+  await cdp.eval(`Array.from(document.querySelectorAll('button')).find(b => b.title === '关闭')?.click()`);
+  await sleep(400);
+  check('「关于」看完后设置弹窗被关掉（后面的坐标用例才不会被遮罩吃掉）',
+    (await cdp.eval(`!document.querySelector('.fixed.inset-0.z-50')`)) === true);
 
   // ── 什么行为会让会话置顶？────────────────────────────────
   // `updatedAt` 的语义是「最后一次**发起生成**」。改字 / 拖卡片 / 重命名 /
   // 删节点都是「整理」，绝不能把会话顶到列表最前。
   // （用户：「点击编辑后不修改退出编辑肯定不能置顶，更进一步，真编辑我理解
   //  也不能置顶」）
-  const orderCheck = await cdp.eval(`(async () => {
+  const orderCheck = await cdp.run(`(async () => {
     const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/stores/sessionStore.ts'));
     const S = m => m.useSessionStore;
     const m2 = await import(url);
@@ -682,7 +751,7 @@ async function main() {
     const afterDelete = order();
 
     return { before, afterNoop, afterEdit, afterDrag, afterAdd, reset, afterDelete };
-  })()`, true);
+  })()`);
 
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check('改字（含原样退出编辑）不置顶',
@@ -745,8 +814,21 @@ async function main() {
   check('打开时定位到目标卡片顶部（不是卡片中间）',
     land.scrollTop > 0 && land.cardTop >= -40 && land.cardTop <= 80, JSON.stringify(land));
 
-  check('只有一个后续时，末尾提示「继续往下滚」',
-    (await cdp.eval(`document.querySelector('[role="dialog"]').textContent.includes('继续往下滚')`)) === true);
+  // 而且**过一会儿还得在**：卡片里的 Markdown 是渲染完再补高亮 / 公式的，
+  // 目标卡片上面的内容一变高，它就会往下跑。以前是「60ms 后 scrollIntoView 一次」，
+  // 滚早了等于没滚（内容还没长出来），于是「打开浮层没有落在我双击的那张卡上」时有时无。
+  await sleep(900);
+  const landLater = await cdp.eval(`(() => {
+    const sc = document.querySelector('[role="dialog"] .overflow-y-auto');
+    const card = sc.querySelector('[data-reader-node="s6c"]');
+    return { scrollTop: Math.round(sc.scrollTop), cardTop: Math.round(card.getBoundingClientRect().top - sc.getBoundingClientRect().top) };
+  })()`);
+  check('布局长高后仍停在目标卡片上（不会飘走）',
+    landLater.cardTop >= -40 && landLater.cardTop <= 80, JSON.stringify(landLater));
+
+  // 尾巴上的提示文案是「向下滚动阅读下一轮」（以前叫「继续往下滚」，跟着改了）
+  check('只有一个后续时，末尾提示「向下滚动阅读下一轮」',
+    (await cdp.eval(`document.querySelector('[role="dialog"]').textContent.includes('向下滚动阅读下一轮')`)) === true);
 
   // 点兄弟分支 → 卡片流切过去（旧分支的卡片必须消失）
   await cdp.eval(`(() => {
@@ -769,7 +851,7 @@ async function main() {
   })()`);
   await sleep(500);
   // 顺便数一下 scroll 事件：平滑滚动会抖出很多次，`scrollTop = x` 那种瞬间跳只有一次。
-  const advance = await cdp.eval(`(async () => {
+  const advance = await cdp.run(`(async () => {
     const dlg = document.querySelector('[role="dialog"]');
     const sc = dlg.querySelector('.overflow-y-auto');
     sc.style.scrollBehavior = 'auto';
@@ -792,7 +874,7 @@ async function main() {
       landed: landed ? landed.getAttribute('data-reader-node') : null,
       hasFollow: (dlg.textContent || '').includes('follow up answer'),
     };
-  })()`, true);
+  })()`);
   check('读到底继续滚：自动翻到下一轮',
     advance.before.hasFollow === false && advance.hasFollow === true,
     JSON.stringify(advance));
@@ -848,6 +930,143 @@ async function main() {
   const paneAfterBottom = await fireWheel(150);
   check('内层滚到底：滚轮放行，交给画布平移',
     paneAfterBottom > 0, JSON.stringify({ paneAfterBottom }));
+
+  // ==== 新建卡片不能把画布「滚走」（DEV §4.9）====
+  // 症状：「卡片多的时候新建一张卡，画布突然滚不动了，左下角那四个按钮反而
+  // 跑到了中间」。
+  //
+  // 根因：`.react-flow` 是 `overflow: hidden` —— 没有滚动条，但浏览器仍然把它
+  // 当成**可滚动容器**。新建卡片的输入框自动聚焦时，浏览器为了「把焦点元素
+  // 滚进视野」会改掉它的 scrollTop（卡片越多、坐标越远，这个值越大，几千像素
+  // 起步）。于是整块画布连同左下角的 Controls 一起被平移出去，而用户没有任何
+  // 滚动条能把它们拉回来。
+  //
+  // 现在两层护栏：CSS 把 `.react-flow` 设成 `overflow: clip`（不是滚动容器，
+  // 连程序滚动也不行）+ 所有聚焦都带 `preventScroll`。
+  await cdp.eval(`Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('TallChain')).click()`);
+  await sleep(1600);
+
+  const canvasScroll = () => cdp.eval(`(() => {
+    const rf = document.querySelector('.react-flow');
+    const c = document.querySelector('.react-flow__controls');
+    const rr = rf.getBoundingClientRect(), cr = c.getBoundingClientRect();
+    return {
+      overflow: getComputedStyle(rf).overflowY,
+      st: rf.scrollTop, sl: rf.scrollLeft,
+      // 有内容溢出，才有「被滚走」的可能 —— 否则这个用例什么都没测到
+      scrollable: rf.scrollHeight > rf.clientHeight + 1,
+      controlsBottomGap: +(rr.bottom - cr.bottom).toFixed(1),
+      transform: document.querySelector('.react-flow__viewport')?.style.transform,
+    };
+  })()`);
+  const beforeAdd = await canvasScroll();
+  // ① 先把触发条件做足：让一张**在视口外**的卡片进入编辑态。
+  //    输入框的聚焦（以前是不带参数的 focus()）会让浏览器去「把焦点元素滚进视野」，
+  //    而它眼里唯一的滚动祖先就是 `.react-flow` 这个「假滚动容器」。
+  //    这一步是确定性的：不依赖 setCenter 和新卡片测量谁先跑（那个竞态就是它
+  //    一直“不能稳定复现”的原因 —— 谁都可能先到）。
+  await cdp.eval(`document.querySelector('.react-flow__node[data-id="s7h"] .question-text').click()`);
+  await sleep(500);
+  const afterEdit = await canvasScroll();
+  check('屏幕外的卡片进入编辑态：聚焦不会把画布容器滚走（Controls 仍在左下）',
+    beforeAdd.scrollable === true && afterEdit.overflow === 'clip' &&
+      afterEdit.st === 0 && afterEdit.sl === 0 &&
+      afterEdit.controlsBottomGap >= -1 && afterEdit.controlsBottomGap <= 20,
+    JSON.stringify({ beforeAdd, afterEdit }));
+
+  // ② 再走一遍用户报的那条路：新建卡片 → 输入框自动聚焦 → 画布不能被推歪。
+  await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s7h"]');
+    Array.from(n.querySelectorAll('button')).find(b => b.title === '添加子节点').click();
+  })()`);
+  await sleep(1600);
+  const afterAdd = await canvasScroll();
+  const newFocused = await cdp.eval(`(() => {
+    const a = document.activeElement;
+    return !!a && a.tagName === 'TEXTAREA' && !!a.closest('.react-flow__node');
+  })()`);
+  check('新建卡片：输入框自动聚焦，画布仍然没被滚走',
+    afterAdd.overflow === 'clip' && afterAdd.st === 0 && afterAdd.sl === 0 &&
+      newFocused === true &&
+      afterAdd.controlsBottomGap >= -1 && afterAdd.controlsBottomGap <= 20,
+    JSON.stringify({ afterAdd, newFocused }));
+
+  // ==== 输出时拖动卡片会「抖」（DEV §4.10）====
+  // 症状：流式输出期间拖一张卡，卡片一路哆嗦。
+  //
+  // 根因：节点坐标只有 onNodeDragStop 才写回 store，而「按 session.nodes 重建
+  // nodes」的 effect 是**每个流式 token 都会跑一次**的。它一旦拿 store 里
+  // （= 按下鼠标那一刻）的旧坐标重建，正被拖着的那张卡就被拽回原位，下一个
+  // pointermove 又把它推回来 —— 每来一个 token 抖一下。
+  //
+  // 复现方式：按住鼠标拖到一半时写一次 store（等价于「来了一个 token，
+  // 让重建 effect 跑一遍」），卡片的屏幕位置必须一动不动。
+  // 设置弹窗必须在「关于」那一节就关掉（见上面的断言）。
+  await cdp.eval(`Array.from(document.querySelectorAll('.sidebar-session')).find(r => r.textContent.includes('DragProbe')).click()`);
+  await sleep(1600);
+
+  const dragStart = await cdp.eval(`(() => {
+    const n = document.querySelector('.react-flow__node[data-id="s8c"]');
+    if (!n) return { error: 'no node' };
+    const r = n.getBoundingClientRect();
+    // 落在标题栏上（避开右侧的按钮簇）：桌面端整卡可拖
+    const x = Math.round(r.left + 60), y = Math.round(r.top + 14);
+    const el = document.elementFromPoint(x, y);
+    // 弹窗盖住了画布的话，这几次鼠标事件全会被弹窗吃掉，用例就白测了
+    return { x, y, left: Math.round(r.left), top: Math.round(r.top), inside: !!el && n.contains(el), hit: el ? el.tagName + '.' + String(el.className).slice(0, 70) : null };
+  })()`);
+  if (dragStart.inside !== true) {
+    await cdp.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+    await sleep(300);
+  }
+  const dragTo = (dx, dy) => cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: dragStart.x + dx, y: dragStart.y + dy, button: 'left', buttons: 1,
+  });
+  const nodePos = () => cdp.eval(`(() => {
+    const r = document.querySelector('.react-flow__node[data-id="s8c"]').getBoundingClientRect();
+    return { left: Math.round(r.left), top: Math.round(r.top) };
+  })()`);
+  const storedNodePos = () => cdp.run(`(async () => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/stores/sessionStore.ts'));
+    const m = await import(url);
+    return m.useSessionStore.getState().sessions.find(x => x.id === 's8').nodes.find(x => x.id === 's8c').position;
+  })()`);
+
+  const posBeforeDrag = await storedNodePos();
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragStart.x, y: dragStart.y, button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 6; i++) { await dragTo(i * 8, i * 4); await sleep(20); }
+  const midDrag = await nodePos();
+  // 「流式来了一个 token」：改正文 → session.nodes 变化 → 重建 nodes
+  await cdp.run(`(async () => {
+    const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/src/stores/sessionStore.ts'));
+    const m = await import(url);
+    const st = m.useSessionStore.getState();
+    const n = st.sessions.find(x => x.id === 's8').nodes.find(x => x.id === 's8c');
+    st.updateNodeInSession('s8', { ...n, assistantMessage: n.assistantMessage + ' +token' });
+    return true;
+  })()`);
+  await sleep(400);
+  const afterToken = await nodePos();
+  const contentUpdated = await cdp.eval(`document.querySelector('.react-flow__node[data-id="s8c"]').textContent.includes('+token')`);
+  // 接着拖：位置必须继续跟着鼠标走，不能「跳回去再推回来」
+  for (let i = 7; i <= 12; i++) { await dragTo(i * 8, i * 4); await sleep(20); }
+  const laterDrag = await nodePos();
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragStart.x + 96, y: dragStart.y + 48, button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(500);
+  const posAfterDrag = await storedNodePos();
+
+  const near = (a, b, tol = 1) => !!a && !!b && Math.abs(a.left - b.left) <= tol && Math.abs(a.top - b.top) <= tol;
+  check('输出时拖动卡片不会「抖」：store 变更不把拖动中的卡片拽回原位',
+    dragStart.inside === true &&
+      // 真的拖起来了（否则这个用例什么都没测到）
+      midDrag.left - dragStart.left >= 8 && midDrag.top - dragStart.top >= 4 &&
+      contentUpdated === true &&
+      // 关键断言：中途写 store（= 来了一个 token）位置一动不动
+      near(midDrag, afterToken) &&
+      laterDrag.left > afterToken.left + 4 && laterDrag.top > afterToken.top + 2 &&
+      // 松手时坐标仍然要落库（别把保存位置也一起弄丢了）
+      posAfterDrag.x !== posBeforeDrag.x,
+    JSON.stringify({ dragStart, midDrag, afterToken, laterDrag, contentUpdated, posBeforeDrag, posAfterDrag }));
 
   check('无运行时报错', errors.length === 0, errors.slice(0, 3).join(' | '));
 

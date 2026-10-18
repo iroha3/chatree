@@ -141,6 +141,26 @@ body {
 }
 
 /*
+ * 画布外层**绝不能是可滚动容器**。
+ *
+ * React Flow 给这层元素写了内联 `overflow: hidden`（wrapperStyle）—— 没有滚动条，
+ * 可在浏览器眼里它仍然是一个可滚动容器，而里面装着几千像素高的节点，
+ * scrollHeight 轻松上万。于是「把焦点元素滚进视野」这类**浏览器自己的**滚动
+ * （el.focus() / scrollIntoView / 页内查找）会直接改掉它的 scrollTop：整块画布
+ * 连同左下角的 Controls 一起被推歪，而用户没有任何滚动条能拉回来。
+ *
+ * 症状就是用户报的：「卡片多的时候新建一张卡，画布突然滚不动了，左下的四个
+ * 按钮反而跑到了中间」。
+ *
+ * `overflow: clip` 和 `hidden` 的裁剪效果一样，但**不是滚动容器**：既没有滚动条，
+ * 也不接受程序滚动（scrollTop 永远是 0）。必须 `!important` —— 内联样式优先。
+ * 聚焦侧还有一道 `preventScroll` 护栏，见 `utils/cardFocus.ts`（DEV §4.9）。
+ */
+.react-flow {
+  overflow: clip !important;
+}
+
+/*
  * 统一光标，消掉流式输出时的光标抖动。
  *
  * React Flow 给 .react-flow__pane / .react-flow__viewport 设了 cursor: grab，

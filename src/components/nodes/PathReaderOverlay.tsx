@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Brain, ChevronDown, BookOpen, GitBranch, Settings, CornerDownRight, Download } from 'lucide-react';
 import { MdPreview } from 'md-editor-rt';
@@ -54,9 +54,20 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const overscrollRef = useRef(0);
   /** 平滑滚动刚起步的那几十毫秒里，容器还停在底部，得挡住重复翻页。 */
   const advanceLockRef = useRef(0);
-  /** 打开浮层那一下用瞬到（平滑滑一大段反而慢），之后就一律和点分支同一种滚动。 */
-  const behaviorRef = useRef<ScrollBehavior>('auto');
-  const mountedRef = useRef(false);
+  /**
+   * 「瞬到」还是「平滑滚动」——**由导航的入口决定，不由 effect 决定**。
+   *
+   * 打开浮层：瞬到（一打开就滑一大段很别扭）。
+   * 点分支 / 读到底翻下一轮：平滑滚动（D-013 的「丝滑」）。
+   *
+   * ⚠️ 别在 effect 里「消费」这个标记（比如跑完就置 false）：dev 的 StrictMode
+   * 会把 effect 跑两遍（run → cleanup → run），第二遍就以为自己不是首次打开，
+   * 首屏于是变成平滑滚动 —— 慢慢滑一段、还可能没滑到位就被当成“已定位”。
+   * 只由用户的导航操作改它，两遍 effect 读到的就都是同一个值。
+   */
+  const instantRef = useRef(true);
+  /** 定位循环的 rAF 句柄（见下面的定位 effect）。 */
+  const alignRef = useRef<number | null>(null);
 
   // 节点组件只知道自己，拿不到整棵树，所以从 store 里把所在会话找出来。
   const session = useSessionStore((s) => s.sessions.find((x) => x.nodes.some((n) => n.id === targetId)));
@@ -67,27 +78,106 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   const nextBranches = useMemo(() => (last ? childrenOf(nodes, last.id) : []), [nodes, last]);
   const turns = path.filter((n) => n.type === 'chat').length;
 
-  // 定位到目标卡片的**顶部** —— 双击的意图是「从这里开始读」，不是看卡片中间。
-  // 滚轮翻页和点分支用**同一种**平滑滚动 —— 之前滚轮用瞬到，结果就是「内容直接
-  // 传送走了，我也跟着不知道读到哪了」。首屏例外：刚打开浮层就滑一大段很别扭。
+  /** 切分支 / 翻下一轮：之后的定位一律平滑滚动。 */
+  const goTo = useCallback((id: string) => {
+    instantRef.current = false;
+    setCurrentId(id);
+  }, []);
+
+  const cancelAlign = useCallback(() => {
+    if (alignRef.current !== null) {
+      cancelAnimationFrame(alignRef.current);
+      alignRef.current = null;
+    }
+  }, []);
+
+  /*
+   * 定位到目标卡片的**顶部** —— 双击的意图是「从这里开始读」，不是看卡片中间。
+   *
+   * 以前是「60ms 后 scrollIntoView 一次」，那是撞运气：卡片里的 Markdown 由
+   * md-editor 渲染完、再在 effect 里补高亮 / 公式，**目标卡片上面**的内容一变高，
+   * 它的位置就跟着往下跑。于是 60ms 时滚对了，200ms 后又错位 —— 滚早了等于没滚，
+   * 滚晚了位置已经变了，表现就是「打开浮层没有落在我双击的那张卡上，时有时无」。
+   *
+   * 现在：
+   * - **首次打开**：用 rAF 逐帧把锚点按住（瞬到，不滑动），直到目标位置连续几帧
+   *   不再变化（布局稳了）或超时；滚轮 / 触摸一动手就交还控制权。
+   * - **切分支 / 翻下一轮**：目标卡片上方的祖先卡片是同一批、布局基本不动，所以
+   *   等布局稳一两帧后**只发一次**平滑滚动 —— 保持「丝滑」（见 D-013）。
+   */
   useEffect(() => {
-    const behavior = behaviorRef.current;
-    behaviorRef.current = 'smooth';
+    const instant = instantRef.current;
+    // 落点高亮：翻到 / 点开的那张卡片，告诉你「现在读的是这张」。
+    setLandedId(currentId);
     overscrollRef.current = 0;
-    // 平滑滚动起步前（下面 60ms 那一段）容器还在底部，把重复翻页挡住。
+    // 定位期间容器位置一直在变，别把它误判成「读到底了」而连环翻页
+    // （一次平滑滚动大约 300ms，400ms 足够盖住它）。
     advanceLockRef.current = Date.now() + 400;
-    if (mountedRef.current) setLandedId(currentId);
-    mountedRef.current = true;
-    const id = window.setTimeout(() => {
-      cardRefs.current[currentId]?.scrollIntoView({ behavior, block: 'start' });
-    }, 60);
+
+    cancelAlign();
+    const startedAt = performance.now();
+    let lastTop: number | null = null;
+    let stableFrames = 0;
+    let smoothSent = false;
+    // 上一次「瞬到」时真正写进去的 scrollTop（可能被浏览器 clamp，所以要回读）
+    let pinnedTop: number | null = null;
+
+    const step = () => {
+      alignRef.current = null;
+      const scroller = scrollerRef.current;
+      const card = cardRefs.current[currentId];
+      if (!scroller || !card) {
+        // portal 刚进 DOM、卡片还没挂上：下一帧再看
+        if (performance.now() - startedAt < 1500) {
+          alignRef.current = requestAnimationFrame(step);
+        }
+        return;
+      }
+
+      // 有人（用户键盘 / 别的代码）动了滚动位置 → 立刻交还控制权，
+      // 别跟人抢滚动条。只在「瞬到」这条路上判断：平滑滚动时 scrollTop 一直在变。
+      if (instant && pinnedTop !== null && Math.abs(scroller.scrollTop - pinnedTop) > 1) return;
+
+      // 用 rect 差 + 当前 scrollTop 算「卡片顶部贴住容器顶部」需要的 scrollTop。
+      // 不用 offsetTop：卡片的定位祖先是那个 fixed 遮罩，不是滚动容器。
+      const desired =
+        card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+
+      // 布局是否还在动 —— 必须先算、再决定要不要发滚动（否则会差一帧：
+      // 等到 stableFrames 够了的那一帧，done 已经成立，滚动永远发不出去）。
+      const stable = lastTop !== null && Math.abs(desired - lastTop) < 1;
+      stableFrames = stable ? stableFrames + 1 : 0;
+      lastTop = desired;
+
+      if (instant) {
+        if (Math.abs(desired - scroller.scrollTop) > 1) scroller.scrollTop = desired;
+        pinnedTop = scroller.scrollTop;
+      } else if (!smoothSent && stableFrames >= 1) {
+        // 布局稳了再发 —— 否则平滑滚动算出来的终点马上又过时
+        scroller.scrollTo({ top: desired, behavior: 'smooth' });
+        smoothSent = true;
+      }
+
+      // 瞬到要一直盯到布局稳定（Markdown 的补处理不一定落在前几帧里，
+      // 稳定之后再长高一次也很常见）；平滑滚动只发一次就收工。
+      // 位置没变时什么都不做，所以多盯几百毫秒没代价。
+      const done = instant
+        ? stableFrames >= 6 && performance.now() - startedAt >= 700
+        : smoothSent;
+      if (!done && performance.now() - startedAt < 1500) {
+        alignRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    alignRef.current = requestAnimationFrame(step);
+
     // 高亮只留一下，别让它在已经读完的卡片上一直亮着。
     const clear = window.setTimeout(() => setLandedId(null), 1200);
     return () => {
-      window.clearTimeout(id);
+      cancelAlign();
       window.clearTimeout(clear);
     };
-  }, [currentId]);
+  }, [currentId, cancelAlign]);
 
   // Esc 关闭。挂在 window 上，不依赖内层元素是否聚焦。打开期间锁掉 body 滚动。
   useEffect(() => {
@@ -115,6 +205,8 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
   // 只在**恰好一个**后续时才自动翻：有分叉就得让用户自己选（D-013）。多滑一截
   // （阈值）才翻，否则刚看到最后一行还没读完就被顶走了。
   const handleReaderWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    // 用户自己滚了 = 他想看别处，别再把他按在目标卡片上
+    cancelAlign();
     if (nextBranches.length !== 1 || e.deltaY <= 0) {
       overscrollRef.current = 0;
       return;
@@ -133,7 +225,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
     overscrollRef.current += e.deltaY;
     if (overscrollRef.current >= ADVANCE_AFTER) {
       overscrollRef.current = 0;
-      setCurrentId(nextBranches[0].id);
+      goTo(nextBranches[0].id);
     }
   };
 
@@ -179,7 +271,13 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
           </div>
         </div>
 
-        <div ref={scrollerRef} onWheel={handleReaderWheel} className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div
+          ref={scrollerRef}
+          onWheel={handleReaderWheel}
+          // 拖动滚动条 / 触屏滑 → 立刻停止自动锚定
+          onPointerDown={cancelAlign}
+          className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+        >
           {path.length === 0 ? (
             <p className="py-10 text-center text-sm italic text-neutral-400">{t('这条路径没有内容')}</p>
           ) : (
@@ -214,10 +312,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                           {group.map((m, i) => (
                             <button
                               key={m.id}
-                              onClick={() => {
-                                behaviorRef.current = 'smooth';
-                                setCurrentId(m.id);
-                              }}
+                              onClick={() => goTo(m.id)}
                               className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${m.id === node.id
                                   ? 'bg-neutral-900 text-white font-medium'
                                   : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
@@ -328,10 +423,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                           {group.map((m, i) => (
                             <button
                               key={m.id}
-                              onClick={() => {
-                                behaviorRef.current = 'smooth';
-                                setCurrentId(m.id);
-                              }}
+                              onClick={() => goTo(m.id)}
                               className={`w-full rounded-md px-2 py-1.5 text-left text-[12px] leading-snug transition-colors ${m.id === node.id
                                   ? 'bg-neutral-900 text-white'
                                   : 'text-neutral-600 hover:bg-neutral-100'
@@ -358,10 +450,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                 {t('向下滚动阅读下一轮')}
               </div>
               <button
-                onClick={() => {
-                  behaviorRef.current = 'smooth';
-                  setCurrentId(nextBranches[0].id);
-                }}
+                onClick={() => goTo(nextBranches[0].id)}
                 className="mt-2 max-w-[320px] truncate rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-[12px] text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50"
               >
                 {preview(nextBranches[0])}
@@ -377,10 +466,7 @@ const PathReaderOverlay: React.FC<PathReaderOverlayProps> = ({ targetId, streami
                 {nextBranches.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => {
-                      behaviorRef.current = 'smooth';
-                      setCurrentId(m.id);
-                    }}
+                    onClick={() => goTo(m.id)}
                     className="max-w-[260px] truncate rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-left text-[12px] text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50"
                   >
                     {preview(m)}

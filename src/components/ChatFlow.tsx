@@ -467,6 +467,21 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
    */
   const flowNodesRef = useRef<Map<string, Node>>(new Map());
   flowNodesRef.current = new Map(nodes.map(n => [n.id, n]));
+  /**
+   * 正在拖动的节点 → 画布上的实时坐标。
+   *
+   * 节点位置只有 onNodeDragStop 时才写回 store，而「按 session.nodes 重建 nodes」
+   * 的 effect 会因为**别的原因**随时重跑（流式 token 是最常见的）：
+   * 它一旦拿 store 里的旧坐标去重建，正被拖着的那张卡就被拽回按下鼠标时的地方，
+   * 下一个 pointermove 又把它推回去 —— 每个 token 抖一次。
+   * 所以拖动期间位置以这里为准，不读 store（用户：「输出时拖动卡片会抖」）。
+   */
+  const dragPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const rememberDragPositions = (dragged: Node[]) => {
+    for (const n of dragged) {
+      dragPositionsRef.current.set(n.id, { x: n.position.x, y: n.position.y });
+    }
+  };
   // 当前 edges 的结构指纹，避免结构没变时反复 setEdges
   const edgeSignatureRef = useRef('');
 
@@ -1315,8 +1330,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     const needle = searchQuery.trim().toLowerCase();
 
     const reactFlowNodes = session.nodes.map(node => {
-      // 保存过位置就用保存的；没有（手工改过的导入文件、根节点）退回「父节点正下方」
-      const position = resolveNodePosition(node, session.nodes);
+      // 保存过位置就用保存的；没有（手工改过的导入文件、根节点）退回「父节点正下方」。
+      // 拖动中的节点例外：store 里还是「按下鼠标那一刻」的坐标，用了就会抖。
+      const position = dragPositionsRef.current.get(node.id) ?? resolveNodePosition(node, session.nodes);
       const liveResponse = streamingResponses[node.id] || null;
       const liveReasoning = streamingReasoning[node.id] || null;
       const autoFocus = pendingFocusId === node.id;
@@ -1567,21 +1583,23 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
           setNodes(nds => applyNodeChanges(changes, nds));
           collectNodeDimensions(changes);
         }}
-        onNodeDragStop={(_event, node) => {
-          // 节点拖动结束后保存位置
+        // 第三个参数是「这次手势一起被拖的所有节点」：多选拖动时 React Flow 只对
+        // 主节点回调，但它会把整批节点一起给我们 —— 光记主节点的话，同批被拖的
+        // 其它卡片仍然会在流式 token 到达时被拽回 store 里的旧坐标。
+        onNodeDragStart={(_event, _node, dragged) => rememberDragPositions(dragged)}
+        onNodeDrag={(_event, _node, dragged) => rememberDragPositions(dragged)}
+        onNodeDragStop={(_event, _node, dragged) => {
           if (!session) return;
-
-          const chatNode = session.nodes.find(n => n.id === node.id);
-          if (!chatNode) return;
-
-          // 更新节点位置
-          updateNodeInSession(sessionId, {
-            ...chatNode,
-            position: {
-              x: node.position.x,
-              y: node.position.y
-            }
-          });
+          for (const node of dragged) {
+            // 落点写回 store 之后就不需要实时坐标了
+            dragPositionsRef.current.delete(node.id);
+            const chatNode = session.nodes.find(n => n.id === node.id);
+            if (!chatNode) continue;
+            updateNodeInSession(sessionId, {
+              ...chatNode,
+              position: { x: node.position.x, y: node.position.y },
+            });
+          }
         }}
       >
         {grid === 'dots' && (

@@ -5,6 +5,14 @@ All user-visible changes to Chatree are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 semantic versioning for tagged releases. `package.json`'s `version` is the single source of truth.
 
+## [Unreleased]
+
+### Fixed
+
+- **The canvas can no longer be scrolled out from under you.** When a session had a lot of cards, creating a new one could leave the canvas panned into empty space with the zoom Controls stranded in the middle of the screen — and nothing could bring it back, because there is no scrollbar. The canvas wrapper (`.react-flow`) is `overflow: hidden`, which looks unscrollable but is still a *scroll container* to the browser: auto-focusing the new card's text box (or entering edit mode on a card outside the viewport) let the browser "scroll the focused element into view", which shifted that wrapper by thousands of pixels — cards, edges **and** the Controls all moved with it. The wrapper is now `overflow: clip` (clipping without ever being scrollable), focus is always done with `preventScroll`, and the mobile "bring the edited card into view" behaviour now pans the canvas properly instead of scrolling its container. See `docs/DEV.md` §4.9.
+- **Double-clicking a card no longer opens the reader on the wrong card.** The reader used to jump to the card you double-clicked after a fixed 60 ms delay, but every card keeps growing slightly after it renders (code highlighting, math), so anything above the target pushed it back down — sometimes by a whole card. It now aligns frame by frame until the layout settles, and the reader also stops correcting as soon as you scroll or click, so it never fights you. See `docs/DEV.md` §3.15.
+- **Dragging a card while an answer is streaming no longer makes it jitter.** Node positions were only written back to the database when you released the mouse, but the canvas rebuilds its nodes on every streamed token — each rebuild snapped the card you were holding back to where the drag started, so it shook once per token. Cards that are currently being dragged now keep their on-canvas position until you let go. See `docs/DEV.md` §4.10.
+
 ## [0.8.3] - 2026-10-13
 
 ### Changed

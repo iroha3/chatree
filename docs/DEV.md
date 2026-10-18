@@ -311,8 +311,21 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
   改成那个节点**，不做「自动走到它最深的叶子」那种猜测；终点如果还有后续，卡片流末尾会
   出现「从这条继续」。切过去时 `scrollIntoView({ behavior: 'smooth' })` —— 这就是「丝滑」。
   理由见 D-013。
-- **打开时定位到目标卡片的顶部**（双击 = 「从这里开始读」），不是卡片中间：`block: 'start'`。
+- **打开时定位到目标卡片的顶部**（双击 = 「从这里开始读」），不是卡片中间。
   滚轮翻页和点分支用**同一种平滑滚动**；只有首屏（浮层刚出现那一下）用瞬到。
+- 定位不能写成「`setTimeout(60)` + `scrollIntoView({ block: 'start' })`」（旧实现，已删）：
+  每张卡片的 `MdPreview` 都在 effect 里做高亮 / 公式等**补处理**，它们会在那 60ms 之后
+  把目标卡片**上方**的内容撑高，卡片于是又往下漂 —— 实测偶发落在 `cardTop: 130`，
+  用户看到的是「打开浮层没停在我双击的那张卡上」。现在改成 `alignRef` 的 rAF 对齐环
+  （见 `PathReaderOverlay.tsx`）：每帧用 `rect` 差算出「卡片顶部贴住容器顶部」需要的
+  `scrollTop`（`offsetTop` 不行 —— 卡片的定位祖先是那个 fixed 遮罩，不是滚动容器），
+  首屏逐帧**瞬到**并盯到布局稳定（≥6 帧且 ≥700ms，上限 1.5s），平滑那条路径只在
+  布局稳定后**发一次** `scrollTo({ behavior: 'smooth' })`。
+  > ⚠️ 判断「布局稳了」必须在**发滚动之前**算。曾经先发滚动、后更新 `stableFrames`，
+  > 结果恰好是「稳定帧数够了的那一帧 `done` 已经成立」，滚动一次都发不出去
+  > （端到端表现为 `scrollEvents: 0`，而且肉眼看着像「点了分支没反应」）。
+  > 另外：用户一动滚轮 / 按下就 `cancelAlign`，瞬到那条路径还额外校验 `scrollTop`
+  > 有没有被别人改过，改了就撒手 —— 别跟人抢滚动条。
   > ⚠️ 别给滚轮翻页用 `behavior: 'auto'`。曾经为了「怕和平滑滚动打架」这么写过，
   > 结果内容直接传送走、读者当场丢掉位置感（用户：「我甚至分不清我看到哪里了」）。
   > 真起冲突的地方不是滚动本身，而是**平滑滚动起步前那几十毫秒容器还在底部**、
@@ -466,6 +479,52 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
    `window.innerWidth / 2` —— 桌面端有侧栏，画板比窗口窄一截，根节点因此偏左约半个侧栏宽，
    且因为 `if (initialViewport) return` 永不重算。两条一起才修好：统一走 store + 初次视口
    **量不到容器宽度就不设**（等 `session.nodes` 到位、占位容器挂上后那次 effect 再算）。
+9. **画布外层（`.react-flow`）绝不能被浏览器滚。**
+   它是 React Flow 内联的 `overflow: hidden` —— 没有滚动条，但浏览器**仍然把它当
+   可滚动容器**，而里面装着几千像素高的节点（`scrollHeight` 轻松上万）。于是浏览器
+   **自己的**滚动行为 —— `el.focus()`（默认把焦点元素滚进视野）、`scrollIntoView()`、
+   页内查找 —— 会直接改掉它的 `scrollTop`：整块画布连同左下角的 Controls 一起被平移
+   出去，而且**用户没有任何滚动条能拉回来**。
+
+   症状（用户原话）：「卡片比较多的时候，新建卡片，画布无法被滚动，左下的四个按钮
+   反而到了中间」。卡片越多、树的坐标越深，被推走的距离越大；再加上新卡片聚焦和
+   `setCenter` 之间有竞态（谁先跑看机器），所以它「不能稳定复现」。实测：屏幕外的卡片
+   进入编辑态，`scrollTop` 一下变成 **4597px**，Controls 从底部 `702` 跑到 `-3896`。
+
+   两道护栏，都别拆：
+   - `index.css` 里 `.react-flow { overflow: clip !important; }`：裁剪效果和 `hidden`
+     一样，但**不是滚动容器**（连程序滚动都不接受，`scrollTop` 永远是 0）。必须
+     `!important`，因为 React Flow 是内联样式。
+   - `utils/cardFocus.ts`：所有聚焦一律 `focus({ preventScroll: true })`；手机上
+     「把正在编辑的卡片挪到视野中间」改用画布自己的平移（`reactFlow.setCenter`），
+     **不要**用 `scrollIntoView`。
+
+   回归在 `tests/node-ux-check.mjs`（`TallChain` 会话）：屏幕外的卡片进入编辑态 /
+   新建卡片并自动聚焦之后，`.react-flow` 的 `scrollTop`、`scrollLeft` 必须还是 0，
+   Controls 必须还在左下角。
+10. **拖动中的节点，坐标不能从 store 里读。**
+    节点坐标只有 `onNodeDragStop` 时才写回 store，而「按 `session.nodes` 重建 nodes」
+    的那个 effect 会因为**别的原因**随时重跑 —— 流式输出时最明显：每来一个 token 都跑
+    一次。它一旦拿 store 里（= 按下鼠标那一刻）的旧坐标去重建，正被拖着的那张卡就被
+    拽回原位，下一个 `pointermove` 又把它推回来，于是**每个 token 抖一下**（用户：
+    「输出时拖动卡片会抖」）。实测一次 store 写入就能让卡片瞬移 60×24px。
+
+    现在 `ChatFlow` 用 `dragPositionsRef`（id → 画布上的实时坐标）覆盖 store 坐标：
+    `onNodeDragStart` / `onNodeDrag` 写入，`onNodeDragStop` 写回 store 后清除，
+    重建 effect 里 `dragPositionsRef.current.get(node.id) ?? resolveNodePosition(...)`。
+    两个容易漏的点：
+    - 回调的**第三个参数**是「这次手势一起被拖的所有节点」，多选拖动时 React Flow 只对
+      主节点回调。只记 `node` 的话，同批被拖的其它卡片照样会抖；
+    - 落点必须仍然落库（`updateNodeInSession`），否则松手后下一次 store 变更又会把它
+      弹回去 —— 回归里特意断言了「松手后坐标变了」。
+
+    回归在 `tests/node-ux-check.mjs`（`DragProbe` 会话）：按住鼠标拖到一半时写一次
+    store（= 来了一个 token），卡片的屏幕位置必须一动不动；同时确认这次拖动**真的
+    发生了**（否则用例什么都没测到）。
+    > ⚠️ 同一个文件里，「关于」那一节原本用 `window.dispatchEvent(Escape)` 关设置弹窗，
+    > 但 `SettingsModal` 的 Esc 监听挂在 `document` 上 —— 事件到 window 就结束了，
+    > 弹窗一直开着。按坐标操作的用例会被这层遮罩静默吃掉（拖动压根没发生）。
+    > 现在改成点「关闭」并断言弹窗真的没了。
 
 ---
 
@@ -491,7 +550,7 @@ public/                       # hljs/katex 的本地 shim（离线用，见 §5�
 | `bun test:compress` | 无 | `utils/compress.ts` 的 gzip 往返无损、魔数嗅探、坏数据必须抛错（WebDAV 同步文件的传输层） |
 | `bun test:sync` | 无 | `utils/syncMerge.ts` 的模型墓碑、以及「强推后同步必须幂等」（用 `mock.module` 把 Dexie / zustand 换成内存实现） |
 | `bun test:smoke` | Edge:9222 + dev:5175 | 主流程端到端（建会话/建模型/发消息/导入导出…） |
-| `bun test:ux` | Edge:9222 + dev:5175 | 50 项节点交互：去重、思考折叠、连续阅读（整条路径 + 分支切换 + 读到底翻页 + 落点高亮）、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、设置面板无 max tokens、标签页标题跟随语言… |
+| `bun test:ux` | Edge:9222 + dev:5175 | 55 项节点交互：去重、思考折叠、连续阅读（整条路径 + 分支切换 + 读到底翻页 + 落点高亮 + 布局长高后不飘走）、星标三态、删除确认+撤销、排版、代码块等宽、编辑态进出、动作按钮的位置/尺寸/右对齐、滚轮滚动链（内层/画布分流）、画布容器不能被浏览器滚走（Deep cards + 自动聚焦）、流式输出时拖动卡片不抖、设置面板无 max tokens、标签页标题跟随语言… |
 
 跑端到端前需要：
 
