@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatFlow from './components/ChatFlow';
+import { ChatView } from './components/chat/ChatView';
+import { TopViewSwitcher } from './components/TopViewSwitcher';
 import SettingsModal from './components/SettingsModal';
 import type { SettingsTab } from './components/SettingsModal';
 import NotificationContainer from './components/Notification';
@@ -8,6 +10,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import { useSessionStore } from './stores/sessionStore';
 import { useModelStore } from './stores/modelStore';
 import { useSyncStore } from './stores/syncStore';
+import { useChatStore } from './stores/chatStore';
 import { useDatabaseContext } from './context/DatabaseContext';
 import { Session } from './types';
 import { defaultSessionTitle } from './utils/sessionTitle';
@@ -27,6 +30,10 @@ const App: React.FC = () => {
   const { loadSessions, loadModels, loadFolders } = useDatabaseContext();
   const { sessions } = useSessionStore();
   const { models } = useModelStore();
+  const currentViewMode = useChatStore((s) =>
+    currentSessionId ? s.getViewMode(currentSessionId) : 'chat'
+  );
+  const setViewMode = useChatStore((s) => s.setViewMode);
   const [isLoading, setIsLoading] = useState(true);
   const t = useT();
 
@@ -103,10 +110,27 @@ const App: React.FC = () => {
       />
       <main className="flex-1 overflow-hidden relative">
         {currentSessionId ? (
-          <ChatFlow
-            sessionId={currentSessionId}
-            onOpenSettings={() => setSettingsTab('models')}
-          />
+          <>
+            {/* 顶栏居中视图切换药丸 [ 💬 对话 | 🌲 画板 ] */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+              <TopViewSwitcher
+                mode={currentViewMode}
+                onChange={(mode) => setViewMode(currentSessionId, mode)}
+              />
+            </div>
+
+            {currentViewMode === 'chat' ? (
+              <ChatView
+                sessionId={currentSessionId}
+                onOpenSettings={() => setSettingsTab('models')}
+              />
+            ) : (
+              <ChatFlow
+                sessionId={currentSessionId}
+                onOpenSettings={() => setSettingsTab('models')}
+              />
+            )}
+          </>
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-subtle border border-neutral-100">

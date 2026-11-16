@@ -23,6 +23,7 @@ import { useModelStore } from '../stores/modelStore';
 import { useThemeStore } from '../stores/themeStore';
 import { ChatNode as ChatNodeType, NodeData } from '../types';
 import { useT } from '../i18n';
+import { useChatStore } from '../stores/chatStore';
 import { useChatController } from '../hooks/useChatController';
 import { Share2, LayoutGrid, FileJson, FileText, BarChart3, Settings, Network, ZoomIn, ZoomOut, Maximize2, SlidersHorizontal } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
@@ -412,8 +413,10 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
-  // 刚新建的节点 id。渲染完成后把它平移到视野中间，否则可能落在屏幕外面。
-  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  // 刚新建或从 Chat 模式切过来的焦点节点 id。渲染完成后把它平移到视野中间。
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(
+    () => useChatStore.getState().activeNodeIds[sessionId] || null
+  );
   const [showStats, setShowStats] = useState(false);
   // 右上角的「分享 / 导出」菜单。JSON 备份 + 思维导图先合进来；
   // 以后加 PDF / DOCX / 独立 HTML 也往这里塞（见 ROADMAP「导出（讨论中）」）。
@@ -1285,6 +1288,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
         proOptions={{ hideAttribution: true }}
         nodesDraggable={true}
         elementsSelectable={true}
+        onNodeClick={(_, flowNode) => useChatStore.getState().setActiveNodeId(sessionId, flowNode.id)}
         // 滚轮 = 平移画布，Ctrl/⌘ + 滚轮 = 缩放。
         //
         // React Flow 默认是「滚轮 = 缩放」，于是长对话（尤其是一整条不分叉的单链）
