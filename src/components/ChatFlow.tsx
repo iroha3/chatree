@@ -21,16 +21,15 @@ import SessionStats from './SessionStats';
 import { useSessionStore } from '../stores/sessionStore';
 import { useModelStore } from '../stores/modelStore';
 import { useThemeStore } from '../stores/themeStore';
-import { ChatNode as ChatNodeType, NodeData, UsageStats } from '../types';
+import { ChatNode as ChatNodeType, NodeData } from '../types';
 import { useT } from '../i18n';
-import { sendChatRequest } from '../services/apiService';
+import { useChatController } from '../hooks/useChatController';
 import { Share2, LayoutGrid, FileJson, FileText, BarChart3, Settings, Network, ZoomIn, ZoomOut, Maximize2, SlidersHorizontal } from 'lucide-react';
 import { exportToMindmap } from '../utils/exportUtils';
 import { exportSessionToFile } from '../utils/sessionTransfer';
 import { exportSessionToMarkdown } from '../utils/markdownExport';
 import { showSuccess, showError, showInfo, showUndo } from '../utils/notification';
 import { requestConfirm } from '../stores/confirmStore';
-import { deriveSessionTitle } from '../utils/sessionTitle';
 import { DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/modelDefaults';
 import { generateId } from '../utils/id';
 
@@ -340,11 +339,9 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     searchQuery,
     addNodeToSession,
     updateNodeInSession,
-    touchSession,
     updateSession,
     replaceSessionNodes,
     deleteNodeFromSession,
-    autoTitleSession,
   } = useSessionStore();
   const { models, defaultModelId } = useModelStore();
   const { theme, grid } = useThemeStore();
@@ -394,7 +391,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     if (!width) return;
     setInitialViewport(homeViewport(width, session?.nodes ?? []));
   }, [initialViewport, session?.nodes]);
-  const abortControllerRef = useRef<Record<string, AbortController>>({});
+
   const [nodeDimensions, setNodeDimensions] = useState<Record<string, { width: number, height: number }>>({});
   /*
    * 拖拽整卡 vs 触屏滚动的分流。
@@ -496,26 +493,13 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     edgeSignatureRef.current = signature;
     setEdges(next);
   }, []);
-  const [streamingResponses, setStreamingResponses] = useState<Record<string, string>>({});
-  // 思维链单独一个 map。它以独立通道（delta.reasoning_content）到达，
-  // 而且整段都在正文之前，所以不会和正文的更新叠加成「每 chunk 两次重渲染」。
-  const [streamingReasoning, setStreamingReasoning] = useState<Record<string, string>>({});
-
-  // 流式状态清理：正文和思维链一起清，否则重试后会残留上一次的内容
-  const clearStreamingState = useCallback((nodeId: string) => {
-    setStreamingResponses(prev => {
-      if (!(nodeId in prev)) return prev;
-      const next = { ...prev };
-      delete next[nodeId];
-      return next;
-    });
-    setStreamingReasoning(prev => {
-      if (!(nodeId in prev)) return prev;
-      const next = { ...prev };
-      delete next[nodeId];
-      return next;
-    });
-  }, []);
+  const {
+    streamingResponses,
+    streamingReasoning,
+    stopNode,
+    retryNode,
+    resubmitNode,
+  } = useChatController();
 
   const calculateNodeLayout = useCallback((forceRecalculate = false) => {
     if (!session || !session.nodes) return;
@@ -798,7 +782,7 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
       const removedNodes = (current?.nodes ?? session.nodes).filter(n => toRemove.has(n.id));
       // 中止这棵子树里正在跑的生成，否则请求结束后那次落盘会想写回已删的节点。
       // （updateNodeInSession 现在只更新已存在的节点，双保险。）
-      toRemove.forEach(id => abortControllerRef.current[id]?.abort());
+      toRemove.forEach(id => stopNode(id));
       deleteNodeFromSession(sessionId, nodeId);
 
       showUndo(
@@ -819,273 +803,18 @@ const ReactFlowWrapper: React.FC<ChatFlowProps> = ({ sessionId, onOpenSettings }
     });
   };
 
-  /**
-   * 跑一次生成请求。
-   *
-   * `contextNodes` 是拼上下文用的节点快照 —— 分支场景下要拿它拼出包含新节点
-   * 自己的 userMessage 的消息链。节点落库走 addNodeToSession（同步写 store）。
-   */
-  const runNodeGeneration = async (nodeId: string, contextNodes: ChatNodeType[]) => {
-    if (!session) return;
-
-    const node = contextNodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    const model = models.find(m => m.id === node.modelId);
-    if (!model) {
-      showError(t('当前模型不存在，请重新选择'));
-      return;
-    }
-
-    if (abortControllerRef.current[nodeId]) {
-      abortControllerRef.current[nodeId].abort();
-    }
-
-    const abortController = new AbortController();
-    abortControllerRef.current[nodeId] = abortController;
-
-    // 初始化流式响应
-    setStreamingResponses(prev => ({
-      ...prev,
-      [nodeId]: ""
-    }));
-    setStreamingReasoning(prev => ({
-      ...prev,
-      [nodeId]: ""
-    }));
-
-    // 本次请求累积的正文与思维链
-    let accumulatedResponse = '';
-    let accumulatedReasoning = '';
-    let accumulatedUsage: UsageStats | undefined;
-    const startedAt = Date.now();
-
-    try {
-      // 系统提示词**只**来自系统节点本身。
-      // 以前这里是 `systemNode?.userMessage || model.defaultSystemPrompt`，
-      // 于是用户删掉系统节点（或把它清空）之后，模型默认提示词又会偷偷回来 ——
-      // 用户明确删掉的东西不该复活，请求里也不该再多出一段他没写的提示词
-      // （这正是「只输入你好却带着 system prompt」的根因）。
-      // 新会话的系统节点在创建时已经填好了模型默认值，所以这里不需要兜底。
-      const systemNode = contextNodes.find(n => n.type === 'system');
-      const systemPrompt = systemNode ? systemNode.userMessage : '';
-
-      const messages = [];
-
-      if (systemPrompt) {
-        messages.push({ role: 'system' as const, content: systemPrompt });
-      }
-
-      let currentParentId = node.parentId;
-      const messageChain = [];
-
-      while (currentParentId) {
-        const parentNode = contextNodes.find(n => n.id === currentParentId);
-        if (parentNode && parentNode.type === 'chat') {
-          messageChain.unshift({
-            user: parentNode.userMessage,
-            assistant: parentNode.assistantMessage
-          });
-        }
-        currentParentId = parentNode?.parentId || null;
-      }
-
-      messageChain.forEach(msg => {
-        if (msg.user) messages.push({ role: 'user' as const, content: msg.user });
-        if (msg.assistant) messages.push({ role: 'assistant' as const, content: msg.assistant });
-      });
-
-      messages.push({ role: 'user' as const, content: node.userMessage });
-
-      // 会话标题还是默认值时，用第一个问题自动命名。纯本地字符串处理，
-      // 不额外请求 API。用户在侧边栏改过标题后 action 内部会直接忽略。
-      const derivedTitle = deriveSessionTitle(node.userMessage);
-      if (derivedTitle) {
-        autoTitleSession(sessionId, derivedTitle);
-      }
-
-      await sendChatRequest({
-        messages,
-        model,
-        temperature: node.temperature,
-        maxTokens: node.maxTokens,
-        sessionId,
-        signal: abortController.signal,
-        onChunk: (chunk) => {
-          accumulatedResponse += chunk;
-          // 只更新流式响应状态，不更新节点
-          setStreamingResponses(prev => ({
-            ...prev,
-            [nodeId]: accumulatedResponse
-          }));
-        },
-        // 思维链单独累积，不参与正文渲染，也不会回传给 API
-        onReasoning: (chunk) => {
-          accumulatedReasoning += chunk;
-          // 同步喂给流式状态，让节点在等待正文时就能看到思考过程
-          setStreamingReasoning(prev => ({
-            ...prev,
-            [nodeId]: accumulatedReasoning
-          }));
-        },
-        onUsage: (u) => {
-          accumulatedUsage = u;
-        }
-      });
-
-      // 完成后再一次性更新节点内容
-      updateNodeInSession(sessionId, {
-        ...node,
-        assistantMessage: accumulatedResponse,
-        reasoning: accumulatedReasoning || undefined,
-        usage: accumulatedUsage
-          ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
-          : undefined,
-        isStreaming: false,
-        error: undefined
-      });
-
-      // 清除流式状态（正文 + 思维链）。此时节点已经拿到持久化的
-      // reasoning，继续流式渲染反而会和落库版本重复。
-      clearStreamingState(nodeId);
-
-    } catch (error: unknown) {
-      console.error('Chat request failed:', error);
-      const aborted =
-        error instanceof Error && (error.name === 'AbortError' || /cancel/i.test(error.message));
-      const message = error instanceof Error ? error.message : 'Failed to get response';
-
-      if (aborted) {
-        // 用户点了「停止」：**把已经生成的部分保存下来**，而不是丢掉。
-        // 这正是「停止点了就保存」的含义 —— 之前流式内容只在内存里，
-        // 刷新或停止都会白写。
-        updateNodeInSession(sessionId, {
-          ...node,
-          assistantMessage: accumulatedResponse,
-          reasoning: accumulatedReasoning || undefined,
-          usage: accumulatedUsage
-            ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
-            : undefined,
-          isStreaming: false,
-          error: undefined,
-        });
-      } else {
-        updateNodeInSession(sessionId, {
-          ...node,
-          isStreaming: false,
-          error: message,
-          // 中途失败也保留已经产生的部分，便于排查
-          assistantMessage: accumulatedResponse || node.assistantMessage,
-          reasoning: accumulatedReasoning || undefined,
-          usage: accumulatedUsage
-            ? { ...accumulatedUsage, durationMs: Date.now() - startedAt }
-            : undefined
-        });
-      }
-
-      // 清除流式状态
-      clearStreamingState(nodeId);
-    } finally {
-      delete abortControllerRef.current[nodeId];
-    }
-  };
-
-  /**
-   * 停止这场生成。
-   *
-   * 只负责中止请求；真正「保存已生成内容」发生在 runNodeGeneration 的
-   * catch 里（那里才拿得到累积的文本）。中止后 fetch 会 reject，走同一条路径。
-   */
   const handleStopNode = (nodeId: string) => {
-    abortControllerRef.current[nodeId]?.abort();
+    stopNode(nodeId);
   };
 
-  /**
-   * 「重新生成」按钮。
-   *
-   * 已经有回答时，另起一个**兄弟分支**（同一个父节点、同一条 userMessage），
-   * 旧答案原样保留。这棵树的意义就是比较不同回答，覆盖掉旧答案等于把
-   * 唯一的对照丢了。节点还没有回答时（刚发出去、或上次报错）才写回原节点。
-   */
   const handleRetryNode = (nodeId: string) => {
-    if (!session) return;
-
-    const node = session.nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    const model = models.find(m => m.id === node.modelId);
-    if (!model) {
-      showError(t('当前模型不存在，请重新选择'));
-      return;
-    }
-
-    if (node.assistantMessage || node.reasoning) {
-      const branch: ChatNodeType = {
-        ...node,
-        id: generateId(),
-        assistantMessage: '',
-        reasoning: undefined,
-        usage: undefined,
-        error: undefined,
-        isStreaming: true,
-        createdAt: new Date().toISOString(),
-        position: node.parentId ? computeChildPosition(node.parentId) : undefined,
-      };
-
-      addNodeToSession(sessionId, branch);
-      setPendingFocusId(branch.id);
-      showInfo(t('已创建新分支，正在生成…'));
-      // 拼消息链需要包含新分支自己的 userMessage，所以显式把它带进快照
-      void runNodeGeneration(branch.id, [...session.nodes, branch]);
-      return;
-    }
-
-    // 首次生成 / 报错后重试：直接写在原节点上
-    updateNodeInSession(sessionId, {
-      ...node,
-      isStreaming: true,
-      error: undefined,
-      reasoning: undefined,
-      usage: undefined
+    retryNode(sessionId, nodeId, computeChildPosition, (branchId) => {
+      setPendingFocusId(branchId);
     });
-    void runNodeGeneration(node.id, session.nodes);
   };
 
-  /**
-   * 原地重出。
-   *
-   * 和「重新生成」(onRetry) 的区别：**不另起分支**，直接把结果写回本节点。
-   * 适用场景：用户改了这条消息的文字，希望「这个节点重新回答一遍」；
-   * 想保留旧答案做对照的话，他可以自己从父节点拉一个新节点 —— 不在这里替他决定。
-   */
   const handleResubmitNode = (nodeId: string) => {
-    if (!session) return;
-
-    const node = session.nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    const model = models.find(m => m.id === node.modelId);
-    if (!model) {
-      showError(t('当前模型不存在，请重新选择'));
-      return;
-    }
-
-    // 先清掉旧回答：一是避免请求失败时旧内容又冒出来（文不对答），
-    // 二是让 UI 立刻进入「重新生成中」，而不是旧答案和新流式内容混在一起。
-    const cleared: ChatNodeType = {
-      ...node,
-      assistantMessage: '',
-      reasoning: undefined,
-      usage: undefined,
-      error: undefined,
-      isStreaming: true,
-    };
-
-    updateNodeInSession(sessionId, cleared);
-    // 就地重答不会新增节点，所以这里是**唯一**需要显式置顶的生成入口。
-    // 不置顶的话，你重答一个老会话，它不会回到列表最上面。
-    touchSession(sessionId);
-    void runNodeGeneration(nodeId, session.nodes.map(n => (n.id === nodeId ? cleared : n)));
+    resubmitNode(sessionId, nodeId);
   };
 
   const handleModelChange = (nodeId: string, modelId: string) => {

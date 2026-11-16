@@ -8,7 +8,7 @@
  * 跑：bun test:tree
  */
 
-import { buildPath, childrenOf, branchGroup } from '../src/utils/tree.ts';
+import { buildPath, childrenOf, branchGroup, findLatestLeaf } from '../src/utils/tree.ts';
 
 let failed = 0;
 function check(name, actual, expected) {
@@ -61,5 +61,13 @@ check('兄弟组含自己，且按时间排序', ids(branchGroup(nodes, 'd')), [
 check('独生子只有自己', ids(branchGroup(nodes, 'a')), ['a']);
 check('多个根也是「兄弟」', ids(branchGroup([root, n('root2', null, '2024-02-01T00:00:00Z')], 'root')), ['root', 'root2']);
 
-console.log(failed === 0 ? '\nPASS: 路径 / 子节点 / 兄弟组都对。' : `\n${failed} 项失败`);
+// ---- findLatestLeaf ----
+check('整棵树最新叶子 → e', findLatestLeaf(nodes)?.id, 'e');
+check('从分叉 b 开始找最新叶子 → e (走 d 孩子)', findLatestLeaf(nodes, 'b')?.id, 'e');
+check('从分支 c 开始找最新叶子 → c 自己', findLatestLeaf(nodes, 'c')?.id, 'c');
+check('从分支 a 开始找最新叶子 → e', findLatestLeaf(nodes, 'a')?.id, 'e');
+check('空树 → undefined', findLatestLeaf([]), undefined);
+check('不存在的节点 → undefined', findLatestLeaf(nodes, 'nope'), undefined);
+
+console.log(failed === 0 ? '\nPASS: 路径 / 子节点 / 兄弟组 / 最新叶子都对。' : `\n${failed} 项失败`);
 process.exit(failed === 0 ? 0 : 1);

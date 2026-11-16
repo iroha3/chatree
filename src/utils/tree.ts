@@ -51,3 +51,31 @@ export function branchGroup(nodes: ChatNode[], nodeId: string): ChatNode[] {
   if (!node) return [];
   return nodes.filter((n) => n.parentId === node.parentId).sort(byCreatedAt);
 }
+
+/**
+ * 寻找指定节点下游（或整个会话树）创建时间最新的叶子节点。
+ *
+ * 1. 若传入 `fromNodeId`：从该节点一路沿着最新的子节点向下探到底（用于分支切换后自动选叶）；
+ * 2. 若未传入 `fromNodeId`：在整棵树的所有叶子中，返回创建时间最新的那一个（用于打开会话时定位默认叶子）。
+ */
+export function findLatestLeaf(nodes: ChatNode[], fromNodeId?: string): ChatNode | undefined {
+  if (nodes.length === 0) return undefined;
+
+  if (!fromNodeId) {
+    const parentIdSet = new Set(nodes.map((n) => n.parentId).filter(Boolean));
+    const leaves = nodes.filter((n) => !parentIdSet.has(n.id)).sort(byCreatedAt);
+    return leaves[leaves.length - 1] ?? nodes[nodes.length - 1];
+  }
+
+  let cur = nodes.find((n) => n.id === fromNodeId);
+  if (!cur) return undefined;
+  const seen = new Set<string>();
+
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const children = childrenOf(nodes, cur.id);
+    if (children.length === 0) break;
+    cur = children[children.length - 1];
+  }
+  return cur;
+}

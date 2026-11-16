@@ -33,6 +33,7 @@
     "test:edge": "bun tests/edge-contract-check.mjs",
     "test:usage": "bun tests/usage-check.mjs",
     "test:tree": "bun tests/tree-check.mjs",
+    "test:engine": "bun tests/chat-engine-check.mjs",
     "test:md": "bun tests/markdown-export-check.mjs",
     "test:compress": "bun tests/compress-check.mjs",
     "test:sync": "bun tests/sync-merge-check.mjs",
